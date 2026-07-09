@@ -1,0 +1,31 @@
+
+services:
+  frontend:
+    build: ./View/frontend
+    container_name: inventory-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./View/frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+
+
+
+#   db:
+#     image: mariadb:12.3.2 
+#     environment:
+#       MYSQL_ROOT_PASSWORD: root_password_super_secret
+#       MYSQL_DATABASE: DISNUTZTEST01
+#       MYSQL_USER: user_app
+#       MYSQL_PASSWORD: secure_password
+#     ports:
+#       - "3306:3306" 
+#     volumes:
+#       - mariadb_data:/var/lib/mysql
+#       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+# volumes:
+#   mariadb_data:
+
