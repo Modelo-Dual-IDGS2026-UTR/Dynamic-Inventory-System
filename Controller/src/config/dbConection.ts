@@ -6,8 +6,8 @@ const dbPassword=process.env.MYSQL_PASSWORD||"secure_password";
 const dbRootPassword=process.env.MYSQL_ROOT_PASSWORD||"root_password_super_secret";
 
 export const mySequelize=new Sequelize(dbName,dbUser,dbPassword,{
-    //Change to db for docker
-    host:"localhost",
+    
+    host:"db",
     dialect:"mariadb",
     port:3306,
 
@@ -25,11 +25,11 @@ export const mySequelize=new Sequelize(dbName,dbUser,dbPassword,{
     timezone:"-06:00"
 });
 
-(async ()=>{
+export const TestConection=async ()=>{
         try{
         await mySequelize.authenticate();
         console.log("You connected")
     }catch(e){
         console.error("Your error dude: "+e);
     }
-})();
+};
