@@ -1,0 +1,85 @@
+name: CI Quality & Tests #Workflow name
+
+on: #It activates when:
+    pull_request:
+        branches: [main, development] # Only in these branches
+
+jobs: #The job that is assignated to do 
+
+# ========================= #
+# BACKEND
+# ========================= #
+
+    backend-ci: #First job (name)
+        runs-on: ubuntu-latest # Similar to docker it runs a mini Operating System (VM) of Ubuntu to test
+        defaults:
+            run:
+                working-directory: ./Controller #Directory where it will work
+
+        steps: #The steps to follow
+            - name: Download Code #Fist step name
+              uses: actions/checkout@v4 # It clones the repository in the VM, it is equivalent to a git clone & checkout
+
+            - name: Install Node.js # Second step name
+              uses: actions/setup-node@v4 #Install node in the VM
+              with: #What are we going to use 
+                node-version: '24' # Which version
+                cache: 'npm' # Where are use NPM or yarn
+
+                # Because is irrelevant to compile each time node_modules, github saves a cache, if package-lock.json
+                # changes, it will compile again node_modules
+                cache-dependency-path: ./Controller/package-lock.json 
+
+              # Instead of using npm install we use npm ci,because it deletes node_modules, it is faster and warranties 
+              # that the test are done in the same version that was used in the pc
+            - name: Install clean dependencies
+              run: npm ci
+
+              # Executes code reviewer to check style & quality of the code, it searches for bad practices 
+            - name: Review code style (Linter)
+              run: npm run lint
+
+              # --noEmit command makes your code search for any error, for example if you added a string to an integer
+              # It doesn't generate a final .js file
+            - name: Verify strict typing (Typescript)
+              run: npx tsc --noEmit
+
+              # Executes automatic tests, using tools like jest, verifies math functions, validations or that routes
+              # works as planned
+            - name: Run unit tests
+              run: npm run test
+
+
+# ========================= #
+# FRONTEND
+# ========================= #
+
+    frontend-ci:
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: ./View/frontend
+
+      steps:
+        - name: Download Code
+          uses: actions/checkout@v4
+
+        - name: Install Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: '24'
+            cache: 'npm'
+            cache-dependency-path: ./View/frontend/package-lock.json
+
+        - name: Install clean dependencies
+          run: npm ci
+
+        - name: Review code style (Linter)
+          run: npm run lint
+
+        #- name: Run unit tests
+        #  run: npm run test
+
+        - name: Verify that build compiles correctly
+          run: npm run build
+
