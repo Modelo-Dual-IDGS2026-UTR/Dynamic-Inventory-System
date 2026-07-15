@@ -25,5 +25,7 @@ app.post('/usuarios', (req: Request, res: Response) => {
 });
 
 app.listen(PORT, () => {
+    //This line down here, acts as a silencer for eslint, to ignore console lines warnings
+    // eslint-disable-next-line no-console
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
