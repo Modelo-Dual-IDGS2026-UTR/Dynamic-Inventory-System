@@ -24,14 +24,14 @@ services:
 
   backend:
     build:
-      context: ./Controller
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./Controller/Dockerfile
     container_name: dis_backend
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
-      - ./Controller:/app
+      - ./:/app
       - /app/node_modules
     environment:
       - PORT=3000
@@ -43,13 +43,15 @@ services:
       - dis_public_network
 
   frontend:
-    build: ./View/frontend
+    build:
+      context: .
+      dockerfile:  ./View/frontend/Dockerfile
     container_name: dis-frontend
     restart: unless-stopped
     ports:
       - "5173:5173"
     volumes:
-      - ./View/frontend:/app
+      - ./:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development

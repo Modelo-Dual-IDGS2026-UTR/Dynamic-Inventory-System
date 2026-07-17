@@ -4,11 +4,16 @@ WORKDIR /app
 
 COPY package*.json ./
 
+COPY Controller/package*.json ./Controller/
+COPY Model/package.json ./Model/
+
 RUN npm install
 
-COPY tsconfig.json ./
+COPY Controller/tsconfig.json ./Controller
 
 COPY . .
+
+WORKDIR /app/Controller
 
 EXPOSE 3000
 
