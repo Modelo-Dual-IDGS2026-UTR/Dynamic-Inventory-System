@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import {TestConection, mySequelize } from './config/dbConection.js';
+import {TestConection, mySequelize } from '../../Db/dbConection.js';
 
 TestConection();
 
