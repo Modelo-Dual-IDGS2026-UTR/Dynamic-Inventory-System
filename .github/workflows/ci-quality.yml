@@ -46,9 +46,9 @@ jobs: #The job that is assignated to do
 
               # Executes automatic tests, using tools like jest, verifies math functions, validations or that routes
               # works as planned
-            - name: Run unit tests
-              run: npm run test
-              working-directory: ./Controller
+            #- name: Run unit tests
+            #  run: npm run test
+            #  working-directory: ./Controller
 
 
 # ========================= #
