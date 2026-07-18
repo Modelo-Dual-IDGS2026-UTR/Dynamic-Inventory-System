@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src/**/*.ts",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+    "test": "node --experimental-vm-modules ../node_modules/.bin/jest"
   },
   "dependencies": {
     "@dis/db": "*",
