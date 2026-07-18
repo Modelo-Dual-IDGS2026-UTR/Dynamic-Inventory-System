@@ -6,7 +6,8 @@
   "workspaces": [
     "Controller",
     "View/frontend",
-    "Model"
+    "Model",
+    "Db"
   ],
   "scripts": {
     "dev:all": "npm run dev --workspaces --if-present",
@@ -19,15 +20,33 @@
     "sequelize": "^6.37.8"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@vitejs/plugin-react": "^6.0.3",
-    "eslint": "^10.6.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.3",
-    "globals": "^17.7.0"
+    "@eslint/js": "^9.0.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.0",
+    "globals": "^15.9.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^7.0.2"
   },
   "overrides": {
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "@typescript-eslint/parser": {
+      "typescript": "$typescript"
+    },
+    "@typescript-eslint/eslint-plugin": {
+      "typescript": "$typescript"
+    },
+    "ts-jest": {
+      "typescript": "$typescript"
+    }
   }
 }
 

@@ -1,4 +1,4 @@
-import {mySequelize} from '../Db/dbConection.js'
+import {mySequelize} from '@dis/db/dbConection.js'
 import {DataTypes} from 'sequelize';
 
 const User = mySequelize.define("User",{

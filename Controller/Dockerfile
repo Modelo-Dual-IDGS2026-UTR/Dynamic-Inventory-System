@@ -2,10 +2,12 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json ./
 
-COPY Controller/package*.json ./Controller/
+COPY Controller/package.json ./Controller/
 COPY Model/package.json ./Model/
+COPY Db/package.json ./Db/
+COPY View/frontend/package.json ./View/frontend/
 
 RUN npm install
 

@@ -33,6 +33,10 @@ services:
     volumes:
       - ./:/app
       - /app/node_modules
+      - /app/Controller/node_modules
+      - /app/View/frontend/node_modules
+      - /app/Model/node_modules
+      - /app/Db/node_modules
     environment:
       - PORT=3000
     depends_on:
@@ -53,6 +57,10 @@ services:
     volumes:
       - ./:/app
       - /app/node_modules
+      - /app/Controller/node_modules
+      - /app/View/frontend/node_modules
+      - /app/Model/node_modules
+      - /app/Db/node_modules
     environment:
       - NODE_ENV=development
     depends_on:

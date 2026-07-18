@@ -12,9 +12,7 @@ jobs: #The job that is assignated to do
 
     backend-ci: #First job (name)
         runs-on: ubuntu-latest # Similar to docker it runs a mini Operating System (VM) of Ubuntu to test
-        defaults:
-            run:
-                working-directory: ./Controller #Directory where it will work
+
 
         steps: #The steps to follow
             - name: Download Code #Fist step name
@@ -28,7 +26,7 @@ jobs: #The job that is assignated to do
 
                 # Because is irrelevant to compile each time node_modules, github saves a cache, if package-lock.json
                 # changes, it will compile again node_modules
-                cache-dependency-path: ./Controller/package-lock.json 
+                cache-dependency-path: ./package-lock.json 
 
               # Instead of using npm install we use npm ci,because it deletes node_modules, it is faster and warranties 
               # that the test are done in the same version that was used in the pc
@@ -38,16 +36,19 @@ jobs: #The job that is assignated to do
               # Executes code reviewer to check style & quality of the code, it searches for bad practices 
             - name: Review code style (Linter)
               run: npm run lint
+              working-directory: ./Controller
 
               # --noEmit command makes your code search for any error, for example if you added a string to an integer
               # It doesn't generate a final .js file
             - name: Verify strict typing (Typescript)
               run: npx tsc --noEmit
+              working-directory: ./Controller
 
               # Executes automatic tests, using tools like jest, verifies math functions, validations or that routes
               # works as planned
             - name: Run unit tests
               run: npm run test
+              working-directory: ./Controller
 
 
 # ========================= #
@@ -56,9 +57,7 @@ jobs: #The job that is assignated to do
 
     frontend-ci:
       runs-on: ubuntu-latest
-      defaults:
-        run:
-          working-directory: ./View/frontend
+
 
       steps:
         - name: Download Code
@@ -69,17 +68,19 @@ jobs: #The job that is assignated to do
           with:
             node-version: '24'
             cache: 'npm'
-            cache-dependency-path: ./View/frontend/package-lock.json
+            cache-dependency-path: ./package-lock.json
 
         - name: Install clean dependencies
           run: npm ci
 
         - name: Review code style (Linter)
           run: npm run lint
+          working-directory: ./View/frontend
 
         #- name: Run unit tests
         #  run: npm run test
 
         - name: Verify that build compiles correctly
           run: npm run build
+          working-directory: ./View/frontend
 

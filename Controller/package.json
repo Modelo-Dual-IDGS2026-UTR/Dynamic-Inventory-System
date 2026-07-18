@@ -10,6 +10,8 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "dependencies": {
+    "@dis/db": "*",
+    "@dis/model": "*",
     "bcryptjs": "^3.0.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
@@ -21,17 +23,7 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^26.1.1",
-    "@typescript-eslint/eslint-plugin": "^8.64.0",
-    "@typescript-eslint/parser": "^8.64.0",
-    "eslint": "^10.7.0",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.11",
-    "ts-node-dev": "^2.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "^7.0.2"
+    "@types/jsonwebtoken": "^9.0.10"
   },
   "overrides": {
     "uuid": "^11.1.1"
