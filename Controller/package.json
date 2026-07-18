@@ -1,19 +1,21 @@
 {
-  "name": "DIS-API",
+  "name": "@dis/backend",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --experimental-strip-types --watch ./src/index.ts",
+    "dev": "tsx watch ./src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src/**/*.ts",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules ../node_modules/.bin/jest"
   },
   "dependencies": {
+    "@dis/db": "*",
+    "@dis/model": "*",
     "bcryptjs": "^3.0.3",
-    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "mariadb": "^3.5.3",
     "mssql": "^12.5.5",
     "nodemailer": "^9.0.3",
     "swagger-jsdoc": "^6.3.0",
@@ -21,14 +23,9 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^26.1.1",
-    "@typescript-eslint/eslint-plugin": "^8.64.0",
-    "@typescript-eslint/parser": "^8.64.0",
-    "eslint": "^10.7.0",
-    "jest": "^30.4.2",
-    "ts-jest": "^29.4.11",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^6.0.0"
+    "@types/jsonwebtoken": "^9.0.10"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

@@ -1,0 +1,9 @@
+node_modules
+dist
+npm-debug.log
+.git
+.env
+Controller/node_modules
+View/frontend/node_modules
+Model/node_modules
+Db/node_modules

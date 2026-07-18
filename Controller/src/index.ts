@@ -1,5 +1,9 @@
 import express from 'express';
 import type { Request, Response } from 'express';
+import {TestConection, mySequelize } from '@dis/db/dbConection.js';
+
+TestConection();
+
 
 const app = express();
 const PORT = 3000;

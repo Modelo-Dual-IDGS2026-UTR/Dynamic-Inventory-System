@@ -2,13 +2,20 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json ./
+
+COPY Controller/package.json ./Controller/
+COPY Model/package.json ./Model/
+COPY Db/package.json ./Db/
+COPY View/frontend/package.json ./View/frontend/
 
 RUN npm install
 
-COPY tsconfig.json ./
+COPY Controller/tsconfig.json ./Controller
 
 COPY . .
+
+WORKDIR /app/Controller
 
 EXPOSE 3000
 
