@@ -71,7 +71,9 @@ jobs: #The job that is assignated to do
             cache-dependency-path: ./package-lock.json
 
         - name: Install clean dependencies
-          run: npm ci
+          run: |
+            rm -rf package-lock.json node_modules
+            npm install
 
         - name: Review code style (Linter)
           run: npm run lint
