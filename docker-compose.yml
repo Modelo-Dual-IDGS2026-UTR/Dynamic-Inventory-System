@@ -28,6 +28,7 @@ services:
       dockerfile: ./Controller/Dockerfile
     container_name: dis_backend
     restart: unless-stopped
+     
     ports:
       - "3000:3000"
     volumes:
@@ -39,6 +40,7 @@ services:
       - /app/Db/node_modules
     environment:
       - PORT=3000
+      - JWT_SECRET=We Love each Other
     depends_on:
         db:
           condition: service_healthy

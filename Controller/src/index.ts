@@ -1,9 +1,31 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import {TestConection, mySequelize } from '@dis/db/dbConection.js';
-
+/*
+import { GenerateJWT , VerifyJWT} from './middleware/jwtUtils.js'; 
+import type { jwtPayloadContent } from './middleware/jwtUtils.js';
+*/
 TestConection();
+/*
+const TestJWT=()=>{
+    const userPayload:jwtPayloadContent = {
+        userId:"6969",
+        role: 1,
+        career_area:"TICS",
+        fullName:"Osmar Macias Curiel"
+    }
 
+    let jwt:string =GenerateJWT(userPayload,"2m");
+
+    try{
+        VerifyJWT(jwt);
+        console.log(jwt + "\nToken Validaded")
+    }catch{
+        console.log("DUUUUUUDE YOU FUCKED UP")
+    }
+    
+}
+*/
 
 const app = express();
 const PORT = 3000;
