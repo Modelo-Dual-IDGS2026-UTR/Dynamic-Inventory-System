@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type {SignOptions, VerifyOptions} from 'jsonwebtoken';
-import { error } from 'node:console';
+
 
 export interface jwtPayloadContent{
     userId:string;
