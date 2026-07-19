@@ -11,14 +11,16 @@ export interface jwtPayloadContent{
 
 const JWT_Secret=process.env.JWT_SECRET;
 
+const algorithm='HS256';
+
+
 if(!JWT_Secret){
     throw new Error("\n------FATAL ERROR: No jwt secret defined---------\n");
 }
-
 export const GenerateJWT=(payload:jwtPayloadContent, expiresIn: SignOptions["expiresIn"] = 15000): string =>{
     const options: SignOptions = {
         expiresIn,
-        algorithm: 'HS256'
+        algorithm
 
     };
 
@@ -28,7 +30,7 @@ export const GenerateJWT=(payload:jwtPayloadContent, expiresIn: SignOptions["exp
 
 export const VerifyJWT=(token:string):jwtPayloadContent=>{
     const options: VerifyOptions = {
-        algorithms:['HS256']
+        algorithms:[algorithm]
     }
 
     try{
