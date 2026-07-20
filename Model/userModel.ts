@@ -24,11 +24,6 @@ export const User = mySequelize.define("User",{
         type:DataTypes.STRING,
         allowNull:false
     },
-    //Password must be hashed
-    userPassword:{
-        type:DataTypes.STRING,
-        allowNull:false
-    },
     area:{
         type:DataTypes.STRING,
         allowNull:false
