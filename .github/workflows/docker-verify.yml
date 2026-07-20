@@ -16,9 +16,9 @@ jobs:
             matrix: 
                 include:
                     - name: backend
-                      path: /Controller
+                      path: Controller
                     - name: frontend
-                      path: /View/frontend
+                      path: View/frontend
                 
         steps:
             - name: Checkout code
@@ -30,7 +30,7 @@ jobs:
             - name: Try docker build ${{ matrix.name }}
               uses: docker/build-push-action@v6
               with:
-                context: ./${{ matrix.path }}
+                context: .
                 file: ./${{ matrix.path }}/Dockerfile
                 push: false
                 tags: app-${{ matrix.name }}:test
