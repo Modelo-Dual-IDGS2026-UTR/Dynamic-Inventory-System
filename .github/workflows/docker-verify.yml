@@ -1,0 +1,41 @@
+name: Verify Monorepo Docker Builds
+
+on:
+  push:
+    branches: [ "main", "development" ]
+  pull_request:
+    branches: [ "main", "development" ]
+
+jobs:
+    verify-build:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            # Because this is a monorepo, we need to test each dockerfile in each folder,
+            # so we create a matrix with the name and path of each folder
+            matrix: 
+                include:
+                    - name: backend
+                      path: /Controller
+                    - name: frontend
+                      path: /View/frontend
+                
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Try docker build ${{ matrix.name }}
+              uses: docker/build-push-action@v6
+              with:
+                context: ./${{ matrix.path }}
+                file: ./${{ matrix.path }}/Dockerfile
+                push: false
+                tags: app-${{ matrix.name }}:test
+                cache-from: type=gha, scope=${{ matrix.name }}
+                cache-to: type=gha, mode=max, scope=${{ matrix.name }}
+
+
+              
