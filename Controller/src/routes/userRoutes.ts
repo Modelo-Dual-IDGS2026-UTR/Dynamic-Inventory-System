@@ -1,14 +1,16 @@
 import express from 'express'
 import { VerifyJWT } from '../middleware/jwtUtils.js'
-
-const router= express.Router()
-
-const userController = require('../controllers/userController')
+import { userController } from '../controllers/userController.js'
 
 
-router.post('/register',userController.CreateUser)
+export const userRouter= express.Router()
 
-router.get('/me',VerifyJWT,userController.WhoAmI)
 
+
+userRouter.post('/register',userController.CreateUser)
+
+userRouter.get('/findUser/:userId',userController.SearchUserById)
+
+userRouter.get('/me',userController.WhoAmI)
 
 

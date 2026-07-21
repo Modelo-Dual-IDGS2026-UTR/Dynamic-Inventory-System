@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type {SignOptions, VerifyOptions} from 'jsonwebtoken';
-
+import type { Response,Request,NextFunction } from 'express';
 
 export interface jwtPayloadContent{
     userId:number,
@@ -26,14 +26,20 @@ export const GenerateJWT=(payload:jwtPayloadContent, expiresIn: SignOptions["exp
 
 }
 
-export const VerifyJWT=(token:string):jwtPayloadContent=>{
+export const VerifyJWT=(req:Request,res:Response, next:NextFunction)=>{
+    
+    const {token}=req.body
     const options: VerifyOptions = {
         algorithms:[algorithm]
     }
 
     try{
         const decoded = jwt.verify(token,JWT_Secret,options) as jwtPayloadContent;
-        return decoded
+        return res.status(200).json(
+            {
+                token: decoded
+
+            })
     }catch(error){
         if (error instanceof jwt.TokenExpiredError){
             throw new Error("Expired Token");

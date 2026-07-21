@@ -3,7 +3,7 @@ import { User,UserRole } from "@dis/model";
 import type { Response,Request } from "express";
 
 
-export const CreateUser= async (req:Request,res:Response,)=>{
+const CreateUser= async (req:Request,res:Response,)=>{
     
     
     try {
@@ -31,7 +31,7 @@ export const CreateUser= async (req:Request,res:Response,)=>{
     }
 };
 
-export const LogUser= async (req:Request,res:Response)=>{
+const LogUser= async (req:Request,res:Response)=>{
     //Add Goooooooogle sign in logic and therefore jason jwt web token logic 
     
     try {
@@ -58,7 +58,7 @@ export const LogUser= async (req:Request,res:Response)=>{
     }
 }
 
-export const SearchUserById=async (req:Request,res:Response)=>{
+const SearchUserById=async (req:Request,res:Response)=>{
     const id=req.params.userId
     if(!id){
         return res.status(400).json({
@@ -80,7 +80,7 @@ export const SearchUserById=async (req:Request,res:Response)=>{
         })
     }
 }
-export const WhoAmI=(req:Request,res:Response)=>{
+const WhoAmI=(req:Request,res:Response)=>{
     const {userId}=req.body
     if(!userId){
         return res.status(400).json({
@@ -127,3 +127,10 @@ async function ShowUser(id:number,res:Response){
         })
 
 } 
+
+export const userController={
+    CreateUser,
+    LogUser,
+    WhoAmI,
+    SearchUserById
+}

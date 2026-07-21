@@ -1,8 +1,9 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import {TestConection } from '@dis/db/dbConection.js';
-import {User,UserRole} from '../../Model/index.js'
+import {User,UserRole} from '@dis/model'
 import { mySequelize } from '@dis/db/dbConection.js';
+import {routes} from './routes/index.js'
 const TestSequelize=async ()=>{
 try {
     await mySequelize.authenticate();
@@ -13,11 +14,10 @@ try {
 
 } catch (error) {
     console.error('❌ Error en la prueba:', error);
-}finally{
-    await mySequelize.close()
+
+
+
 }
-
-
 }
 
 TestSequelize();
@@ -30,7 +30,7 @@ const PORT = 3000;
 // Middleware para entender JSON
 app.use(express.json());
 
-
+app.use('/api/user',routes.userRouter)
 
 
 // Endpoint GET de prueba
