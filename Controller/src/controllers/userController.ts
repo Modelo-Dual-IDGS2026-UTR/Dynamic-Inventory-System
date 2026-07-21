@@ -1,10 +1,6 @@
 import { mySequelize } from "@dis/db/dbConection.js";
 import { User,UserRole } from "@dis/model";
-import bcrypt from "bcryptjs";
 import type { Response,Request } from "express";
-import type { Json } from "sequelize/lib/utils";
-import { VerifyJWT } from "../middleware/jwtUtils.js";
-
 
 
 export const CreateUser= async (req:Request,res:Response,)=>{
