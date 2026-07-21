@@ -2,10 +2,12 @@ import { mySequelize } from "@dis/db/dbConection.js";
 import { User,UserRole } from "@dis/model";
 import bcrypt from "bcryptjs";
 import type { Response,Request } from "express";
+import type { Json } from "sequelize/lib/utils";
+import { VerifyJWT } from "../middleware/jwtUtils.js";
 
 
 
-export const CreateUser= async (res:Response,req:Request)=>{
+export const CreateUser= async (req:Request,res:Response,)=>{
     
     
     try {
@@ -33,7 +35,9 @@ export const CreateUser= async (res:Response,req:Request)=>{
     }
 };
 
-export const LogUser= async (res:Response,req:Request)=>{
+export const LogUser= async (req:Request,res:Response)=>{
+    //Add Goooooooogle sign in logic and therefore jason jwt web token logic 
+    
     try {
         const {firstName,lastName,email}=req.body
         const userSearch=await User.findOne({
@@ -57,3 +61,73 @@ export const LogUser= async (res:Response,req:Request)=>{
         })
     }
 }
+
+export const SearchUserById=async (req:Request,res:Response)=>{
+    const id=req.params.userId
+    if(!id){
+        return res.status(400).json({
+            message:"No User ID given"
+        })
+    }
+    try {
+        const convertedId=Number(id)
+        if(isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0){
+          return res.status(400).json({
+            message:"Invalid User ID"
+        })  
+        }
+        ShowUser(convertedId,res);
+        
+    } catch (error) {
+         return res.status(500).json({
+            message:"Internal Error: Dont Worry Is Not Your fault :D"
+        })
+    }
+}
+export const WhoAmI=(req:Request,res:Response)=>{
+    const {userId}=req.body
+    if(!userId){
+        return res.status(400).json({
+            message:"no ID recived"
+        })
+    }
+    try {
+        ShowUser(userId,res)
+    } catch (error) {
+         return res.status(500).json({
+            message:"Internal Error: Dont Worry Is Not Your fault :D"
+        })
+    }
+}
+
+async function ShowUser(id:number,res:Response){
+
+    const foundUser=await User.findByPk(id)
+        if(!foundUser){
+            return res.status(404).json({
+                message:"User not found or does not exist"
+            })
+        }
+        const {userId,
+            firstName,
+            lastName,
+            userStatus,
+            email,
+            area,
+            fk_role,
+            createdAt,
+            updatedAt}
+            =foundUser.toJSON()
+        return res.status(200).json({
+                userId,
+                firstName,
+                lastName,
+                userStatus,
+                email,
+                area,
+                fk_role,
+                createdAt,
+                updatedAt
+        })
+
+} 

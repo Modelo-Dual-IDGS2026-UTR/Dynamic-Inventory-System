@@ -3,10 +3,8 @@ import type {SignOptions, VerifyOptions} from 'jsonwebtoken';
 
 
 export interface jwtPayloadContent{
-    userId:string;
-    fullName:string;
-    role:number;
-    career_area:string;
+    userId:number,
+    role:number,
 };
 
 const JWT_Secret=process.env.JWT_SECRET;
