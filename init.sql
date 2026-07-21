@@ -180,5 +180,5 @@ ALTER TABLE Report
 
 INSERT INTO UserRole(roleName,roleDescription)
 VALUES ("Admin","CAN DO EVERYTHING");
-INSERT INTO User(firstName, lastName, userStatus, email, userPassword, area, fk_role)
-VALUES ("TEST USER", " 01", TRUE, "st1234@utr.edu.mx", "abcABCxyzXYZ","IDGS",1);
+INSERT INTO User(firstName, lastName, userStatus, email, area, fk_role)
+VALUES ("TEST USER", " 01", TRUE, "st1234@utr.edu.mx","IDGS",1);
