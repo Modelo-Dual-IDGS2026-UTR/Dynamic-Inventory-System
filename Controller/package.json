@@ -8,6 +8,8 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@dis/model": "*",
+    "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
@@ -15,9 +17,7 @@
     "mssql": "^12.5.5",
     "nodemailer": "^9.0.3",
     "swagger-jsdoc": "^6.3.0",
-    "swagger-ui-express": "^5.0.1",
-    "@dis/model": "*"
-    
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
