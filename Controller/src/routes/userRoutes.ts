@@ -11,6 +11,6 @@ userRouter.post('/register',userController.CreateUser)
 
 userRouter.get('/findUser/:userId',userController.SearchUserById)
 
-userRouter.get('/me',userController.WhoAmI)
+userRouter.get('/me',VerifyJWT(1),userController.WhoAmI)
 
 

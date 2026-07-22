@@ -81,7 +81,7 @@ const SearchUserById=async (req:Request,res:Response)=>{
     }
 }
 const WhoAmI=(req:Request,res:Response)=>{
-    const {userId}=req.body
+    const {userId}=res.locals.jwtPayloadContent
     if(!userId){
         return res.status(400).json({
             message:"no ID recived"

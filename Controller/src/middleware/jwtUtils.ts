@@ -26,20 +26,29 @@ export const GenerateJWT=(payload:jwtPayloadContent, expiresIn: SignOptions["exp
 
 }
 
-export const VerifyJWT=(req:Request,res:Response, next:NextFunction)=>{
+export const VerifyJWT=(requiredRole:number=1)=>{
     
-    const {token}=req.body
+    return (req:Request,res:Response, next:NextFunction)=>{
+
+    const token=req.headers.authorization
     const options: VerifyOptions = {
         algorithms:[algorithm]
     }
-
+    if(!token){
+        return res.status(400).json({
+            message: "no token recived"
+        })
+    }
     try{
         const decoded = jwt.verify(token,JWT_Secret,options) as jwtPayloadContent;
-        return res.status(200).json(
-            {
-                token: decoded
-
+        const {role}=decoded
+        if(requiredRole<role){
+            return res.status(401).json({
+                messegae:"User Role Unauthorized"
             })
+        }
+        res.locals.jwtPayloadContent = decoded
+        next()
     }catch(error){
         if (error instanceof jwt.TokenExpiredError){
             throw new Error("Expired Token");
@@ -48,8 +57,7 @@ export const VerifyJWT=(req:Request,res:Response, next:NextFunction)=>{
         }else{
             throw new Error("Someting went wrong authenticating this user");
         }
-        throw new Error ("Auth_error")
     }
-    
+}
 
 }
