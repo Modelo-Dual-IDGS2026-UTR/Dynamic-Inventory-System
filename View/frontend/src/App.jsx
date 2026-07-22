@@ -4,7 +4,6 @@ function App() {
 
   const handleSuccess = (credentialResponse) => {
     console.log('Token de Google:', credentialResponse.credential)
-    // Aquí mandas credentialResponse.credential a tu backend para verificarlo
   }
 
   const handleError = () => {
@@ -19,7 +18,7 @@ function App() {
         <GoogleLogin
           onSuccess={handleSuccess}
           onError={handleError}
-          useOneTap
+          prompt="select_account"
         />
       </div>
     </GoogleOAuthProvider>

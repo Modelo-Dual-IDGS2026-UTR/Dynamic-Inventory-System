@@ -38,8 +38,6 @@ services:
       - /app/View/frontend/node_modules
       - /app/Model/node_modules
       - /app/Db/node_modules
-    env_file:
-      - .env
     environment:
       - PORT=3000
       - JWT_SECRET=${JWT_SECRET}
@@ -65,10 +63,10 @@ services:
       - /app/View/frontend/node_modules
       - /app/Model/node_modules
       - /app/Db/node_modules
-    env_file:
-      - .env
     environment:
       - NODE_ENV=development
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+      - VITE_GOOGLE_CLIENT_SECRET=${VITE_GOOGLE_CLIENT_SECRET}
     depends_on:
       - backend
     networks:
