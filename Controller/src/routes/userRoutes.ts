@@ -7,10 +7,10 @@ export const userRouter= express.Router()
 
 
 
-userRouter.post('/register',userController.CreateUser)
+userRouter.post('/register',VerifyJWT(),userController.CreateUser)
 
-userRouter.get('/findUser/:userId',userController.SearchUserById)
+userRouter.get('/findUser/:userId',VerifyJWT(),userController.SearchUserById)
 
-userRouter.get('/me',VerifyJWT(1),userController.WhoAmI)
+userRouter.get('/me',VerifyJWT(),userController.WhoAmI)
 
 

@@ -104,27 +104,8 @@ async function ShowUser(id:number,res:Response){
                 message:"User not found or does not exist"
             })
         }
-        const {userId,
-            firstName,
-            lastName,
-            userStatus,
-            email,
-            area,
-            fk_role,
-            createdAt,
-            updatedAt}
-            =foundUser.toJSON()
-        return res.status(200).json({
-                userId,
-                firstName,
-                lastName,
-                userStatus,
-                email,
-                area,
-                fk_role,
-                createdAt,
-                updatedAt
-        })
+       
+        return res.status(200).json(foundUser.toJSON())
 
 } 
 
