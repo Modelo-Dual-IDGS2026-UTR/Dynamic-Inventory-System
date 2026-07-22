@@ -26,7 +26,7 @@ export const GenerateJWT=(payload:jwtPayloadContent, expiresIn: SignOptions["exp
 
 }
 
-export const VerifyJWT=(requiredRole:number=1)=>{
+export const VerifyJWT=(requiredRole:number=3)=>{
     
     return (req:Request,res:Response, next:NextFunction)=>{
 
