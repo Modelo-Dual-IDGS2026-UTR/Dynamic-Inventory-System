@@ -9,12 +9,10 @@ CREATE TABLE User (
     firstName varchar(50) NOT NULL,
     lastName varchar(50) NOT NULL,
     userStatus Boolean DEFAULT TRUE,
-    authCode int,
     email varchar(100) NOT NULL,
-    userPassword varchar(20) NOT NULL,
     area varchar(10) NOT NULL,
     fk_role INT NOT NULL,
-    updateAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -27,7 +25,7 @@ CREATE TABLE Item (
     category ENUM("No Category") DEFAULT "No Category",
     fk_user_responsible INT NOT NULL,
     fk_place INT NOT NULL,
-    updateAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE Report (
@@ -40,7 +38,7 @@ CREATE TABLE Report (
     fk_user INT NOT NULL,
     fk_item INT NOT NULL,
     fk_place INT NOT NULL,  
-    updateAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP  
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -60,7 +58,7 @@ CREATE TABLE Place (
     class varchar(255) NOT NULL,
     ip_range varchar(255) NOT NULL,
     placeLocation varchar(255) NOT NULL,
-    updateAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -182,5 +180,5 @@ ALTER TABLE Report
 
 INSERT INTO UserRole(roleName,roleDescription)
 VALUES ("Admin","CAN DO EVERYTHING");
-INSERT INTO User(firstName, lastName, userStatus, email, userPassword, area, fk_role)
-VALUES ("TEST USER", " 01", TRUE, "st1234@utr.edu.mx", "abcABCxyzXYZ","IDGS",1);
+INSERT INTO User(firstName, lastName, userStatus, email, area, fk_role)
+VALUES ("TEST USER", " 01", TRUE, "st1234@utr.edu.mx","IDGS",1);

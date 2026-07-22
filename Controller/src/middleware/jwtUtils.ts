@@ -1,12 +1,10 @@
 import jwt from 'jsonwebtoken';
 import type {SignOptions, VerifyOptions} from 'jsonwebtoken';
-
+import type { Response,Request,NextFunction } from 'express';
 
 export interface jwtPayloadContent{
-    userId:string;
-    fullName:string;
-    role:number;
-    career_area:string;
+    userId:number,
+    role:number,
 };
 
 const JWT_Secret=process.env.JWT_SECRET;
@@ -28,14 +26,29 @@ export const GenerateJWT=(payload:jwtPayloadContent, expiresIn: SignOptions["exp
 
 }
 
-export const VerifyJWT=(token:string):jwtPayloadContent=>{
+export const VerifyJWT=(requiredRole:number=1)=>{
+    
+    return (req:Request,res:Response, next:NextFunction)=>{
+
+    const token=req.headers.authorization
     const options: VerifyOptions = {
         algorithms:[algorithm]
     }
-
+    if(!token){
+        return res.status(400).json({
+            message: "no token recived"
+        })
+    }
     try{
         const decoded = jwt.verify(token,JWT_Secret,options) as jwtPayloadContent;
-        return decoded
+        const {role}=decoded
+        if(requiredRole<role){
+            return res.status(401).json({
+                messegae:"User Role Unauthorized"
+            })
+        }
+        res.locals.jwtPayloadContent = decoded
+        next()
     }catch(error){
         if (error instanceof jwt.TokenExpiredError){
             throw new Error("Expired Token");
@@ -44,8 +57,7 @@ export const VerifyJWT=(token:string):jwtPayloadContent=>{
         }else{
             throw new Error("Someting went wrong authenticating this user");
         }
-        throw new Error ("Auth_error")
     }
-    
+}
 
 }
