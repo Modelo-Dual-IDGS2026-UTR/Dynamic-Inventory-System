@@ -1,4 +1,4 @@
-import {mySequelize} from '@dis/db/dbConection'
+import {mySequelize} from '@dis/db/dbConection.js'
 import { DataTypes } from 'sequelize'
 
 enum Categories{
