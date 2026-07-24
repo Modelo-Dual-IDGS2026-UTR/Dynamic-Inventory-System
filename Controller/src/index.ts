@@ -31,6 +31,7 @@ const PORT = 3000;
 app.use(express.json());
 
 app.use('/api/user',routes.userRouter)
+app.use('/api/item',routes.itemRouter)
 
 
 // Endpoint GET de prueba

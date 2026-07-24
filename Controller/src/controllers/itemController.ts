@@ -1,53 +1,49 @@
-import {Item} from '@dis/model/itemModel.js'
+import { Item } from '@dis/model';
 import type { Response,Request } from 'express'
+import { createHash } from 'node:crypto';
 import { where, type WhereOptions } from 'sequelize';
-
-
-interface OptionsToSearch {
-    itemId?: number;
-    itemName?: string;
-    codeBar?: string;
-    fk_user_responsible?: number;
-
-    // 2. Búsqueda de texto libre (para buscar palabras dentro de itemName o itemDescription)
-    search?: string; 
-
-    // 3. Paginación
-    page?: number;     // Número de página (ej. 1, 2, 3)
-    limit?: number;    // Cantidad de registros por página (ej. 10, 20)
-    offset?: number;   // Registro desde el cual empezar (alternativa a 'page' para ORMs)
-
-    // 4. Ordenamiento
-    sortBy?: 'itemId' | 'itemName' | 'codeBar' | 'fk_user_responsible' | 'createdAt';
-    order?: 'ASC' | 'DESC' | 'asc' | 'desc';
-}
-
 
 const CreateItem=async (req:Request,res:Response)=>{
     const {
         itemName,
         itemDescription,
         codeBar,
-        fk_user_responsible}=req.body
-    if(!itemDescription||!itemName||!fk_user_responsible){
+        fk_user_responsible,
+        fk_place}=req.body
+    if(!itemDescription||!itemName||!fk_user_responsible||!fk_place){
         return res.status(400).json({
             message:"All parameters must be field please check documentation"
         })
     }
     try {
-        const newItem= await Item.create({
+
+        const existingWhere: any = {};
+
+        if (codeBar) {
+            // Si hay código de barras, esa es la regla principal de duplicado
+            existingWhere.codeBar = codeBar;
+        } else {
+            // Si no hay código de barras, comprobamos si ya existe una coincidencia exacta
+            existingWhere.itemName = itemName;
+            existingWhere.itemDescription = itemDescription;
+            existingWhere.fk_user_responsible = fk_user_responsible;
+            existingWhere.codeBar = null;
+            existingWhere.fk_place=fk_place;
+        }
+        const doesItExist=await Item.findOne({where:existingWhere})
+
+        if(doesItExist){
+            res.status(409).json({
+                message: "User already exist"
+            })
+        }
+        await Item.create({
             itemName,
             itemDescription,
             codeBar,
-            fk_user_responsible
+            fk_user_responsible,
+            fk_place
         })
-        const newId=newItem.getDataValue('itemId')
-
-        if(newId>0){
-            return res.status(409).json({
-                message:"User already exist"
-            })
-        }
 
         return res.status(200).json({
             message:"item succesfully created"
@@ -91,22 +87,22 @@ const SearchItems=async (req:Request,res:Response)=>{
             itemDescription,
             codeBar,
             fk_user_responsible,
-            sortBy,
-            order}=req.body   
-        
+            fk_place,
+            sortBy='itemId',
+            order='ASC'
+            }=req.body
+        const searchOptions=await FilterOptions({
+            itemId,
+            itemName,
+            itemDescription,
+            codeBar,
+            fk_user_responsible,
+            fk_place
+        })
         try {
             const foundItems= await Item.findAll({
-                where:{
-                    itemName,
-                    itemDescription,
-                    codeBar,
-                    fk_user_responsible
-
-                },
-                order:[
-                    sortBy,
-                    order
-                ]
+                where:searchOptions,
+                order:[[sortBy,order.toUpperCase()]]
             })
             return res.status(200).json(foundItems)
             
@@ -147,4 +143,10 @@ async function ShowItem(id:number,res:Response){
             error:error
     })
 }
+}
+
+export const itemController={
+    CreateItem,
+    SearchItemById,
+    SearchItems
 }
