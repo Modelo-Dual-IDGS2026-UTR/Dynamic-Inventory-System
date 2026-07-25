@@ -4,18 +4,19 @@ import { createHash } from 'node:crypto';
 import { where, type WhereOptions } from 'sequelize';
 
 const CreateItem=async (req:Request,res:Response)=>{
+    try {
     const {
         itemName,
         itemDescription,
         codeBar,
+        category,
         fk_user_responsible,
         fk_place}=req.body
-    if(!itemDescription||!itemName||!fk_user_responsible||!fk_place){
+    if(!itemDescription||!itemName||!fk_user_responsible||!category||!fk_place){
         return res.status(400).json({
             message:"All parameters must be field please check documentation"
         })
     }
-    try {
 
         const existingWhere: any = {};
 
@@ -29,6 +30,8 @@ const CreateItem=async (req:Request,res:Response)=>{
             existingWhere.fk_user_responsible = fk_user_responsible;
             existingWhere.codeBar = null;
             existingWhere.fk_place=fk_place;
+            existingWhere.category=category;
+            
         }
         const doesItExist=await Item.findOne({where:existingWhere})
 
@@ -41,6 +44,7 @@ const CreateItem=async (req:Request,res:Response)=>{
             itemName,
             itemDescription,
             codeBar,
+            category,
             fk_user_responsible,
             fk_place
         })
@@ -57,6 +61,7 @@ const CreateItem=async (req:Request,res:Response)=>{
 }
 }
 const SearchItemById=async (req:Request,res:Response)=>{
+    try {
         const id=req.params.itemId
         if(!id){
             return res.status(400).json({
@@ -69,7 +74,6 @@ const SearchItemById=async (req:Request,res:Response)=>{
             message:"Invalid User ID"
         })  
         }
-        try {
             
             ShowItem(convertedId,res)
         } catch (error) {
@@ -82,6 +86,8 @@ const SearchItemById=async (req:Request,res:Response)=>{
 
 
 const SearchItems=async (req:Request,res:Response)=>{
+    try {
+        const body=req.body||{}
         const {itemId,
             itemName,
             itemDescription,
@@ -90,7 +96,7 @@ const SearchItems=async (req:Request,res:Response)=>{
             fk_place,
             sortBy='itemId',
             order='ASC'
-            }=req.body
+            }=body
         const searchOptions=await FilterOptions({
             itemId,
             itemName,
@@ -99,7 +105,6 @@ const SearchItems=async (req:Request,res:Response)=>{
             fk_user_responsible,
             fk_place
         })
-        try {
             const foundItems= await Item.findAll({
                 where:searchOptions,
                 order:[[sortBy,order.toUpperCase()]]
