@@ -1,60 +1,66 @@
-import { useEffect } from 'react';
-
-interface GoogleUser {
-  sub: string;
-  name: string;
-  given_name: string;
-  family_name: string;
-  picture: string;
-  email: string;
-  email_verified: boolean;
-}
+import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function AutoLogin(): null {
+  const navigate = useNavigate();
+  const hasAttemptedLogin = useRef(false);
+
   useEffect(() => {
+    if (hasAttemptedLogin.current) return;
+
     const hash: string = window.location.hash;
     
+    if (hash.includes('error=')) {
+        console.error('El usuario canceló o hubo un error con Google');
+        navigate('/login', { replace: true });
+        return;
+    }
+
     if (hash.includes('access_token=')) {
+        hasAttemptedLogin.current = true;
+
         const params: URLSearchParams = new URLSearchParams(hash.replace('#', '?'));
         const accessToken: string | null = params.get('access_token');
       
-        
-        console.log('Token succesfully granted!:', accessToken);
-        console.log(accessToken);
+        if (!accessToken) return;
 
-        const fetchGoogleUserInfo = async () => {
-            if (!accessToken) return;
-            
+        console.log('Token succesfully granted!:', accessToken);
+
+        const authenticateWithBackend = async () => {
             try {
-            const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-            });
+                const response = await fetch('http://localhost:3000/api/user/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                });
 
             if (response.ok) {
-                const userInfo: GoogleUser = await response.json();
+                const data = await response.json();
 
-                console.log('User information obtained successfully:', userInfo);
+                if (data.token) {
+                    localStorage.setItem('appToken', data.token);
+                    console.log("Se guardo el token en el navegador")
+                };
 
-                await fetch('http://localhost:3000/api/user/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-            });
+                if (!data.user.isProfileComplete) {
+                    navigate('/select-area', { replace: true });
+                } else {
+                    navigate('/dashboard', { replace: true });
+                }
             } else {
                 console.error('Error obtaining Google user data');
+                navigate('/login', { replace: true});
             }
 
         } catch (error) {
             console.error('Network error:', error);
+            navigate('/login', { replace: true});
         }
         };
             
-        fetchGoogleUserInfo();
+        authenticateWithBackend();
 
         return;
     }
@@ -66,7 +72,7 @@ export default function AutoLogin(): null {
     const googleAuthUrl: string = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}`;
     
     window.location.href = googleAuthUrl;
-  }, []);
+  }, [navigate]);
 
   return null;
 }
