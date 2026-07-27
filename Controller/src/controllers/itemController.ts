@@ -119,8 +119,59 @@ const SearchItems=async (req:Request,res:Response)=>{
     }    
 }
 
-const EditItem=(req:Request,res:Response)=>{
-    
+const UpdateItem=async (req:Request,res:Response)=>{
+    try {
+       
+       const id=req.params.itemId
+       if (!id) {
+           return res.status(400).json({
+               message: "No ID received"
+           });
+       }
+
+       const convertedId = Number(id);
+       if (isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0) {
+           return res.status(400).json({
+               message: "Invalid Item ID"
+           });
+       }
+       const doesItExist=await Item.findOne({where:{itemId:convertedId}})
+       if(!doesItExist){
+           res.status(404).json({
+           message:`item  do not exist`
+       })    
+       }
+       const body=req.body||{}
+       const {
+        itemName,
+        itemDescription,
+        codeBar,
+        fk_responsible_user,
+        fk_place
+       }=body
+       const [modifiedRows]=await Item.update({
+        itemName,
+        itemDescription,
+        codeBar,
+        fk_responsible_user,
+        fk_place},
+        {where:{itemId:convertedId}}
+       )
+       if(modifiedRows==0){
+        res.status(404).json({
+            message:"Item not found or not changes where made"
+        })
+       }else{
+        res.status(200).json({
+            message:"item succesfully updated"
+        })
+       }
+
+    } catch (error) {
+         res.status(500).json({
+            message:"Internal server error, not your fault :D",
+            error:error})
+    }
 }
 
 
@@ -137,18 +188,7 @@ const DeleteItemByID=async (req:Request,res:Response)=>{
            });
        }
 
-       const convertedId = Number(id);
-       if (isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0) {
-           return res.status(400).json({
-               message: "Invalid Item ID"
-           });
-       }
-       const doesItExist=await Item.findOne({where:{itemId:convertedId}})
-       if(doesItExist){
-           res.status(404).json({
-           message:`item  do not exist`
-       })    
-       }
+       const convertedId = Number(id)
        const deletedRows=await Item.destroy({
            where:{itemId:convertedId}
        })
@@ -162,7 +202,9 @@ const DeleteItemByID=async (req:Request,res:Response)=>{
        })
        
    } catch (error) {
-       
+        res.status(500).json({
+            message:"Internal server error, not your fault :D",
+            error:error})
    }
 
 }
@@ -233,5 +275,6 @@ export const itemController={
     CreateItem,
     SearchItemById,
     SearchItems,
+    UpdateItem,
     DeleteItemByID
 }

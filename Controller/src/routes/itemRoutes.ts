@@ -8,4 +8,6 @@ itemRouter.get('/read-item/:itemId',itemController.SearchItemById)
 
 itemRouter.post('/read-items',itemController.SearchItems)
 
+itemRouter.put('/update-item/:itemId',itemController.UpdateItem)
+
 itemRouter.delete('/delete-item',itemController.DeleteItemByID)
