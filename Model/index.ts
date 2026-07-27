@@ -22,24 +22,24 @@ const setupAssociations=()=>{
     Place.hasMany(Item,{
         foreignKey:'fk_place',
         sourceKey:'placeId',
-        as: 'related-item'
+        as: 'related_item'
 
     });
     Item.belongsTo(Place,{
         foreignKey:'fk_place',
         targetKey:'placeId',
-        as: 'related-place'
+        as: 'related_place'
     });
 //######User-Item################
     User.hasMany(Item,{
         foreignKey:'fk_user_responsible',
         sourceKey: 'userId',
-        as: 'related-item'
+        as: 'related_item'
     })
     Item.belongsTo(User,{
         foreignKey:'fk_user_responsible',
         targetKey:'userId',
-        as: 'respobsible-user'
+        as: 'responsible_user'
     })
 }
 

@@ -7,3 +7,5 @@ itemRouter.post('/new-item',itemController.CreateItem)
 itemRouter.get('/read-item/:itemId',itemController.SearchItemById)
 
 itemRouter.post('/read-items',itemController.SearchItems)
+
+itemRouter.delete('/delete-item',itemController.DeleteItemByID)

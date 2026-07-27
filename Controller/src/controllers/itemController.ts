@@ -1,4 +1,4 @@
-import { Item } from '@dis/model';
+import { Item,Place, User} from '@dis/model';
 import type { Response,Request } from 'express'
 import { createHash } from 'node:crypto';
 import { where, type WhereOptions } from 'sequelize';
@@ -119,6 +119,53 @@ const SearchItems=async (req:Request,res:Response)=>{
     }    
 }
 
+const EditItem=(req:Request,res:Response)=>{
+    
+}
+
+
+
+
+
+const DeleteItemByID=async (req:Request,res:Response)=>{
+   try {
+       const body=req.body||{}
+       const id=body.itemId
+       if (!id) {
+           return res.status(400).json({
+               message: "No ID received"
+           });
+       }
+
+       const convertedId = Number(id);
+       if (isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0) {
+           return res.status(400).json({
+               message: "Invalid Item ID"
+           });
+       }
+       const doesItExist=await Item.findOne({where:{itemId:convertedId}})
+       if(doesItExist){
+           res.status(404).json({
+           message:`item  do not exist`
+       })    
+       }
+       const deletedRows=await Item.destroy({
+           where:{itemId:convertedId}
+       })
+       if (deletedRows === 0) {
+           return res.status(404).json({
+               message: "Item not found or already deleted"
+           });
+       }
+       res.status(200).json({
+           message:`item ${convertedId} succesfully destroyed`
+       })
+       
+   } catch (error) {
+       
+   }
+
+}
 
 async function FilterOptions(filter:Record<string,any>){
     const whereClause:WhereOptions={}
@@ -133,14 +180,44 @@ async function FilterOptions(filter:Record<string,any>){
 }
 async function ShowItem(id:number,res:Response){
     try {
-        const foundItem=await Item.findByPk(id)
+        const foundItem=await Item.findByPk(id,{
+            include:[{
+                model: Place,
+                as: 'related_place',
+                attributes:['placeId','placeName']
+
+            },
+        {
+            model: User,
+            as:'responsible_user',
+            attributes:['userId','firstName', 'lastName']
+        }]
+        })
         if(!foundItem){
             return res.status(404).json({
                 message:"Item not foud"
             })
         }
+        const item = foundItem.toJSON()
+        const fullName=
+        item.responsible_user.firstName+
+        item.responsible_user.lastName
+        
+        item.fk_place={
+            placeId: item.related_place.placeId,
+            placeName:item.related_place.placeName
+        }
+        
+        item.fk_user_responsible={
+            userId:item.responsible_user.userId,
+            
+            userName:fullName
+        }
+
+        delete item.related_place
+        delete item.responsible_user
         res.status(200).json(
-            foundItem.toJSON()
+            item
         )
     } catch (error){
         res.status(500).json({
@@ -150,8 +227,11 @@ async function ShowItem(id:number,res:Response){
 }
 }
 
+
+
 export const itemController={
     CreateItem,
     SearchItemById,
-    SearchItems
+    SearchItems,
+    DeleteItemByID
 }
