@@ -68,10 +68,16 @@ CREATE TABLE Permission (
     permissionDescription varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE Role_Permission(
+    RPId INT AUTO_INCREMENT PRIMARY KEY,
+    fk_role INT NOT NULL,
+    fk_permission INT NOT NULL
+)
 CREATE TABLE UserRole (
     roleId INT AUTO_INCREMENT PRIMARY KEY,
     roleName varchar(50) NOT NULL,
-    roleDescription varchar(255) NOT NULL
+    roleDescription varchar(255) NOT NULL,
+    fk_permission INT NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE Request (
