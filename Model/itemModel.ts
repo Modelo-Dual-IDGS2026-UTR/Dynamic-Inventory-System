@@ -19,6 +19,14 @@ export const Item = mySequelize.define("Item",{
         type:DataTypes.STRING,
         allowNull:false
     },
+    cost:{
+        type:DataTypes.INTEGER,
+        allowNull:false
+    },
+    manufacter:{
+        type:DataTypes.STRING,
+        allowNull:false     
+    },
     codeBar:{type:DataTypes.STRING},
     category:{
         type:DataTypes.ENUM(...Object.values(Categories)),

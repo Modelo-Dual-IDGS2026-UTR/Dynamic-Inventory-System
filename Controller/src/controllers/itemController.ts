@@ -10,9 +10,11 @@ const CreateItem=async (req:Request,res:Response)=>{
         itemDescription,
         codeBar,
         category,
+        cost,
+        manufacter,
         fk_user_responsible,
         fk_place}=req.body
-    if(!itemDescription||!itemName||!fk_user_responsible||!category||!fk_place){
+    if(!itemDescription||!itemName||!fk_user_responsible||!category||!fk_place||cost||manufacter){
         return res.status(400).json({
             message:"All parameters must be field please check documentation"
         })
@@ -31,6 +33,8 @@ const CreateItem=async (req:Request,res:Response)=>{
             existingWhere.codeBar = null;
             existingWhere.fk_place=fk_place;
             existingWhere.category=category;
+            existingWhere.cost=cost;
+            existingWhere.manufacter=manufacter
             
         }
         const doesItExist=await Item.findOne({where:existingWhere})
@@ -43,6 +47,8 @@ const CreateItem=async (req:Request,res:Response)=>{
         await Item.create({
             itemName,
             itemDescription,
+            cost,
+            manufacter,
             codeBar,
             category,
             fk_user_responsible,
@@ -91,6 +97,8 @@ const SearchItems=async (req:Request,res:Response)=>{
         const {itemId,
             itemName,
             itemDescription,
+            cost,
+            manufacter,
             codeBar,
             fk_user_responsible,
             fk_place,
@@ -101,6 +109,8 @@ const SearchItems=async (req:Request,res:Response)=>{
             itemId,
             itemName,
             itemDescription,
+            cost,
+            manufacter,
             codeBar,
             fk_user_responsible,
             fk_place
@@ -109,6 +119,8 @@ const SearchItems=async (req:Request,res:Response)=>{
                 where:searchOptions,
                 order:[[sortBy,order.toUpperCase()]]
             })
+
+            
             return res.status(200).json(foundItems)
             
         } catch (error) {
@@ -145,6 +157,8 @@ const UpdateItem=async (req:Request,res:Response)=>{
        const {
         itemName,
         itemDescription,
+        cost,
+        manufacter,
         codeBar,
         fk_responsible_user,
         fk_place
@@ -152,6 +166,8 @@ const UpdateItem=async (req:Request,res:Response)=>{
        const [modifiedRows]=await Item.update({
         itemName,
         itemDescription,
+        cost,
+        manufacter,
         codeBar,
         fk_responsible_user,
         fk_place},

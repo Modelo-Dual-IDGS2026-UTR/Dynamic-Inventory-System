@@ -179,7 +179,12 @@ ALTER TABLE Report
         REFERENCES Item(itemId)
         ON DELETE CASCADE
         ON UPDATE CASCADE;
-
+ALTER TABLE UserRole
+    ADD CONSTRAINT fk_role_permission_relation
+        FOREIGN KEY (fk_permission)
+        REFERENCES fk_permission
+        ON DELETE CASCADE
+        ON UPDATE CASCADE;
 /*===============================
     INSERT INITIAL VALUES
   ===============================*/
