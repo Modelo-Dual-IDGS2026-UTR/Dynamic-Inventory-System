@@ -180,8 +180,7 @@ const UpdateItem=async (req:Request,res:Response)=>{
 
 const DeleteItemByID=async (req:Request,res:Response)=>{
    try {
-       const body=req.body||{}
-       const id=body.itemId
+       const id=req.params.itemId
        if (!id) {
            return res.status(400).json({
                message: "No ID received"
