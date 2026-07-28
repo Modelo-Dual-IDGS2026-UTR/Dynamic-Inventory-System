@@ -41,6 +41,8 @@ services:
     environment:
       - PORT=3000
       - JWT_SECRET=We Love each Other
+      - CHOKIDAR_USEPOLLING=true  
+      - WATCHPACK_POLLING=true
     depends_on:
         db:
           condition: service_healthy
