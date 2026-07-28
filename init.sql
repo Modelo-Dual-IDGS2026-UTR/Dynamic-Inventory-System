@@ -182,3 +182,6 @@ INSERT INTO UserRole(roleName,roleDescription)
 VALUES ("Admin","CAN DO EVERYTHING");
 INSERT INTO User(firstName, lastName, userStatus, email, area, fk_role)
 VALUES ("TEST USER", " 01", TRUE, "st1234@utr.edu.mx","IDGS",1);
+
+INSERT INTO Place(placeName, placeDescription, class, ip_range, placeLocation)
+VALUES ("A101", "Le falta un pito"," Salon Normal", "172.0.0.1-172.0.240","A Building");
