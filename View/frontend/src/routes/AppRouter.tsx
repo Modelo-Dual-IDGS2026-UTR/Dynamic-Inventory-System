@@ -5,6 +5,7 @@ import SelectArea from '../pages/SelectArea/SelectArea';
 export const AppRouter = () => {
     return (
         <Routes>
+            <Route path="/" element={<AutoLogin />} />
             <Route path="/login" element={<AutoLogin />} />
             <Route path="/select-area" element={<SelectArea />} />
         </Routes>
