@@ -14,7 +14,7 @@ const CreateItem=async (req:Request,res:Response)=>{
         manufacter,
         fk_user_responsible,
         fk_place}=req.body
-    if(!itemDescription||!itemName||!fk_user_responsible||!category||!fk_place||cost||manufacter){
+    if(!itemDescription||!itemName||!fk_user_responsible||!category||!fk_place||!cost||!manufacter){
         return res.status(400).json({
             message:"All parameters must be field please check documentation"
         })
@@ -117,11 +117,45 @@ const SearchItems=async (req:Request,res:Response)=>{
         })
             const foundItems= await Item.findAll({
                 where:searchOptions,
+                include:[
+                    {
+                        model:Place,
+                        as:'related_place',
+                        attributes:['placeId','placeName']
+                    },
+                    {
+                        model:User,
+                        as:'responsible_user',
+                        attributes:['userId','firstName','lastName']
+                    }
+                ],
                 order:[[sortBy,order.toUpperCase()]]
             })
 
-            
-            return res.status(200).json(foundItems)
+            const formatedItems=foundItems.map((itemInstance)=>{
+                const item=itemInstance.toJSON()
+                const userName=item.responsible_user.firstName+" "+item.responsible_user.lastName
+                const formated={
+                    ...item,
+                    fk_place:item.related_place?
+                            {
+                                id:item.related_place.placeId,
+                                name:item.related_place.placeName
+                            }:item.related_place.placeId,
+                    fk_user_responsible:item.responsible_user?
+                            {
+                                id:item.responsible_user.userId,
+                                userName:userName
+                            }:item.responsible_user.userId
+                }
+                delete formated.related_place
+                delete formated.responsible_user
+
+                return formated
+
+
+            })
+            return res.status(200).json(formatedItems)
             
         } catch (error) {
             res.status(500).json({
