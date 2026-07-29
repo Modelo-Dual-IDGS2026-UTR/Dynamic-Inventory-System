@@ -7,8 +7,10 @@ export const userRouter= express.Router()
 
 
 
-userRouter.post('/register',VerifyJWT(),userController.CreateUser)
+userRouter.post('/create-user',VerifyJWT(1),userController.CreateUser)
 
+
+userRouter.get('/login',userController.LogUser)
 //Add endpoint to docs
 
 userRouter.get('/findUser/:userId',VerifyJWT(),userController.SearchUserById)
