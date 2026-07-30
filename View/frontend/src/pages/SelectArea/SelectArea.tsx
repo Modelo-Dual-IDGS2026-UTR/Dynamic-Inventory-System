@@ -8,10 +8,17 @@ export default function SelectArea() {
     const [area, setArea] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [isStudent, setIsStudent] = useState<boolean | null>(null);
-    const [nombre, setNombre] = useState<string>('');
+    const [workID, setWorkID] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
     
+    const isFormInvalid = isStudent
+        ? !area
+        : (!area || !workID.trim())
+
+
+    const isButtonDisabled = loading || isStudent === null || isFormInvalid;
+
     useEffect(() => {
         const checkUserType = async () => {
             setLoading(true);
@@ -43,7 +50,7 @@ export default function SelectArea() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${appToken}`
                 },
-                body: JSON.stringify({ area }),
+                body: JSON.stringify({ area, workID, isStudent }),
             });
 
             if (response.ok) {
@@ -64,7 +71,7 @@ export default function SelectArea() {
         const appToken = localStorage.getItem('appToken');
 
         try {
-            const response = await fetch('http://localhost:3000/api/user/area', {
+            const response = await fetch('http://localhost:3000/api/user/me', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -121,7 +128,7 @@ export default function SelectArea() {
                             <option value="Mercadotecnia">Mercadotecnia</option>
                             <option value="Lengua Inglesa">Lengua Inglesa</option>
                         </>
-                    )}
+                    )}|| !workID
 
                     {isStudent === false && (
                         <>
@@ -136,24 +143,23 @@ export default function SelectArea() {
 
                 {isStudent === false && (
                         <div className='workid-container'>
-                            <label htmlFor="input-nombre">Tu Nombre:</label>
+                            <label htmlFor="input-workid">Inserta tu ID de trabajo:</label>
 
                             <input
                             type="text"
-                            id="input-nombre"
-                            value={nombre}
-                            onChange={(e) => setNombre(e.target.value)}
-                            placeholder="Escribe algo..."
+                            id="input-workid"
+                            value={workID}
+                            onChange={(e) => setWorkID(e.target.value)}
+                            placeholder="Escribe aquí..."
                             className="submit-input"
                             />
 
-                            <p>{nombre}</p>
                         </div>
                     )}
                     
                 <button
                     type="submit"
-                    disabled={loading || !area}
+                    disabled={isButtonDisabled}
                     className='submit-btn'
                 > 
                     {loading ? 'Guardando...': 'Completar Registro'}
