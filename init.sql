@@ -24,11 +24,13 @@ CREATE TABLE Role_Permission(
 
 CREATE TABLE User (
     userId INT AUTO_INCREMENT PRIMARY KEY,
+    googleUserId VARCHAR(50) NOT NULL,
+    universityId VARCHAR(50),
     firstName varchar(50) NOT NULL,
     lastName varchar(50) NOT NULL,
     userStatus Boolean DEFAULT TRUE,
     email varchar(100) NOT NULL,
-    area varchar(10) NOT NULL,
+    area varchar(10),
     fk_role INT NOT NULL,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -211,8 +213,8 @@ VALUES ("All","No restrictions"),
 INSERT INTO Role_Permission(fk_role, fk_permission)
 VALUES (1, 1);
 
-INSERT INTO User(firstName, lastName, userStatus, email, area, fk_role)
-VALUES ("TEST USER", "01", TRUE, "st1234@utr.edu.mx", "IDGS", 1);
+INSERT INTO User(googleUserId, firstName, lastName, universityId, userStatus, email, area, fk_role)
+VALUES ("sddasddasds","TEST USER", "01", "1234", TRUE, "st1234@utr.edu.mx", "IDGS", 1);
 
 INSERT INTO Place(placeName, placeDescription, class, ip_range, placeLocation)
 VALUES ("A101", "Le falta un pito", " Salon Normal", "172.0.0.1-172.0.240", "A Building");
