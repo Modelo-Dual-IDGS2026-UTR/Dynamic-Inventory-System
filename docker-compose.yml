@@ -13,9 +13,9 @@ services:
      environment:
      #ESCONDER CONTRASEÑAS FINALES EN UN .ENV
       MYSQL_ROOT_PASSWORD: root_password_super_secret
-      MYSQL_DATABASE: DISNUTZTEST01
-      MYSQL_USER: user_app
-      MYSQL_PASSWORD: secure_password
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
      volumes:
       - mariadb_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -40,9 +40,10 @@ services:
       - /app/Db/node_modules
     environment:
       - PORT=3000
-      - JWT_SECRET=We Love each Other
+      - JWT_SECRET=${JWT_SECRET}
       - CHOKIDAR_USEPOLLING=true  
       - WATCHPACK_POLLING=true
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     depends_on:
         db:
           condition: service_healthy
