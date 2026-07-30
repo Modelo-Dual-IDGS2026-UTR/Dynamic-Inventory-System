@@ -1,6 +1,8 @@
 import { mySequelize } from "@dis/db/dbConection.js";
 import { User,UserRole } from "@dis/model";
 import type { Response,Request } from "express";
+import { GenerateJWT, type jwtPayloadContent } from "../middleware/jwtUtils.js";
+
 
 
 const CreateUser= async (req:Request,res:Response,)=>{
@@ -35,21 +37,48 @@ const LogUser= async (req:Request,res:Response)=>{
     //Add Goooooooogle sign in logic and therefore jason jwt web token logic 
     
     try {
-        const {firstName,lastName,email}=req.body
+        const {sub,email,given_name,family_name}=res.locals.user
         const userSearch=await User.findOne({
                 where:{
-                    firstName,
-                    lastName,
-                    email
+                    googleUserId:sub
                 }
             })
-        if(!userSearch){
-            return res.status(404).json({
-                message:"User not found"
-            })
-        }
-        
+        if(userSearch){
+            const payload:jwtPayloadContent={
+                userId:userSearch.getDataValue('userId'),
+                role:userSearch.getDataValue('fk_role')
+            }
+            const token=GenerateJWT(payload)
 
+
+
+            return res.status(200).json({
+                message:"User Logged in",
+                token:token,
+                IsUserComplete:IsUserComplete(userSearch)
+            })
+        }else{
+            const newUser= await User.create({
+            firstName:given_name,
+            lastName:family_name,
+            email,
+            area:null,
+            fk_role:1
+        })
+            const payload:jwtPayloadContent={
+                userId:newUser.getDataValue('userId'),
+                role:newUser.getDataValue('fk_role')
+            }
+            const token=GenerateJWT(payload)
+
+
+            return res.status(200).json({
+                message:"User Created",
+                token:token,
+                isUserComplete:IsUserComplete(newUser)
+            })
+
+        }
         
     } catch (error) {
         return res.status(500).json({
@@ -96,6 +125,18 @@ const WhoAmI=(req:Request,res:Response)=>{
     }
 }
 
+
+async function IsUserComplete(user:Record<string,any>) {
+    
+    Object.entries(user).forEach(([key,value])=> {
+        if(value==null){
+            return false
+        }
+    });
+    return true
+
+
+}
 async function ShowUser(id:number,res:Response){
 
     const foundUser=await User.findByPk(id)

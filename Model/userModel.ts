@@ -8,6 +8,13 @@ export const User = mySequelize.define("User",{
         primaryKey:true,
         autoIncrement:true
     },
+    googleUserId:{
+        type:DataTypes.STRING,
+        allowNull:false
+    },
+    universityId:{
+        type:DataTypes.STRING
+    },
     firstName:{
         type: DataTypes.STRING,
         allowNull:false
