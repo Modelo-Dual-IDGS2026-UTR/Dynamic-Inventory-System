@@ -42,7 +42,7 @@ export default function SelectArea() {
         setError(null);
 
         try {
-            const response = await fetch('http://localhost:3000/api/user/area', {
+            const response = await fetch('http://localhost:3000/api/user/complete-user', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
