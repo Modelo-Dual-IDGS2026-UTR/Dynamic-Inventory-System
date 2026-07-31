@@ -2,6 +2,7 @@ import { mySequelize } from "@dis/db/dbConection.js";
 import { User,UserRole } from "@dis/model";
 import type { Response,Request } from "express";
 import { GenerateJWT, type jwtPayloadContent } from "../middleware/jwtUtils.js";
+import { where } from "sequelize";
 
 
 
@@ -28,10 +29,95 @@ const CreateUser= async (req:Request,res:Response,)=>{
         
     } catch (error) {
         return res.status(500).json({
-            message:"Internal Error: Dont Worry Is Not Your fault :D"
+
+            message:"Internal Error: Dont Worry Is Not Your fault :D",
+            error: error
         })
     }
 };
+
+const UpdateUser=async (req:Request,res:Response)=>{
+    try {
+        const id=req.params.userId
+        const body=req.body||{}
+        const {universityId,firstName,lastName,email,area,fk_role}=body
+        if(!id){
+            return res.status(400).json({
+            message:"No User ID given"
+        })
+        }
+        const convertedId=Number(id)
+        if(isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0){
+          return res.status(400).json({
+            message:"Invalid User ID"
+        })  
+        
+
+    } 
+    const [editedRows]=await User.update({
+        universityId,
+        firstName,
+        lastName,
+        email,
+        area,
+        fk_role
+    },{where:{userId:convertedId}})
+
+    if(editedRows==0){
+        return res.status(204).json({
+            message:"User not found or no changes were made"
+        })
+    }
+    return res.status(200).json({
+        message:"User succefully edited"
+    })
+
+    }catch (error) {
+           return res.status(500).json({
+            message:"Internal Error: Dont Worry Is Not Your fault :D",
+            error: error
+        })
+    }
+}
+
+const FullfilUser=async (req:Request,res:Response)=>{
+    try {
+        const id=res.locals.jwtPayloadContent.userId
+        const body=req.body||{}
+        const {universityId,area}=body
+            if(!id){
+            return res.status(400).json({
+            message:"No User ID given"
+        })
+        }
+        const convertedId=Number(id)
+        if(isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0){
+          return res.status(400).json({
+            message:"Invalid User ID"
+        })}
+        const foundUser=await User.findByPk(convertedId)
+        if(!foundUser)return res.status(204).json({message:"User not found"})
+        if(IsUserComplete(foundUser)){
+            return res.status(403).json({
+                message:"This user is already complete you cannot edit it"
+            })
+        }
+        const [editedRows]=await User.update({
+            universityId,
+            area
+        },{where:{userId:convertedId}})
+        
+        if(editedRows==0){
+            return res.status(200).json({
+            message:"User succefully edited"
+        })}
+    } catch (error) {
+        return res.status(500).json({
+            message:"Internal Error: Dont Worry Is Not Your fault :D",
+            error: error
+        })
+    }
+}
 
 const LogUser= async (req:Request,res:Response)=>{
     //Add Goooooooogle sign in logic and therefore jason jwt web token logic 
@@ -51,16 +137,22 @@ const LogUser= async (req:Request,res:Response)=>{
             const token=GenerateJWT(payload)
 
 
-
+            const isComplete=IsUserComplete(userSearch)
+            res.cookie('jwtToken',token,{
+                httpOnly:true,
+                secure:process.env.NODE_ENV==='produciton',
+                sameSite:'lax',
+                maxAge: 24 * 60 * 60 * 1000
+            })
             return res.status(200).json({
                 message:"User Logged in",
-                token:token,
-                IsUserComplete:IsUserComplete(userSearch)
+                isUserComplete:isComplete
             })
         }else{
             const newUser= await User.create({
             firstName:given_name,
             lastName:family_name,
+            googleUserId:sub,
             email,
             area:null,
             fk_role:1
@@ -70,19 +162,24 @@ const LogUser= async (req:Request,res:Response)=>{
                 role:newUser.getDataValue('fk_role')
             }
             const token=GenerateJWT(payload)
-
-
+            const isComplete=IsUserComplete(newUser)
+            res.cookie('jwtToken',token,{
+                httpOnly:true,
+                secure:process.env.NODE_ENV==='produciton',
+                sameSite:'lax',
+                maxAge: 24 * 60 * 60 * 1000
+            })
             return res.status(200).json({
                 message:"User Created",
-                token:token,
-                isUserComplete:IsUserComplete(newUser)
+                isUserComplete:isComplete
             })
 
         }
         
     } catch (error) {
         return res.status(500).json({
-            message:"Internal Error: Dont Worry Is Not Your fault :D"
+            message:"Internal Error: Dont Worry Is Not Your fault :D",
+            error: error
         })
     }
 }
@@ -126,13 +223,14 @@ const WhoAmI=(req:Request,res:Response)=>{
 }
 
 
-async function IsUserComplete(user:Record<string,any>) {
+function IsUserComplete(user:Record<string,any>) {
     
-    Object.entries(user).forEach(([key,value])=> {
+    const userData=user.dataValues
+    for(const value of Object.values(userData)){
         if(value==null){
             return false
         }
-    });
+    }
     return true
 
 
@@ -153,6 +251,8 @@ async function ShowUser(id:number,res:Response){
 export const userController={
     CreateUser,
     LogUser,
+    UpdateUser,
     WhoAmI,
-    SearchUserById
+    SearchUserById,
+    FullfilUser
 }
