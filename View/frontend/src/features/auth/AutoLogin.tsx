@@ -56,7 +56,7 @@ export default function AutoLogin(): null {
                 navigate('/login', { replace: true});
             }
 
-        } catch (error) {
+        } catch (error) {// Generar un texto aleatorio simple
             console.error('Network error:', error);
             navigate('/login', { replace: true});
         }
@@ -71,7 +71,7 @@ export default function AutoLogin(): null {
     const redirectUri: string = window.location.origin;
     const scope: string = 'openid profile email';
     
-    const nonce = Math.random().toString(36).substring(2); // Generar un texto aleatorio simple
+    const nonce = Math.random().toString(36).substring(2); 
     const googleAuthUrl: string = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=id_token&scope=${encodeURIComponent(scope)}&nonce=${nonce}`;
     
     window.location.href = googleAuthUrl;

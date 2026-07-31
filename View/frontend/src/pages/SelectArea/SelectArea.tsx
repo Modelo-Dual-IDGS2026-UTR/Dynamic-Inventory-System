@@ -8,13 +8,13 @@ export default function SelectArea() {
     const [area, setArea] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [isStudent, setIsStudent] = useState<boolean | null>(null);
-    const [workID, setWorkID] = useState<string>('');
+    const [universityID, setUniversityID] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
     
     const isFormInvalid = isStudent
         ? !area
-        : (!area || !workID.trim())
+        : (!area || !universityID.trim())
 
 
     const isButtonDisabled = loading || isStudent === null || isFormInvalid;
@@ -41,16 +41,14 @@ export default function SelectArea() {
         setLoading(true);
         setError(null);
 
-        const appToken = localStorage.getItem('appToken');
-
         try {
             const response = await fetch('http://localhost:3000/api/user/area', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${appToken}`
                 },
-                body: JSON.stringify({ area, workID, isStudent }),
+                credentials: 'include',
+                body: JSON.stringify({ area, universityID, isStudent }),
             });
 
             if (response.ok) {
@@ -69,15 +67,14 @@ export default function SelectArea() {
 
     const itIsStudent = async (): Promise<boolean> => {
         //this will be surely erased as we probabily wont store the token in localStorage
-        const appToken = localStorage.getItem('appToken');
 
         try {
             const response = await fetch('http://localhost:3000/api/user/me', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${appToken}`
-                }
+                },
+                credentials: 'include',
             });
 
             if (response.ok) {
@@ -149,8 +146,8 @@ export default function SelectArea() {
                             <input
                             type="text"
                             id="input-workid"
-                            value={workID}
-                            onChange={(e) => setWorkID(e.target.value)}
+                            value={universityID}
+                            onChange={(e) => setUniversityID(e.target.value)}
                             placeholder="Escribe aquí..."
                             className="submit-input"
                             />
