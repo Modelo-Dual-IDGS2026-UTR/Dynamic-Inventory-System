@@ -7,9 +7,9 @@ const client = new OAuth2Client(GoogleClientID)
 export const VerifyGoogleToken=async(req:Request,res:Response,next:NextFunction)=>{
     try {
         const rawToken=req.headers.authorization
-        if(!rawToken||!rawToken.startsWith('Bearer ')){
+        if(!rawToken||!rawToken.startsWith('Bearer eyJ')){
             return res.status(401).json({
-                message:"No token recived: ACCESS DENIED .|." 
+                message:"No token recived or invalid: ACCESS DENIED .|." 
             })
         }
         const uncodedToken=rawToken.split(' ')[1]
