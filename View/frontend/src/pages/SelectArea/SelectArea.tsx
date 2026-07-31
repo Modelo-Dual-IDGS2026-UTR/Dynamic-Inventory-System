@@ -8,13 +8,13 @@ export default function SelectArea() {
     const [area, setArea] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [isStudent, setIsStudent] = useState<boolean | null>(null);
-    const [universityID, setUniversityID] = useState<string>('');
+    const [universityId, setUniversityId] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
     
     const isFormInvalid = isStudent
         ? !area
-        : (!area || !universityID.trim())
+        : (!area || !universityId.trim())
 
 
     const isButtonDisabled = loading || isStudent === null || isFormInvalid;
@@ -48,7 +48,7 @@ export default function SelectArea() {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify({ area, universityID, isStudent }),
+                body: JSON.stringify({ area, universityId, isStudent }),
             });
 
             if (response.ok) {
@@ -81,6 +81,9 @@ export default function SelectArea() {
                 const data = await response.json();
 
                 if (data.email && data.email.toLowerCase().startsWith('st')) {
+
+                    const match = data.email.match(/^st(\d+)/);
+                    setUniversityId(match);
                     return true;
                 } 
                 return false;
@@ -146,8 +149,8 @@ export default function SelectArea() {
                             <input
                             type="text"
                             id="input-workid"
-                            value={universityID}
-                            onChange={(e) => setUniversityID(e.target.value)}
+                            value={universityId}
+                            onChange={(e) => setUniversityId(e.target.value)}
                             placeholder="Escribe aquí..."
                             className="submit-input"
                             />
