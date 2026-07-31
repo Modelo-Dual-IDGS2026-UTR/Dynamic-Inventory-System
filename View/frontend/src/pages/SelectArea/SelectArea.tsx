@@ -45,7 +45,7 @@ export default function SelectArea() {
 
         try {
             const response = await fetch('http://localhost:3000/api/user/area', {
-                method: 'PATCH',
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${appToken}`
@@ -68,6 +68,7 @@ export default function SelectArea() {
     };
 
     const itIsStudent = async (): Promise<boolean> => {
+        //this will be surely erased as we probabily wont store the token in localStorage
         const appToken = localStorage.getItem('appToken');
 
         try {
@@ -91,7 +92,7 @@ export default function SelectArea() {
             return false;    
         } catch (err) {
             console.error(err);
-            setError('Error de conexión con el servidor');
+            setError('No se pudo verificar tu tipo de usuario. Por favor, recarga la página.');
             //Cambiar esto de false a true para ver que onda
             return false;
         }
@@ -128,7 +129,7 @@ export default function SelectArea() {
                             <option value="Mercadotecnia">Mercadotecnia</option>
                             <option value="Lengua Inglesa">Lengua Inglesa</option>
                         </>
-                    )}|| !workID
+                    )}
 
                     {isStudent === false && (
                         <>

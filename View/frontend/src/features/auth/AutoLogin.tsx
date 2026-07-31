@@ -16,15 +16,17 @@ export default function AutoLogin(): null {
         return;
     }
 
-    if (hash.includes('access_token=')) {
+    if (hash.includes('id_token=')) {
         hasAttemptedLogin.current = true;
 
-        const params: URLSearchParams = new URLSearchParams(hash.replace('#', '?'));
-        const accessToken: string | null = params.get('access_token');
-      
-        if (!accessToken) return;
+        window.history.replaceState(null, '', window.location.pathname);
 
-        console.log('Token succesfully granted!:', accessToken);
+        const params: URLSearchParams = new URLSearchParams(hash.replace('#', '?'));
+        const idToken: string | null = params.get('id_token');
+      
+        if (!idToken) return;
+
+        console.log('Token succesfully granted!:', idToken);
 
         const authenticateWithBackend = async () => {
             try {
@@ -32,7 +34,7 @@ export default function AutoLogin(): null {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`,
+                        'Authorization': `Bearer ${idToken}`,
                     },
                 });
 
@@ -69,7 +71,8 @@ export default function AutoLogin(): null {
     const redirectUri: string = window.location.origin;
     const scope: string = 'openid profile email';
     
-    const googleAuthUrl: string = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}`;
+    const nonce = Math.random().toString(36).substring(2); // Generar un texto aleatorio simple
+    const googleAuthUrl: string = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=id_token&scope=${encodeURIComponent(scope)}&nonce=${nonce}`;
     
     window.location.href = googleAuthUrl;
   }, [navigate]);
