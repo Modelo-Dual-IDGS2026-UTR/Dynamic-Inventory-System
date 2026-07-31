@@ -32,8 +32,7 @@ export const User = mySequelize.define("User",{
         allowNull:false
     },
     area:{
-        type:DataTypes.STRING,
-        allowNull:false
+        type:DataTypes.STRING
     },
     fk_role:{
         type: DataTypes.INTEGER,
