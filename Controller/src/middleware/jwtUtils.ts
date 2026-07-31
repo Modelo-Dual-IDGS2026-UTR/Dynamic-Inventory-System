@@ -30,7 +30,7 @@ export const VerifyJWT=(requiredRole:number=3)=>{
     
     return (req:Request,res:Response, next:NextFunction)=>{
 
-    const token=req.headers.authorization
+    const token=req.cookies.jwtToken
     const options: VerifyOptions = {
         algorithms:[algorithm]
     }

@@ -4,6 +4,7 @@ import {TestConection } from '@dis/db/dbConection.js';
 import {User,UserRole} from '@dis/model'
 import { mySequelize } from '@dis/db/dbConection.js';
 import {routes} from './routes/index.js'
+import cookieParser from 'cookie-parser';
 const TestSequelize=async ()=>{
 try {
     await mySequelize.authenticate();
@@ -25,11 +26,12 @@ TestSequelize();
 
 
 const app = express();
+
 const PORT = 3000;
 
 // Middleware para entender JSON
 app.use(express.json());
-
+app.use(cookieParser());
 app.use('/api/user',routes.userRouter)
 app.use('/api/item',routes.itemRouter)
 
