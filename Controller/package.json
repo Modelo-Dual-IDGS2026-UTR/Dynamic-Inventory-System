@@ -3,17 +3,19 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch ./src/index.ts",
+    "dev": "tsx watch /app/Controller/src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "eslint src/**/*.ts",
-    "test": "node --experimental-vm-modules ../node_modules/.bin/jest"
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@dis/db": "*",
     "@dis/model": "*",
+    "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
+    "google-auth-library": "^10.9.1",
     "jsonwebtoken": "^9.0.3",
     "mariadb": "^3.5.3",
     "mssql": "^12.5.5",
@@ -22,8 +24,11 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10"
+    "@types/node": "^26.1.1",
+    "tsx": "^4.19.0",
+    "typescript": "^7.0.2"
   },
   "overrides": {
     "uuid": "^11.1.1"

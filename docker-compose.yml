@@ -41,6 +41,9 @@ services:
     environment:
       - PORT=3000
       - JWT_SECRET=${JWT_SECRET}
+      - CHOKIDAR_USEPOLLING=true  
+      - WATCHPACK_POLLING=true
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     depends_on:
         db:
           condition: service_healthy

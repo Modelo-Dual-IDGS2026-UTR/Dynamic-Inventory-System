@@ -1,37 +1,40 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import {TestConection, mySequelize } from '@dis/db/dbConection.js';
-/*
-import { GenerateJWT , VerifyJWT} from './middleware/jwtUtils.js'; 
-import type { jwtPayloadContent } from './middleware/jwtUtils.js';
-*/
-TestConection();
-/*
-const TestJWT=()=>{
-    const userPayload:jwtPayloadContent = {
-        userId:"6969",
-        role: 1,
-        career_area:"TICS",
-        fullName:"Osmar Macias Curiel"
-    }
+//import {TestConection } from '@dis/db/dbConection.js';
+import {User} from '@dis/model'
+import { mySequelize } from '@dis/db/dbConection.js';
+import {routes} from './routes/index.js'
+import cookieParser from 'cookie-parser';
+const TestSequelize=async ()=>{
+try {
+    await mySequelize.authenticate();
+    console.log("Conexion a DB exitosa\n");
+    const usuarios = await User.findAll();
+    console.log("consulta exitosa\nDATOS:\n");
+    console.log(usuarios);
 
-    let jwt:string =GenerateJWT(userPayload,"2m");
+} catch (error) {
+    console.error('❌ Error en la prueba:', error);
 
-    try{
-        VerifyJWT(jwt);
-        console.log(jwt + "\nToken Validaded")
-    }catch{
-        console.log("DUUUUUUDE YOU FUCKED UP")
-    }
-    
+
+
 }
-*/
+}
+
+TestSequelize();
+
+
 
 const app = express();
+
 const PORT = 3000;
 
 // Middleware para entender JSON
 app.use(express.json());
+app.use(cookieParser());
+app.use('/api/user',routes.userRouter)
+app.use('/api/item',routes.itemRouter)
+
 
 // Endpoint GET de prueba
 app.get('/', (req: Request, res: Response) => {
@@ -53,5 +56,34 @@ app.post('/usuarios', (req: Request, res: Response) => {
 app.listen(PORT, () => {
     //This line down here, acts as a silencer for eslint, to ignore console lines warnings
     // eslint-disable-next-line no-console
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+   // console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
+
+
+
+//----------------------NOT PRODUCTION CODE------------------------------------------
+        /*
+        import { GenerateJWT , VerifyJWT} from './middleware/jwtUtils.js'; 
+        import type { jwtPayloadContent } from './middleware/jwtUtils.js';
+        */
+        
+        /*
+        const TestJWT=()=>{
+            const userPayload:jwtPayloadContent = {
+                userId:"6969",
+                role: 1,
+                career_area:"TICS",
+                fullName:"Osmar Macias Curiel"
+            }
+        
+            let jwt:string =GenerateJWT(userPayload,"2m");
+        
+            try{
+                VerifyJWT(jwt);
+                console.log(jwt + "\nToken Validaded")
+            }catch{
+                console.log("DUUUUUUDE YOU FUCKED UP")
+            }
+            
+        }
+        */

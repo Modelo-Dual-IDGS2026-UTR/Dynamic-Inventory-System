@@ -19,6 +19,7 @@ export const mySequelize=new Sequelize(dbName,dbUser,dbPassword,{
     },
     logging:false,
     define:{
+        freezeTableName:true,
         timestamps:false,
         underscored:false
     },
