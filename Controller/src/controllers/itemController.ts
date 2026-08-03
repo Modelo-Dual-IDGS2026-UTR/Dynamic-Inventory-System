@@ -19,7 +19,7 @@ const CreateItem=async (req:Request,res:Response)=>{
         })
     }
 
-        const existingWhere: any = {};
+        const existingWhere: WhereOptions = {};
 
         if (codeBar) {
             // Si hay código de barras, esa es la regla principal de duplicado
@@ -39,8 +39,8 @@ const CreateItem=async (req:Request,res:Response)=>{
         const doesItExist=await Item.findOne({where:existingWhere})
 
         if(doesItExist){
-            res.status(409).json({
-                message: "User already exist"
+            return res.status(409).json({
+                message: "Item already exist"
             })
         }
         await Item.create({
@@ -58,7 +58,7 @@ const CreateItem=async (req:Request,res:Response)=>{
             message:"item succesfully created"
         })
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             message:"Internal server error, not your fault :D",
             error:error
         })
