@@ -31,22 +31,20 @@ export default function AutoLogin(): null {
         const authenticateWithBackend = async () => {
             try {
                 const response = await fetch('http://localhost:3000/api/user/login', {
-                    method: 'POST',
+                    method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${idToken}`,
                     },
+                    credentials: 'include'
                 });
 
+                
             if (response.ok) {
                 const data = await response.json();
+                console.log(data);
 
-                if (data.token) {
-                    localStorage.setItem('appToken', data.token);
-                    console.log("Se guardo el token en el navegador")
-                };
-
-                if (!data.user.isProfileComplete) {
+                if (!data.isUserComplete) {
                     navigate('/select-area', { replace: true });
                 } else {
                     navigate('/dashboard', { replace: true });
