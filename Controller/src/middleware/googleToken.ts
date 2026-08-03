@@ -1,4 +1,4 @@
-import express, { type NextFunction, type Request, type Response } from 'express'
+import { type NextFunction, type Request, type Response } from 'express'
 import { OAuth2Client } from 'google-auth-library'
 
 const GoogleClientID = process.env.VITE_GOOGLE_CLIENT_ID||""

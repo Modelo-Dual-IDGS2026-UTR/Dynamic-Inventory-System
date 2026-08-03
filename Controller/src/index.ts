@@ -1,7 +1,7 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import {TestConection } from '@dis/db/dbConection.js';
-import {User,UserRole} from '@dis/model'
+//import {TestConection } from '@dis/db/dbConection.js';
+import {User} from '@dis/model'
 import { mySequelize } from '@dis/db/dbConection.js';
 import {routes} from './routes/index.js'
 import cookieParser from 'cookie-parser';
@@ -56,7 +56,7 @@ app.post('/usuarios', (req: Request, res: Response) => {
 app.listen(PORT, () => {
     //This line down here, acts as a silencer for eslint, to ignore console lines warnings
     // eslint-disable-next-line no-console
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+   // console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
 
 

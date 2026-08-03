@@ -1,7 +1,6 @@
 import { Item,Place, User} from '@dis/model';
 import type { Response,Request } from 'express'
-import { createHash } from 'node:crypto';
-import { where, type WhereOptions } from 'sequelize';
+import {type WhereOptions } from 'sequelize';
 
 const CreateItem=async (req:Request,res:Response)=>{
     try {

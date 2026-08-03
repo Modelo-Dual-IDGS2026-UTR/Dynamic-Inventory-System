@@ -1,8 +1,7 @@
-import { mySequelize } from "@dis/db/dbConection.js";
-import { User,UserRole } from "@dis/model";
+import { User } from "@dis/model";
 import type { Response,Request } from "express";
 import { GenerateJWT, type jwtPayloadContent } from "../middleware/jwtUtils.js";
-import { where } from "sequelize";
+
 
 
 
@@ -202,7 +201,8 @@ const SearchUserById=async (req:Request,res:Response)=>{
         
     } catch (error) {
          return res.status(500).json({
-            message:"Internal Error: Dont Worry Is Not Your fault :D"
+            message:"Internal Error: Dont Worry Is Not Your fault :D",
+            error:error
         })
     }
 }
@@ -217,7 +217,8 @@ const WhoAmI=(req:Request,res:Response)=>{
         ShowUser(userId,res)
     } catch (error) {
          return res.status(500).json({
-            message:"Internal Error: Dont Worry Is Not Your fault :D"
+           message:"Internal Error: Dont Worry Is Not Your fault :D",
+            error:error
         })
     }
 }
