@@ -1,0 +1,77 @@
+body {
+  background-color: #e8f0fe;
+}
+
+.select-area-container {
+    max-width: 400px;
+    margin: 4rem auto;
+    padding: 4rem;
+    text-align: center;
+    background-color: white;
+    border-radius: 20px;
+    box-shadow: 2px 5px 50px 3px #b9c0ce; 
+}
+
+.error-message{
+    color: #dc2626;
+    font-weight: 500;
+}
+
+.area-form{
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+}
+
+.area-select{
+    padding: 0.8rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    background-color: #e8f0fe;
+}
+
+.submit-btn{
+    padding: 0.8rem;
+    cursor: pointer;
+    font-weight: bold;
+    background-color: #b71c1c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+}
+
+.submit-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.workid-container{
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.submit-input{
+    padding: 0.8rem;
+    font-size: 1rem;
+    font-weight: bold;
+    background-color: #b71c1c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+}
+
+.submit-input:hover{
+    border-color: #f3dcdb
+}
+
+.submit-input:focus {
+    background-color: rgb(219, 52, 52);
+    box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.15); 
+}
+
+.submit-input::placeholder {
+    color: #ffffff;
+}

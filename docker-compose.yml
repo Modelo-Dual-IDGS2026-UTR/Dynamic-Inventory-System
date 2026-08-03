@@ -12,7 +12,7 @@ services:
       retries: 10
      environment:
      #ESCONDER CONTRASEÑAS FINALES EN UN .ENV
-      MYSQL_ROOT_PASSWORD: root_password_super_secret
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
@@ -68,6 +68,8 @@ services:
       - /app/Db/node_modules
     environment:
       - NODE_ENV=development
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+      - VITE_GOOGLE_CLIENT_SECRET=${VITE_GOOGLE_CLIENT_SECRET}
     depends_on:
       - backend
     networks:
