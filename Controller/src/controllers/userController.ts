@@ -224,9 +224,8 @@ const WhoAmI=(req:Request,res:Response)=>{
 }
 
 
-function IsUserComplete(user:Record<string,any>) {
-    
-    const userData=user.dataValues
+function IsUserComplete(user:InstanceType<typeof User>):boolean {
+    const userData=user.toJSON()
     for(const value of Object.values(userData)){
         if(value==null){
             return false

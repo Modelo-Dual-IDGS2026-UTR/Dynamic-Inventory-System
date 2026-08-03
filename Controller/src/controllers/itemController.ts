@@ -256,13 +256,15 @@ const DeleteItemByID=async (req:Request,res:Response)=>{
    }
 
 }
-
-async function FilterOptions(filter:Record<string,any>){
-    const whereClause:WhereOptions={}
+//Aprender a usar esta mamada
+function FilterOptions<T extends object=Record<string,unknown>>(
+    filter:Record<string,unknown>
+):WhereOptions<T>{
+    const whereClause:WhereOptions<T>={}
 
     Object.entries(filter).forEach(([key,value])=>{
         if(value!==undefined&&value!==null&&value!==""){
-            whereClause[key]=value
+            (whereClause as Record<string, unknown>)[key] = value;
         }
     })
     return whereClause
