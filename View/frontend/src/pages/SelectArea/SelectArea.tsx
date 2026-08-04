@@ -79,11 +79,10 @@ export default function SelectArea() {
 
             if (response.ok) {
                 const data = await response.json();
-
                 if (data.email && data.email.toLowerCase().startsWith('st')) {
 
                     const match = data.email.match(/^st(\d+)/);
-                    setUniversityId(match);
+                    setUniversityId(match[1]);
                     return true;
                 } 
                 return false;
