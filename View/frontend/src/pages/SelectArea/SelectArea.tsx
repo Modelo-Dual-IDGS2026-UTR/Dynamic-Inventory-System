@@ -48,7 +48,7 @@ export default function SelectArea() {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify({ area, universityId, isStudent }),
+                body: JSON.stringify({ universityId ,area }),
             });
 
             if (response.ok) {

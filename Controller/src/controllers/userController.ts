@@ -106,10 +106,10 @@ const FullfilUser=async (req:Request,res:Response)=>{
             area
         },{where:{userId:convertedId}})
         
-        if(editedRows==0){
-            return res.status(200).json({
+        
+        return res.status(200).json({
             message:"User succefully edited"
-        })}
+        })
     } catch (error) {
         return res.status(500).json({
             message:"Internal Error: Dont Worry Is Not Your fault :D",
@@ -138,7 +138,7 @@ const LogUser= async (req:Request,res:Response)=>{
 
             const isComplete=IsUserComplete(userSearch)
             res.cookie('jwtToken',token,{
-                //httpOnly:true,
+                httpOnly:true,
                 secure:process.env.NODE_ENV==='production',
                 sameSite:'lax',
                 maxAge: 24 * 60 * 60 * 1000
@@ -197,7 +197,7 @@ const SearchUserById=async (req:Request,res:Response)=>{
             message:"Invalid User ID"
         })  
         }
-        ShowUser(convertedId,res);
+        ShowUser(convertedId,res); isStudent 
         
     } catch (error) {
          return res.status(500).json({
