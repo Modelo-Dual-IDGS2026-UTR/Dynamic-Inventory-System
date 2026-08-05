@@ -197,7 +197,7 @@ const SearchUserById=async (req:Request,res:Response)=>{
             message:"Invalid User ID"
         })  
         }
-        ShowUser(convertedId,res); isStudent 
+        ShowUser(convertedId,res); 
         
     } catch (error) {
          return res.status(500).json({
