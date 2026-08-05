@@ -5,6 +5,8 @@ import {User} from '@dis/model'
 import { mySequelize } from '@dis/db/dbConection.js';
 import {routes} from './routes/index.js'
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
+
 const TestSequelize=async ()=>{
 try {
     await mySequelize.authenticate();
@@ -25,13 +27,22 @@ TestSequelize();
 
 
 
+
 const app = express();
 
 const PORT = 3000;
 
+const corsOptions: cors.CorsOptions = {
+    origin: ['http://localhost:3000', 'http://localhost:5173'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+    credentials: true
+};
+
 // Middleware para entender JSON
-app.use(express.json());
 app.use(cookieParser());
+app.use(express.json());
+app.use(cors(corsOptions));
+
 app.use('/api/user',routes.userRouter)
 app.use('/api/item',routes.itemRouter)
 

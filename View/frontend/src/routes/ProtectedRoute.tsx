@@ -1,14 +1,14 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { isTokenValid } from '../utils/auth';
+import { useAuth } from '../utils/auth';
 
 export const ProtectedRoute = () => {
-  const isValid = isTokenValid();
+  const { isAuthenticated } = useAuth();
 
-  if (!isValid) {
-    // Remove old or expired token
-    localStorage.removeItem('appToken');
-    
-    // Redirect to login page, replacing the history
+  if (isAuthenticated === null) {
+    return <div>Cargando...</div>;
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
