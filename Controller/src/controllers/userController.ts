@@ -9,8 +9,8 @@ const CreateUser= async (req:Request,res:Response,)=>{
     
     
     try {
-        const {firstName,lastName,email,area}=req.body
-        if(!firstName||!lastName||!email||!area){
+        const {firstName,lastName, googleUserId, email,area}=req.body
+        if(!firstName||!lastName||!googleUserId||!email||!area){
             return res.status(400).json({
                 message: "All fields (firstName,lastName,email,area) are required"
             });
@@ -20,6 +20,7 @@ const CreateUser= async (req:Request,res:Response,)=>{
             lastName,
             email,
             area,
+            googleUserId,
             fk_role:1
         })
         return res.status(200).json({
