@@ -48,7 +48,7 @@ export default function SelectArea() {
                     'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify({ area, universityId, isStudent }),
+                body: JSON.stringify({ universityId ,area }),
             });
 
             if (response.ok) {
@@ -79,11 +79,10 @@ export default function SelectArea() {
 
             if (response.ok) {
                 const data = await response.json();
-
                 if (data.email && data.email.toLowerCase().startsWith('st')) {
 
                     const match = data.email.match(/^st(\d+)/);
-                    setUniversityId(match);
+                    setUniversityId(match[1]);
                     return true;
                 } 
                 return false;
