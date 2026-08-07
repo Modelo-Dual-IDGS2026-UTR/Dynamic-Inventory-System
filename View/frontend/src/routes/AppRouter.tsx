@@ -3,6 +3,8 @@ import AutoLogin from '../features/auth/AutoLogin'; // O el nombre de tu compone
 import SelectArea from '../pages/SelectArea/SelectArea';
 import { ProtectedRoute } from './ProtectedRoute';
 import ItemTable from '../pages/Inventory/ItemTable';
+import  Inventory  from '../pages/Inventory/inventory';
+import  MainLayout  from '../components/layout/MainLayout/MainLayout';
 export const AppRouter = () => {
     return (
         <Routes>
@@ -15,3 +17,5 @@ export const AppRouter = () => {
         </Routes>
     );
 };
+
+export default AppRouter;
