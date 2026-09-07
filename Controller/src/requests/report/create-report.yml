@@ -1,0 +1,28 @@
+info:
+  name: create-report
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/api/report/new-report
+  body:
+    type: json
+    data: |-
+      {
+        "reportName": "REPORTE: PAULO SEXY ",
+        "reportDescription": "Paulo esta viendo porno de pokemón en el site",
+        "reportStatus": 1,
+        "reportPriority": 3,
+        "dueDate": "2026-08-06",
+        "fk_user": 2,
+        "fk_item": 1,
+        "fk_place": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,28 @@
+info:
+  name: create-item
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/api/item/new-item
+  body:
+    type: json
+    data: |-
+      {
+        "itemName": "Dildo",
+        "itemDescription": "Esto es un dildo",
+        "codeBar": "OJDJFODAISJFOS",
+        "category": "No Category", 
+        "cost": 20,
+        "manufacter": "DELL", 
+        "fk_user_responsible": 1,
+        "fk_place": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
