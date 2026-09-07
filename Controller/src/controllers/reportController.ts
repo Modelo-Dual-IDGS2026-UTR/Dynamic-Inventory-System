@@ -15,11 +15,21 @@ const CreateReport = async (req:Request, res:Response) => {
             fk_place,
         } = req.body;
 
+        const item = await Item.findByPk(fk_item);
+        if(!item){
+            return res.status(404).json({message: "Item not found"})
+        }
+
+        const place = await Place.findByPk(fk_place);
+        if (!place) {
+            return res.status(404).json({message: "Place not found"})
+        }
+        
         if(!reportName || !reportDescription || !reportStatus || !reportPriority || !dueDate
            || !fk_user || !fk_item || !fk_place
         ){
           return res.status(400).json({
-            message: "All parameter must be field, please check documentation"
+            message: "All parameters must be filled in, please check documentation"
           })  
         }
 
