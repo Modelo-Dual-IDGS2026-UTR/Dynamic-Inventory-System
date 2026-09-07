@@ -27,12 +27,11 @@ const CreateReport = async (req:Request, res:Response) => {
         
         if(!reportName || !reportDescription || !reportStatus || !reportPriority || !dueDate
            || !fk_user || !fk_item || !fk_place
-        ){
+        ){  
           return res.status(400).json({
             message: "All parameters must be filled in, please check documentation"
           })  
         }
-
 
         await Report.create({
             reportName,
@@ -112,18 +111,18 @@ async function ShowReport(id:number,res:Response){
         }
         const report = foundReport.toJSON()
         
-        report.fk_place={
+        report.fk_place = {
             placeId: report.related_place.placeId,
             placeName:report.related_place.placeName
         }
         
-        report.fk_user_responsible={
+        report.fk_user = {
             userId:report.related_user.userId,
             firstname:report.related_user.firstName,
-            userName:report.related_user.lastName
+            lastName:report.related_user.lastName
         }
 
-        report.fk_item={
+        report.fk_item = {
             reportId:report.related_item.itemId,
             reportName:report.related_item.itemName
         }
@@ -232,13 +231,22 @@ const SearchReports = async (req:Request,res:Response)=>{
     }    
 }
 
+//Route used to search the reports for an assigned user, or for looking the creator 
 const SearchReportsCreatedUser = async (req:Request,res:Response)=>{
     try {
         const userId = req.params.userId;
 
-        if (!userId) {
+        const parsedUserId = Number(userId);
+        if (!userId || isNaN(parsedUserId) || parsedUserId <= 0) {
             return res.status(400).json({
-                message: "User ID is required"
+                message: "A valid User ID is required"
+            })
+        }
+
+        const userExists = await User.findByPk(parsedUserId);
+        if (!userExists) {
+            return res.status(404).json({
+                message: "User not found"
             });
         }
 
@@ -252,33 +260,9 @@ const SearchReportsCreatedUser = async (req:Request,res:Response)=>{
 
         const body=req.body||{}
 
-        const {
-            reportId,
-            reportName,
-            reportDescription,
-            reportStatus,
-            reportPriority,
-            dueDate,
-            fk_item,
-            fk_place,
-            sortBy='reportId',
-            order='ASC'
-        }=body
 
-        const searchOptions=await FilterOptions({
-            reportId,
-            reportName,
-            reportDescription,
-            reportStatus,
-            reportPriority,
-            dueDate,
-            fk_user: convertedUserId,
-            fk_item,
-            fk_place
-        })
-            
         const foundReports= await Report.findAll({
-                where:searchOptions,
+                where: {fk_user: parsedUserId},
                 include:[{
                 model: Place,
                 as: 'related_place',
@@ -296,29 +280,28 @@ const SearchReportsCreatedUser = async (req:Request,res:Response)=>{
                 attributes: ['itemId', 'itemName',]
             }
                 ],
-                order:[[sortBy,order.toUpperCase()]]
+                order:["createdAt", "DESC"]
         })
 
-        const formatedReports=foundReports.map((reportInstance)=>{
-            const report=reportInstance.toJSON()
-            const formated={
+        const formatedReports = foundReports.map((reportInstance)=>{
+            const report = reportInstance.toJSON()
+            const formated = {
                 ...report,
-                fk_place:report.related_place?
-                        {
-                            id:report.related_place.placeId,
-                            name:report.related_place.placeName
-                        }:report.related_place.placeId,
+                fk_place: report.related_place? {
+                            id: report.related_place.placeId,
+                            name: report.related_place.placeName
+                        }: null,
                 fk_user:report.related_user?
                         {
                             id:report.related_user.userId,
                             firstName:report.related_user.firstName,
                             lastName:report.related_user.lastName
-                        }:report.related_user.userId,
+                        }: null,
                 fk_item:report.related_item?
                         {
                             id:report.related_item.itemId,
                             itemName:report.related_item.itemName
-                        }:report.related_item.itemId,
+                        }: null,
                 
                 
                 
@@ -333,12 +316,11 @@ const SearchReportsCreatedUser = async (req:Request,res:Response)=>{
         
         return res.status(200).json(formatedReports);
     } catch (error) {
-        res.status(500).json({
-        message:"Internal server error, not your fault :D",
-        error:error
+        return res.status(500).json({
+        message: "Internal server error, not your fault :D",
+        error: error
     })
 }}
-
 
 function FilterOptions<T extends object=Record<string,unknown>>(
     filter:Record<string,unknown>

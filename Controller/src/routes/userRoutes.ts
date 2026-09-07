@@ -14,8 +14,9 @@ userRouter.post('/create-user',userController.CreateUser)
 userRouter.get('/login',VerifyGoogleToken,userController.LogUser)
 //Add endpoint to docs
 
+//userRouter.get('/find-user/:userId',VerifyJWT(),userController.SearchUserById)
 
-userRouter.get('/find-user/:userId',VerifyJWT(),userController.SearchUserById)
+userRouter.get('/find-user/:userId',userController.SearchUserById)
 
 userRouter.get('/me',VerifyJWT(),userController.WhoAmI)
 
