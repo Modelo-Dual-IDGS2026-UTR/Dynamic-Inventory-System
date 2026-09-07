@@ -10,12 +10,12 @@ http:
     type: json
     data: |-
       {
-        "reportName": "REPORTE: PAULO SEXY ",
-        "reportDescription": "Paulo esta viendo porno de pokemón en el site",
+        "reportName": "REPORTE: OSMAR HOLAAA ",
+        "reportDescription": "Paulo esta viendo cosas indebidas de pokemón en el site",
         "reportStatus": 1,
         "reportPriority": 3,
         "dueDate": "2026-08-06",
-        "fk_user": 2,
+        "fk_user": 1,
         "fk_item": 1,
         "fk_place": 1
       }
@@ -26,3 +26,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
