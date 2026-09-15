@@ -27,7 +27,7 @@ export const Report = mySequelize.define("Report", {
         type: DataTypes.DATEONLY,
         allowNull: true
     },
-    fk_user: {
+    fk_user_assigned: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
@@ -36,6 +36,16 @@ export const Report = mySequelize.define("Report", {
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
+    },
+    fk_user_creator: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+        model: 'User',
+        key: 'userId'
+    },
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
     },
     fk_item: {
         type: DataTypes.INTEGER,

@@ -1,8 +1,54 @@
-import {Report, User, Item, Place} from '@dis/model';
-import type { Response, Request} from 'express';
-import {type WhereOptions} from 'sequelize';
+import { Report, User, Item, Place } from '@dis/model';
+import type { Response, Request } from 'express';
+import { type WhereOptions } from 'sequelize';
 
-const CreateReport = async (req:Request, res:Response) => {
+// Standard includes for Report queries
+const REPORT_INCLUDES = [
+    {
+        model: Place,
+        as: 'related_place',
+        attributes: ['placeId', 'placeName']
+    },
+    {
+        model: User,
+        as: 'related_user_assigned',
+        attributes: ['userId', 'firstName', 'lastName']
+    },
+    {
+        model: User,
+        as: 'related_user_creator',
+        attributes: ['userId', 'firstName', 'lastName']
+    },
+    {
+        model: Item,
+        as: 'related_item',
+        attributes: ['itemId', 'itemName']
+    }
+];
+
+// Helper to format report JSON response
+const formatReport = (reportInstance: any) => {
+    const report = typeof reportInstance.toJSON === 'function' ? reportInstance.toJSON() : reportInstance;
+    const { related_place, related_user_assigned, related_user_creator, related_item, ...rest } = report;
+
+    return {
+        ...rest,
+        fk_place: related_place
+            ? { id: related_place.placeId, name: related_place.placeName }
+            : null,
+        fk_user_assigned: related_user_assigned
+            ? { id: related_user_assigned.userId, firstName: related_user_assigned.firstName, lastName: related_user_assigned.lastName }
+            : null,
+        fk_user_creator: related_user_creator
+            ? { id: related_user_creator.userId, firstName: related_user_creator.firstName, lastName: related_user_creator.lastName }
+            : null,
+        fk_item: related_item
+            ? { id: related_item.itemId, itemName: related_item.itemName }
+            : null
+    };
+};
+
+const CreateReport = async (req: Request, res: Response) => {
     try {
         const {
             reportName,
@@ -10,28 +56,33 @@ const CreateReport = async (req:Request, res:Response) => {
             reportStatus,
             reportPriority,
             dueDate,
-            fk_user,
+            fk_user_assigned,
+            fk_user_creator,
             fk_item,
-            fk_place,
+            fk_place
         } = req.body;
 
-        const item = await Item.findByPk(fk_item);
-        if(!item){
-            return res.status(404).json({message: "Item not found"})
+        if (
+            !reportName ||
+            !reportDescription ||
+            !reportStatus ||
+            !reportPriority ||
+            !dueDate ||
+            !fk_user_assigned ||
+            !fk_user_creator ||
+            !fk_item ||
+            !fk_place
+        ) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
         }
 
-        const place = await Place.findByPk(fk_place);
-        if (!place) {
-            return res.status(404).json({message: "Place not found"})
-        }
-        
-        if(!reportName || !reportDescription || !reportStatus || !reportPriority || !dueDate
-           || !fk_user || !fk_item || !fk_place
-        ){  
-          return res.status(400).json({
-            message: "All parameters must be filled in, please check documentation"
-          })  
-        }
+        const [item, place] = await Promise.all([
+            Item.findByPk(fk_item),
+            Place.findByPk(fk_place)
+        ]);
+
+        if (!item) return res.status(404).json({ message: 'Item not found' });
+        if (!place) return res.status(404).json({ message: 'Place not found' });
 
         await Report.create({
             reportName,
@@ -39,309 +90,115 @@ const CreateReport = async (req:Request, res:Response) => {
             reportStatus,
             reportPriority,
             dueDate,
-            fk_user,
+            fk_user_assigned,
+            fk_user_creator,
             fk_item,
             fk_place
         });
-        
 
-        return res.status(200).json({
-            message:"item succesfully created"
-        })
+        return res.status(200).json({ message: 'Item successfully created' });
     } catch (error) {
-         return res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error
-        })
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
     }
-}
+};
 
-const SearchReportById = (req:Request, res:Response) => {
+const SearchReportById = async (req: Request, res: Response) => {
     try {
-        const id = req.params.id
-
-        if(!id){
-            return res.status(400).json({
-                message: "No ID received"
-            })
+        const id = Number(req.params.id);
+        if (!id || isNaN(id) || !Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ message: 'Invalid Report ID' });
         }
 
-        const convertedId = Number(id)
-
-        if(isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0){
-            return res.status(400).json({
-                message:"Invalid User ID"
-            })  
+        const foundReport = await Report.findByPk(id, { include: REPORT_INCLUDES });
+        if (!foundReport) {
+            return res.status(404).json({ message: 'Item not found' });
         }
-            
-        ShowReport(convertedId,res)
+
+        return res.status(200).json(formatReport(foundReport));
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error:error
-        })
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
     }
-}
+};
 
-async function ShowReport(id:number,res:Response){
+const SearchReports = async (req: Request, res: Response) => {
     try {
-        const foundReport=await Report.findByPk(id,{
-            include:[{
-                model: Place,
-                as: 'related_place',
-                attributes:['placeId','placeName']
-
-            },
-            {
-                model: User,
-                as:'related_user',
-                attributes:['userId','firstName', 'lastName']
-            },
-            {
-                model: Item,
-                as: 'related_item',
-                attributes: ['itemId', 'itemName',]
-            }
-            ]
-        })
-        if(!foundReport){
-            return res.status(404).json({
-                message:"Item not foud"
-            })
-        }
-        const report = foundReport.toJSON()
-        
-        report.fk_place = {
-            placeId: report.related_place.placeId,
-            placeName:report.related_place.placeName
-        }
-        
-        report.fk_user = {
-            userId:report.related_user.userId,
-            firstname:report.related_user.firstName,
-            lastName:report.related_user.lastName
-        }
-
-        report.fk_item = {
-            reportId:report.related_item.itemId,
-            reportName:report.related_item.itemName
-        }
-
-        delete report.related_place
-        delete report.related_user
-        delete report.related_item
-        res.status(200).json(
-            report
-        )
-    } catch (error){
-        res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error
-    })
-}
-}
-
-const SearchReports = async (req:Request,res:Response)=>{
-    try {
-        const body=req.body||{}
-        const {reportId,
-            reportName,
-            reportDescription,
-            reportStatus,
-            reportPriority,
-            dueDate,
-            fk_user,
-            fk_item,
-            fk_place,
-            sortBy='reportId',
-            order='ASC'
-            }=body
-        const searchOptions=await FilterOptions({
+        const {
             reportId,
             reportName,
             reportDescription,
             reportStatus,
             reportPriority,
             dueDate,
-            fk_user,
+            fk_user_assigned,
+            fk_user_creator,
+            fk_item,
+            fk_place,
+            sortBy = 'reportId',
+            order = 'ASC'
+        } = req.body || {};
+
+        const searchOptions = FilterOptions({
+            reportId,
+            reportName,
+            reportDescription,
+            reportStatus,
+            reportPriority,
+            dueDate,
+            fk_user_assigned,
+            fk_user_creator,
             fk_item,
             fk_place
-        })
-            const foundReports= await Report.findAll({
-                    where:searchOptions,
-                    include:[{
-                    model: Place,
-                    as: 'related_place',
-                    attributes:['placeId','placeName']
+        });
 
-                },
-                {
-                    model: User,
-                    as:'related_user',
-                    attributes:['userId','firstName', 'lastName']
-                },
-                {
-                    model: Item,
-                    as: 'related_item',
-                    attributes: ['itemId', 'itemName',]
-                }
-                    ],
-                    order:[[sortBy,order.toUpperCase()]]
-            })
+        const foundReports = await Report.findAll({
+            where: searchOptions,
+            include: REPORT_INCLUDES,
+            order: [[sortBy, String(order).toUpperCase()]]
+        });
 
-            const formatedReports=foundReports.map((reportInstance)=>{
-                const report=reportInstance.toJSON()
-                const formated={
-                    ...report,
-                    fk_place:report.related_place?
-                            {
-                                id:report.related_place.placeId,
-                                name:report.related_place.placeName
-                            }:report.related_place.placeId,
-                    fk_user:report.related_user?
-                            {
-                                id:report.related_user.userId,
-                                firstName:report.related_user.firstName,
-                                lastName:report.related_user.lastName
-                            }:report.related_user.userId,
-                    fk_item:report.related_item?
-                            {
-                                id:report.related_item.itemId,
-                                itemName:report.related_item.itemName
-                            }:report.related_item.itemId,
-                    
-                    
-                    
-                }
-                delete formated.related_place
-                delete formated.related_user
-                delete formated.related_item
+        return res.status(200).json(foundReports.map(formatReport));
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+};
 
-                return formated
-
-
-            })
-            return res.status(200).json(formatedReports)
-            
-        } catch (error) {
-            res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error
-    })
-    }    
-}
-
-//Route used to search the reports for an assigned user, or for looking the creator 
-const SearchReportsCreatedUser = async (req:Request,res:Response)=>{
+const SearchReportsCreatedUser = async (req: Request, res: Response) => {
     try {
-        const userId = req.params.userId;
-
-        const parsedUserId = Number(userId);
-        if (!userId || isNaN(parsedUserId) || parsedUserId <= 0) {
-            return res.status(400).json({
-                message: "A valid User ID is required"
-            })
+        const parsedUserId = Number(req.params.userId);
+        if (isNaN(parsedUserId) || !Number.isInteger(parsedUserId) || parsedUserId <= 0) {
+            return res.status(400).json({ message: 'A valid User ID is required' });
         }
 
         const userExists = await User.findByPk(parsedUserId);
         if (!userExists) {
-            return res.status(404).json({
-                message: "User not found"
-            });
+            return res.status(404).json({ message: 'User not found' });
         }
 
-        const convertedUserId = Number(userId);
+        const foundReports = await Report.findAll({
+            where: { fk_user_creator: parsedUserId },
+            include: REPORT_INCLUDES,
+            order: [['createdAt', 'DESC']]
+        });
 
-        if (isNaN(convertedUserId) || !Number.isInteger(convertedUserId) || convertedUserId <= 0) {
-            return res.status(400).json({
-                message: "Invalid User ID"
-            });
-        }
-
-        const body=req.body||{}
-
-
-        const foundReports= await Report.findAll({
-                where: {fk_user: parsedUserId},
-                include:[{
-                model: Place,
-                as: 'related_place',
-                attributes:['placeId','placeName']
-
-            },
-            {
-                model: User,
-                as:'related_user',
-                attributes:['userId','firstName', 'lastName']
-            },
-            {
-                model: Item,
-                as: 'related_item',
-                attributes: ['itemId', 'itemName',]
-            }
-                ],
-                order:["createdAt", "DESC"]
-        })
-
-        const formatedReports = foundReports.map((reportInstance)=>{
-            const report = reportInstance.toJSON()
-            const formated = {
-                ...report,
-                fk_place: report.related_place? {
-                            id: report.related_place.placeId,
-                            name: report.related_place.placeName
-                        }: null,
-                fk_user:report.related_user?
-                        {
-                            id:report.related_user.userId,
-                            firstName:report.related_user.firstName,
-                            lastName:report.related_user.lastName
-                        }: null,
-                fk_item:report.related_item?
-                        {
-                            id:report.related_item.itemId,
-                            itemName:report.related_item.itemName
-                        }: null,
-                
-                
-                
-            }
-            delete formated.related_place
-            delete formated.related_user
-            delete formated.related_item
-
-            return formated
-        })
-
-        
-        return res.status(200).json(formatedReports);
+        return res.status(200).json(foundReports.map(formatReport));
     } catch (error) {
-        return res.status(500).json({
-        message: "Internal server error, not your fault :D",
-        error: error
-    })
-}}
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+};
 
-function FilterOptions<T extends object=Record<string,unknown>>(
-    filter:Record<string,unknown>
-):WhereOptions<T>{
-    const whereClause:WhereOptions<T>={}
-
-    Object.entries(filter).forEach(([key,value])=>{
-        if(value!==undefined&&value!==null&&value!==""){
+function FilterOptions<T extends object = Record<string, unknown>>(filter: Record<string, unknown>): WhereOptions<T> {
+    const whereClause: WhereOptions<T> = {};
+    Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
             (whereClause as Record<string, unknown>)[key] = value;
         }
-    })
-    return whereClause     
+    });
+    return whereClause;
 }
 
-
-
-
-
-export const reportController={
+export const reportController = {
     CreateReport,
     SearchReportById,
     SearchReports,
     SearchReportsCreatedUser
-}
+};

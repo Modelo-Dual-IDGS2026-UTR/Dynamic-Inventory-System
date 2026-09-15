@@ -181,8 +181,13 @@ ALTER TABLE Request
         ON UPDATE CASCADE;
 
 ALTER TABLE Report
-    ADD CONSTRAINT fk_report_user 
-        FOREIGN KEY (fk_user) 
+    ADD CONSTRAINT fk_report_user_creator 
+        FOREIGN KEY (fk_user_creator) 
+        REFERENCES User(userId)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE, 
+    ADD CONSTRAINT fk_report_user_assigned
+        FOREIGN KEY (fk_user_assigned) 
         REFERENCES User(userId)
         ON DELETE CASCADE
         ON UPDATE CASCADE, 
@@ -198,7 +203,7 @@ ALTER TABLE Report
         ON UPDATE CASCADE;
 
 /*===============================
-    3. INSERT INITIAL VALUES
+    3. INSERT INITIAL VALUES - DELETE ON DEPLOY
   ===============================*/
 
 INSERT INTO UserRole(roleName, roleDescription)
