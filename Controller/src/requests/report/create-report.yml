@@ -15,7 +15,8 @@ http:
         "reportStatus": 1,
         "reportPriority": 3,
         "dueDate": "2026-08-06",
-        "fk_user": 1,
+        "fk_user_assigned": 2,
+        "fk_user_creator": 2,
         "fk_item": 1,
         "fk_place": 1
       }
