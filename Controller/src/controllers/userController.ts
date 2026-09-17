@@ -2,11 +2,7 @@ import { User } from "@dis/model";
 import type { Response,Request } from "express";
 import { GenerateJWT, type jwtPayloadContent } from "../middleware/jwtUtils.js";
 
-
-
-
 const CreateUser= async (req:Request,res:Response,)=>{
-    
     
     try {
         const {firstName,lastName, googleUserId, email,area}=req.body
