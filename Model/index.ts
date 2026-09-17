@@ -69,14 +69,24 @@ const setupAssociations=()=>{
     });
 //######Report################
     User.hasMany(Report,{
-        foreignKey: 'fk_user',
+        foreignKey: 'fk_user_creator',
         sourceKey: 'userId',
-        as: 'user_reports'
+        as: 'user_created_reports'
     });
     Report.belongsTo(User,{
-        foreignKey: 'fk_user',
+        foreignKey: 'fk_user_creator',
         targetKey: 'userId',
-        as: 'related_user'
+        as: 'related_user_creator'
+    });
+    User.hasMany(Report,{
+        foreignKey: 'fk_user_assigned',
+        sourceKey: 'userId',
+        as: 'user_assigned_reports'
+    });
+    Report.belongsTo(User,{
+        foreignKey: 'fk_user_assigned',
+        targetKey: 'userId',
+        as: 'related_user_assigned'
     });
     Place.hasMany(Report,{
         foreignKey: 'fk_place',
@@ -206,4 +216,4 @@ export {
     History,
     Request,
     UserNotification
-}
+}

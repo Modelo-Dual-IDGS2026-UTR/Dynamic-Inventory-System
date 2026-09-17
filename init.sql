@@ -68,7 +68,8 @@ CREATE TABLE Report (
     reportStatus int DEFAULT 1,
     reportPriority int DEFAULT 3,
     dueDate Date,
-    fk_user INT NOT NULL,
+    fk_user_creator INT NOT NULL,
+    fk_user_assigned INT NOT NULL,
     fk_item INT NOT NULL,
     fk_place INT NOT NULL,  
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -180,8 +181,13 @@ ALTER TABLE Request
         ON UPDATE CASCADE;
 
 ALTER TABLE Report
-    ADD CONSTRAINT fk_report_user 
-        FOREIGN KEY (fk_user) 
+    ADD CONSTRAINT fk_report_user_creator 
+        FOREIGN KEY (fk_user_creator) 
+        REFERENCES User(userId)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE, 
+    ADD CONSTRAINT fk_report_user_assigned
+        FOREIGN KEY (fk_user_assigned) 
         REFERENCES User(userId)
         ON DELETE CASCADE
         ON UPDATE CASCADE, 
@@ -197,7 +203,7 @@ ALTER TABLE Report
         ON UPDATE CASCADE;
 
 /*===============================
-    3. INSERT INITIAL VALUES
+    3. INSERT INITIAL VALUES - DELETE ON DEPLOY
   ===============================*/
 
 INSERT INTO UserRole(roleName, roleDescription)

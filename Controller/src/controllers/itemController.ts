@@ -267,9 +267,9 @@ function FilterOptions<T extends object=Record<string,unknown>>(
             (whereClause as Record<string, unknown>)[key] = value;
         }
     })
-    return whereClause
-     
+    return whereClause     
 }
+
 async function ShowItem(id:number,res:Response){
     try {
         const foundItem=await Item.findByPk(id,{

@@ -43,9 +43,9 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(cors(corsOptions));
 
-app.use('/api/user',routes.userRouter)
-app.use('/api/item',routes.itemRouter)
-
+app.use('/api/user',routes.userRouter);
+app.use('/api/item',routes.itemRouter);
+app.use('/api/report', routes.reportRouter);
 
 // Endpoint GET de prueba
 app.get('/', (req: Request, res: Response) => {
