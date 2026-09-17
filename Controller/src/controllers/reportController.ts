@@ -186,6 +186,90 @@ const SearchReportsCreatedUser = async (req: Request, res: Response) => {
     }
 };
 
+const SetReportStatus = async (req: Request, res: Response) => {
+    try {
+        const {status} = req.body;
+        const parsedReportId = Number(req.params.reportId);
+        if (!parsedReportId || !status) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+        const foundReport = await Report.findByPk(parsedReportId);
+        if (!foundReport) {
+            return res.status(404).json({ message: 'Report not found' });
+        }
+        foundReport.set('reportStatus', status);
+        await foundReport.save();
+        return res.status(200).json({ message: 'Report status successfully updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+}
+
+const SetDueDate = async (req: Request, res: Response) => {
+    try {
+        const parsedReportId = Number(req.params.reportId);
+        const dueDate = req.body;
+
+        if (!parsedReportId || !dueDate) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundReport = await Report.findByPk(parsedReportId);
+        if (!foundReport) {
+            res.status(404).json({ message: "Report Not Found"})
+        }
+        foundReport?.set('dueDate', dueDate);
+        await foundReport?.save()   
+
+        return res.status(200).json({ message: 'Report Due Date successfully updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+}
+
+const setPriority = async (req: Request, res: Response) => {
+    try {
+        const parsedReportId = Number(req.params.reportId);
+        const priority = req.body;
+
+        if (!parsedReportId || !priority) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundReport = await Report.findByPk(parsedReportId);
+        if (!foundReport){
+            res.status(404).json({ message: "Report Not Found"})
+        }
+        foundReport?.set('reportPriority', priority);
+        foundReport?.save();
+
+        return res.status(200).json({ message: 'Report priority successfully updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+ 
+}
+
+const deleteReport = async (req: Request, res: Response) => {
+    try{
+        const parsedReportId = Number(req.params.reportId);
+
+        if (!parsedReportId) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundReport = await Report.findByPk(parsedReportId);
+        if (!foundReport){
+            res.status(404).json({ message: "Report Not Found"})
+        }
+        foundReport?.destroy();
+
+        return res.status(200).json({ message: 'Report deleted successfully' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal erver error, not your fault :D', error });
+    }
+}
+
 function FilterOptions<T extends object = Record<string, unknown>>(filter: Record<string, unknown>): WhereOptions<T> {
     const whereClause: WhereOptions<T> = {};
     Object.entries(filter).forEach(([key, value]) => {
@@ -196,9 +280,13 @@ function FilterOptions<T extends object = Record<string, unknown>>(filter: Recor
     return whereClause;
 }
 
-export const reportController = {
+export {
     CreateReport,
     SearchReportById,
     SearchReports,
-    SearchReportsCreatedUser
+    SearchReportsCreatedUser,
+    SetReportStatus,
+    SetDueDate,
+    setPriority,
+    deleteReport
 };
