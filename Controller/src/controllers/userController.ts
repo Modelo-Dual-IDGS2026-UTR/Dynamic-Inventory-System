@@ -1,6 +1,27 @@
-import { User } from "@dis/model";
+import { User, UserRole } from "@dis/model";
 import type { Response,Request } from "express";
 import { GenerateJWT, type jwtPayloadContent } from "../middleware/jwtUtils.js";
+import { type WhereOptions } from 'sequelize';
+
+const REPORT_INCLUDES = [
+    {
+        model: UserRole,
+        as: 'related_role',
+        attributes: ['roleId', 'roleName']
+    },
+];
+
+const formatUsers = (userInstance: any) => {
+    const users = typeof userInstance.toJSON === 'function' ? userInstance.toJSON() : userInstance;
+    const {related_role, ...rest} = users;
+
+    return {
+        ...rest, 
+        fk_role: related_role
+            ? { id: related_role.roleId, name: related_role.roleName}
+            : null,
+    }
+}
 
 const CreateUser= async (req:Request,res:Response,)=>{
     
@@ -245,11 +266,111 @@ async function ShowUser(id:number,res:Response){
 
 } 
 
-export const userController={
+const ShowAllUsers = async (req: Request, res: Response) => {
+    try {
+        const {
+            userId,
+            googleUserId,
+            universityId,
+            firstName,
+            lastName,
+            userStatus,
+            email,
+            area,
+            fk_role,
+            sortBy = 'userId',
+            order = 'ASC'
+        } = req.body || {};
+
+        const searchOptions = FilterOptions({
+            userId,
+            googleUserId,
+            universityId,
+            firstName,
+            lastName,
+            userStatus,
+            email,
+            area,
+            fk_role
+        })
+
+        const foundUsers = await User.findAll({
+            where: searchOptions,
+            include: REPORT_INCLUDES,
+            order: [[sortBy, String(order).toUpperCase()]],
+        });
+
+        return res.status(200).json(foundUsers.map(formatUsers));
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+}
+
+
+const changeStatus = async (req: Request, res: Response) => {
+    try {
+        const parsedUserId = Number(req.params.userId);
+        const {userStatus} = req.body;
+        if (!parsedUserId) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundUser = await User.findByPk(parsedUserId);
+        if (!foundUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        foundUser.set('userStatus', userStatus);
+
+        await foundUser.save();
+        return res.status(200).json({ message: 'User status successfully updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+}
+
+//Not necessary because of google sign in
+/* const changeUserPassword = async (req: Request, res: Response) => {
+    try {
+        const parsedUserId = Number(req.params.userId);
+        const password = req.body;
+        if (!parsedUserId) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundUser = await User.findByPk(parsedUserId);
+        if (!foundUser) {
+            return res.status(404).json({ message: 'Report not found' });
+        }
+        
+        foundUser.set('password', password);
+
+        await foundUser.save();
+        return res.status(200).json({ message: 'Report status successfully updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+} */
+
+function FilterOptions<T extends object = Record<string, unknown>>(filter: Record<string, unknown>): WhereOptions<T> {
+    const whereClause: WhereOptions<T> = {};
+    Object.entries(filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            (whereClause as Record<string, unknown>)[key] = value;
+        }
+    });
+    return whereClause;
+}
+
+
+export {
     CreateUser,
     LogUser,
     UpdateUser,
     WhoAmI,
     SearchUserById,
-    FullfilUser
+    FullfilUser,
+    ShowAllUsers,
+    changeStatus
 }
+

@@ -1,26 +1,51 @@
-import express from 'express'
-import { VerifyJWT } from '../middleware/jwtUtils.js'
-import { userController } from '../controllers/userController.js'
-import { VerifyGoogleToken } from '../middleware/googleToken.js'
+import express from 'express';
+import { VerifyJWT } from '../middleware/jwtUtils.js';
+import {
+    CreateUser,
+    LogUser,
+    UpdateUser,
+    WhoAmI,
+    SearchUserById,
+    FullfilUser,
+    ShowAllUsers,
+    changeStatus,
+    } from '../controllers/userController.js';
+import { VerifyGoogleToken } from '../middleware/googleToken.js';
 
-export const userRouter= express.Router()
+export const userRouter= express.Router();
 
+//====================== USERS ====================================
+
+userRouter.get('/login',VerifyGoogleToken, LogUser);
 
 //DONT FORGET TO ADD VERIFICATION :D
-userRouter.post('/create-user',userController.CreateUser)
 
 
+userRouter.put('/complete-user',VerifyJWT(), FullfilUser);
 
-userRouter.get('/login',VerifyGoogleToken,userController.LogUser)
-//Add endpoint to docs
+//refresh
+
+userRouter.get('/me',VerifyJWT(), WhoAmI);
 
 //userRouter.get('/find-user/:userId',VerifyJWT(),userController.SearchUserById)
 
-userRouter.get('/find-user/:userId',userController.SearchUserById)
+// ========================= SUPERADMIN ==============================
+userRouter.get('/find-user/:userId', SearchUserById);
 
-userRouter.get('/me',VerifyJWT(),userController.WhoAmI)
+userRouter.put('/update-user/:userId',VerifyJWT(1), UpdateUser);
 
-userRouter.put('/update-user/:userId',VerifyJWT(1),userController.UpdateUser)
+userRouter.post('/create-user', CreateUser);
 
-userRouter.put('/complete-user',VerifyJWT(),userController.FullfilUser)
+userRouter.get('/all-users', ShowAllUsers);
 
+userRouter.patch('/change-status/:userId', changeStatus);
+
+
+
+//This endpoint resulted innecesary with the google sign in
+//userRouter.patch('/change-password/:userId', changeUserPassword);
+
+//reset-password
+//change-status
+//promotion
+//delete-user

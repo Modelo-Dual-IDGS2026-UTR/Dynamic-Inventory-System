@@ -156,7 +156,7 @@ const SearchReports = async (req: Request, res: Response) => {
             order: [[sortBy, String(order).toUpperCase()]]
         });
 
-        return res.status(200).json(foundReports.map(formatReport));
+        
     } catch (error) {
         return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
     }
