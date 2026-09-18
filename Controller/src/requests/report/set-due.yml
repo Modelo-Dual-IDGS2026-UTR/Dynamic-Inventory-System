@@ -5,12 +5,12 @@ info:
 
 http:
   method: PATCH
-  url: http://localhost:3000/api/report/set-status/1
+  url: http://localhost:3000/api/report/set-due/1
   body:
     type: json
     data: |-
       {
-        "status": 2
+        "dueDate": "2027-09-17"
       }
   auth: inherit
 
