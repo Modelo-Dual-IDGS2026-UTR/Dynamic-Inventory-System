@@ -9,6 +9,8 @@ import {
     FullfilUser,
     ShowAllUsers,
     changeStatus,
+    promotion,
+    deleteUser
     } from '../controllers/userController.js';
 import { VerifyGoogleToken } from '../middleware/googleToken.js';
 
@@ -40,12 +42,13 @@ userRouter.get('/all-users', ShowAllUsers);
 
 userRouter.patch('/change-status/:userId', changeStatus);
 
+userRouter.patch('/promotion/:userId', promotion);
+
+userRouter.delete('/delete-user/:userId', deleteUser);
 
 
-//This endpoint resulted innecesary with the google sign in
+
+//This endpoint resulted innecessary with the google sign in
+//Saving it in case another way to login is required to be implemented
 //userRouter.patch('/change-password/:userId', changeUserPassword);
 
-//reset-password
-//change-status
-//promotion
-//delete-user

@@ -254,15 +254,18 @@ function IsUserComplete(user:InstanceType<typeof User>):boolean {
 
 }
 async function ShowUser(id:number,res:Response){
-
-    const foundUser=await User.findByPk(id)
+    
+    const foundUser=await User.findByPk(id, {
+        include: REPORT_INCLUDES
+    })
+        
         if(!foundUser){
             return res.status(404).json({
                 message:"User not found or does not exist"
             })
-        }
+        };
        
-        return res.status(200).json(foundUser.toJSON())
+        return res.status(200).json(formatUsers(foundUser))
 
 } 
 
@@ -329,6 +332,47 @@ const changeStatus = async (req: Request, res: Response) => {
     }
 }
 
+const promotion = async (req: Request, res: Response) => {
+    try {
+        const parsedUserId = Number(req.params.userId);
+        const {fk_role} = req.body;
+        if (!parsedUserId || !fk_role) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundUser = await User.findByPk(parsedUserId);
+        if (!foundUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        foundUser.set('fk_role', fk_role);
+
+        await foundUser.save();
+        return res.status(200).json({ message: 'User role successfully updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+}
+
+const deleteUser = async (req: Request, res: Response) => {
+    try {
+        const parsedUserId = Number(req.params.userId);
+        if (!parsedUserId) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundUser = await User.findByPk(parsedUserId);
+        if (!foundUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        foundUser.destroy();
+        return res.status(200).json({ message: 'User successfully deleted' });
+    } catch (error) {
+         return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+}
+
 //Not necessary because of google sign in
 /* const changeUserPassword = async (req: Request, res: Response) => {
     try {
@@ -371,6 +415,8 @@ export {
     SearchUserById,
     FullfilUser,
     ShowAllUsers,
-    changeStatus
+    changeStatus,
+    promotion,
+    deleteUser
 }
 
