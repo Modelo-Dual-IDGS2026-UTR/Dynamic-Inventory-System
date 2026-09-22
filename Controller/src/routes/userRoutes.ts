@@ -10,7 +10,9 @@ import {
     ShowAllUsers,
     changeStatus,
     promotion,
-    deleteUser
+    deleteUser,
+    RefreshToken,
+    Logout
     } from '../controllers/userController.js';
 import { VerifyGoogleToken } from '../middleware/googleToken.js';
 
@@ -25,7 +27,8 @@ userRouter.get('/login',VerifyGoogleToken, LogUser);
 
 userRouter.put('/complete-user',VerifyJWT(), FullfilUser);
 
-//refresh
+userRouter.post('/refresh', RefreshToken);
+userRouter.post('/logout', Logout);
 
 userRouter.get('/me',VerifyJWT(), WhoAmI);
 
@@ -36,7 +39,7 @@ userRouter.get('/find-user/:userId', SearchUserById);
 
 userRouter.put('/update-user/:userId',VerifyJWT(1), UpdateUser);
 
-userRouter.post('/create-user', CreateUser);
+userRouter.post('/create-user', VerifyJWT(), CreateUser);
 
 userRouter.get('/all-users', ShowAllUsers);
 

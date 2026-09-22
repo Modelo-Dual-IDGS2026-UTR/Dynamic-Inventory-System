@@ -1,7 +1,13 @@
-import { User, UserRole } from "@dis/model";
+import { User, UserRole, UserSession } from "@dis/model";
+import { createHash, randomUUID } from 'node:crypto';
 import type { Response,Request } from "express";
-import { GenerateJWT, type jwtPayloadContent } from "../middleware/jwtUtils.js";
-import { type WhereOptions } from 'sequelize';
+import { 
+    GenerateJWT, 
+    generateRefreshToken, 
+    verifyRefreshToken, 
+    type JwtPayloadContent 
+} from "../middleware/jwtUtils.js";
+import { Op, type WhereOptions } from 'sequelize';
 
 const REPORT_INCLUDES = [
     {
@@ -22,6 +28,51 @@ const formatUsers = (userInstance: any) => {
             : null,
     }
 }
+
+const REFRESH_TOKEN_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+
+const createSessionTokens = async (userId: number, role: number) => {
+    await cleanUserSessions(userId);
+
+    const sessionId = randomUUID();
+    const refreshToken = generateRefreshToken({ userId, sessionId });
+    
+    const refreshTokenHash = createHash('sha256')
+        .update(refreshToken)
+        .digest('hex');
+
+    await UserSession.create({
+        sessionId,
+        userId,
+        refreshTokenHash,
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_DURATION_MS)
+    });
+
+    return {
+        accessToken: GenerateJWT({ userId, role }),
+        refreshToken
+    };
+};
+
+const cleanUserSessions = async (userId: number) => {
+    await UserSession.destroy({
+        where: {
+            userId,
+            [Op.or]: [
+                {
+                    expiresAt: {
+                        [Op.lt]: new Date()
+                    }
+                },
+                {
+                    revokedAt: {
+                        [Op.not]: null
+                    }
+                }
+            ]
+        }
+    });
+};
 
 const CreateUser= async (req:Request,res:Response,)=>{
     
@@ -147,20 +198,33 @@ const LogUser= async (req:Request,res:Response)=>{
                 }
             })
         if(userSearch){
-            const payload:jwtPayloadContent={
+            const payload:JwtPayloadContent={
                 userId:userSearch.getDataValue('userId'),
                 role:userSearch.getDataValue('fk_role')
             }
-            const token=GenerateJWT(payload)
-
+            const { accessToken, refreshToken } = await createSessionTokens(
+                payload.userId,
+                payload.role
+            );
 
             const isComplete=IsUserComplete(userSearch)
-            res.cookie('jwtToken',token,{
+
+            res.cookie('jwtToken',accessToken,{
                 httpOnly:true,
                 secure:process.env.NODE_ENV==='production',
                 sameSite:'lax',
-                maxAge: 24 * 60 * 60 * 1000
+                maxAge: 15 * 60 * 1000,
+                path: '/'
             })
+
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+                path: '/api/user'
+            });
+
             return res.status(200).json({
                 message:"User Logged in",
                 isUserComplete:isComplete
@@ -174,17 +238,28 @@ const LogUser= async (req:Request,res:Response)=>{
             area:null,
             fk_role:1
         })
-            const payload:jwtPayloadContent={
+            const payload:JwtPayloadContent={
                 userId:newUser.getDataValue('userId'),
                 role:newUser.getDataValue('fk_role')
             }
-            const token=GenerateJWT(payload)
+            const { accessToken, refreshToken } = await createSessionTokens(
+                payload.userId,
+                payload.role
+            );
             const isComplete=IsUserComplete(newUser)
-            res.cookie('jwtToken',token,{
+            res.cookie('jwtToken',accessToken,{
                 httpOnly:true,
-                secure:process.env.NODE_ENV==='produciton',
+                secure:process.env.NODE_ENV==='production',
                 sameSite:'lax',
-                maxAge: 24 * 60 * 60 * 1000
+                maxAge: 15 * 60 * 1000,
+                path: '/'
+            })
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: REFRESH_TOKEN_DURATION_MS,
+                path: '/api/user'
             })
             return res.status(200).json({
                 message:"User Created",
@@ -200,6 +275,138 @@ const LogUser= async (req:Request,res:Response)=>{
         })
     }
 }
+
+const RefreshToken = async (req: Request, res: Response) => {
+    const refreshToken = req.cookies.refreshToken;
+
+     if (!refreshToken) {
+        return res.status(401).json({
+            message: 'Refresh token not received'
+        });
+    }
+
+    try {
+        const decoded = verifyRefreshToken(refreshToken);
+
+        const user = await User.findByPk(decoded.userId);
+
+        if (!user || !user.getDataValue('userStatus')) {
+            return res.status(401).json({
+                message: 'User is not authorized'
+            });
+        }
+
+        const payload: JwtPayloadContent = {
+            userId: user.getDataValue('userId'),
+            role: user.getDataValue('fk_role')
+        };
+
+        const newAccessToken = GenerateJWT(payload);
+
+        //Refresh token rotation
+        const session = await UserSession.findOne({
+            where: {
+                sessionId: decoded.sessionId,
+                userId: decoded.userId,
+                revokedAt: null
+            }
+        });
+
+        if (!session) {
+            return res.status(401).json({
+                message: 'Session not found or revoked'
+            });
+        }
+
+        const expiresAt = session.getDataValue('expiresAt') as Date;
+        if (expiresAt.getTime() <= Date.now()) {
+            await session.destroy();
+            return res.status(401).json({
+                message: 'Refresh session expired'
+            });
+        }
+
+        const receivedTokenHash = createHash('sha256')
+            .update(refreshToken)
+            .digest('hex');
+
+        if (receivedTokenHash !== session.getDataValue('refreshTokenHash')) {
+            await session.update({ revokedAt: new Date() });
+            return res.status(401).json({
+                message: 'Invalid refresh token'
+            });
+        }
+
+        const newRefreshToken = generateRefreshToken({
+            userId: payload.userId,
+            sessionId: decoded.sessionId
+        });
+
+        const newRefreshTokenHash = createHash('sha256')
+            .update(newRefreshToken)
+            .digest('hex');
+
+        await session.update({
+            refreshTokenHash: newRefreshTokenHash
+        });
+
+        
+        res.cookie('jwtToken', newAccessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 15 * 60 * 1000,
+            path: '/'
+        });
+
+        res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: '/api/user'
+        });
+
+        return res.status(200).json({
+            message: 'Token refreshed'
+        });
+    } catch (error) {
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/api/user'
+        });
+
+        return res.status(401).json({
+            message: 'Invalid or expired refresh token'
+        });
+    }
+};
+
+const Logout = async (req: Request, res: Response) => {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (refreshToken) {
+        try {
+            const decoded = verifyRefreshToken(refreshToken);
+
+            await UserSession.destroy({
+                where: {
+                    sessionId: decoded.sessionId,
+                    userId: decoded.userId
+                }
+            });
+        } catch {
+            // The cookies are cleared even when the refresh token is invalid.
+        }
+    }
+
+    res.clearCookie('jwtToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/api/user' });
+
+    return res.status(204).send();
+};
 
 const SearchUserById=async (req:Request,res:Response)=>{
     const id=req.params.userId
@@ -417,6 +624,8 @@ export {
     ShowAllUsers,
     changeStatus,
     promotion,
-    deleteUser
+    deleteUser,
+    RefreshToken,
+    Logout
 }
 
