@@ -1,6 +1,7 @@
 import { Report, User, Item, Place } from '@dis/model';
 import type { Response, Request } from 'express';
 import { type WhereOptions } from 'sequelize';
+import { FilterOptions } from "../helpers/filterOptions.js";
 
 // Standard includes for Report queries
 const REPORT_INCLUDES = [
@@ -268,16 +269,6 @@ const deleteReport = async (req: Request, res: Response) => {
     } catch (error) {
         return res.status(500).json({ message: 'Internal erver error, not your fault :D', error });
     }
-}
-
-function FilterOptions<T extends object = Record<string, unknown>>(filter: Record<string, unknown>): WhereOptions<T> {
-    const whereClause: WhereOptions<T> = {};
-    Object.entries(filter).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-            (whereClause as Record<string, unknown>)[key] = value;
-        }
-    });
-    return whereClause;
 }
 
 export {

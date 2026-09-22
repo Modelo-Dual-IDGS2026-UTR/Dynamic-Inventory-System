@@ -7,7 +7,8 @@ import {
     verifyRefreshToken, 
     type JwtPayloadContent 
 } from "../middleware/jwtUtils.js";
-import { Op, type WhereOptions } from 'sequelize';
+import { Op } from 'sequelize';
+import { FilterOptions } from "../helpers/filterOptions.js";
 
 const REPORT_INCLUDES = [
     {
@@ -603,15 +604,7 @@ const deleteUser = async (req: Request, res: Response) => {
     }
 } */
 
-function FilterOptions<T extends object = Record<string, unknown>>(filter: Record<string, unknown>): WhereOptions<T> {
-    const whereClause: WhereOptions<T> = {};
-    Object.entries(filter).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-            (whereClause as Record<string, unknown>)[key] = value;
-        }
-    });
-    return whereClause;
-}
+
 
 
 export {
