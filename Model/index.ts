@@ -11,6 +11,7 @@ import { Report } from './reportModel.js';
 import { History } from './historyModel.js';
 import { Request } from './requestModel.js';
 import { UserNotification } from './userNotificationModel.js';
+import { UserSession } from './userSessionModel.js';
 
 const setupAssociations=()=>{
 //######User-Role################
@@ -24,6 +25,17 @@ const setupAssociations=()=>{
         targetKey:'roleId',
         as: 'related_role'
     });
+
+//######User-Session################
+User.hasMany(UserSession, {
+    foreignKey: 'userId',
+    as: 'sessions'
+});
+
+UserSession.belongsTo(User, {
+    foreignKey: 'userId',
+    as: 'user'
+});
 //######Place-Item################
     Place.hasMany(Item,{
         foreignKey:'fk_place',
@@ -215,5 +227,6 @@ export {
     Report,
     History,
     Request,
-    UserNotification
+    UserNotification,
+    UserSession
 }

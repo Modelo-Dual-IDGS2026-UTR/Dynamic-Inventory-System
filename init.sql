@@ -36,6 +36,25 @@ CREATE TABLE User (
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE UserSession (
+    sessionId CHAR(36) PRIMARY KEY,
+    userId INT NOT NULL,
+    refreshTokenHash VARCHAR(255) NOT NULL,
+    expiresAt DATETIME NOT NULL,
+    revokedAt DATETIME NULL,
+    createdAt DATETIME NOT NULL,
+    updatedAt DATETIME NOT NULL,
+
+    CONSTRAINT fk_user_session_user
+        FOREIGN KEY (userId)
+        REFERENCES User(userId)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    INDEX idx_user_session_user_id (userId),
+    INDEX idx_user_session_expires_at (expiresAt),
+    INDEX idx_user_session_revoked_at (revokedAt)
+);
+
 CREATE TABLE Place (
     placeId INT AUTO_INCREMENT PRIMARY KEY,
     placeName varchar(50) NOT NULL,

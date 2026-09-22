@@ -1,7 +1,7 @@
 import {mySequelize} from '@dis/db/dbConection.js'
 import { DataTypes } from 'sequelize'
 
-//Im doing this while watching FNAF videos
+//Im doing this while watching FNAF videos - Hi Oanimatronic, im updating this while I hear Music
 export const User = mySequelize.define("User",{
     userId:{
         type: DataTypes.INTEGER,
