@@ -5,7 +5,7 @@ info:
 
 http:
   method: DELETE
-  url: http://localhost:3000/api/user/delete-user/2
+  url: http://localhost:3000/api/user/delete-user/4
   body:
     type: json
     data: |-
