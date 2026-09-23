@@ -6,6 +6,9 @@ info:
 http:
   method: GET
   url: http://localhost:3000/api/report/all-reports
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDE3NjQwMiwiZXhwIjoxNzkwMTc3MzAyfQ.jzueLZynS2QL76kq3K3j8TrDscYTYXbS7vmB9AASPk4
   auth: inherit
 
 settings:
@@ -13,3 +16,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

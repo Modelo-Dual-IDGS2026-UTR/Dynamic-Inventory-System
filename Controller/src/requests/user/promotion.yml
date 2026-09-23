@@ -5,7 +5,10 @@ info:
 
 http:
   method: PATCH
-  url: http://localhost:3000/api/user/promotion/1
+  url: http://localhost:3000/api/user/promotion/2
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInNlc3Npb25JZCI6ImFiNTYxZGNiLWExMTctNGMxNi1hMGM1LWNkNWJiZGNmNjZkZSIsImlhdCI6MTc5MDE3NjQwMiwiZXhwIjoxNzkwNzgxMjAyfQ.uXhbYvDlg0oyEIiEpUfZgRJsxNLBcW-MavrX97NjKxQ
   body:
     type: json
     data: |-
