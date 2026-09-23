@@ -21,7 +21,7 @@ if(!accessSecret || !refreshSecret){
     throw new Error("\n------FATAL ERROR: No jwt secret defined---------\n");
 }
 
-export const GenerateJWT=(payload:JwtPayloadContent, expiresIn: SignOptions["expiresIn"] = "1m"): string =>{
+export const GenerateJWT=(payload:JwtPayloadContent, expiresIn: SignOptions["expiresIn"] = "15m"): string =>{
     const options: SignOptions = {
         expiresIn,
         algorithm
@@ -63,7 +63,7 @@ export const VerifyJWT=(requiredRole:number=3)=>{
     try{
         const decoded = jwt.verify(token,accessSecret,options) as JwtPayloadContent;
         const {role}=decoded
-        if(requiredRole<role){
+        if(role > requiredRole){
             return res.status(401).json({
                 messegae:"User Role Unauthorized"
             })

@@ -20,34 +20,33 @@ export const userRouter= express.Router();
 
 //====================== USERS ====================================
 
-userRouter.get('/login',VerifyGoogleToken, LogUser);
+userRouter.get('/login', VerifyGoogleToken, LogUser);
 
 //DONT FORGET TO ADD VERIFICATION :D
 
-
-userRouter.put('/complete-user',VerifyJWT(), FullfilUser);
+userRouter.put('/complete-user', VerifyJWT(), FullfilUser);
 
 userRouter.post('/refresh', RefreshToken);
 userRouter.post('/logout', Logout);
 
-userRouter.get('/me',VerifyJWT(), WhoAmI);
+userRouter.get('/me', VerifyJWT(), WhoAmI);
 
 //userRouter.get('/find-user/:userId',VerifyJWT(),userController.SearchUserById)
 
 // ========================= SUPERADMIN ==============================
-userRouter.get('/find-user/:userId', SearchUserById);
+userRouter.get('/find-user/:userId', VerifyJWT(1), SearchUserById);
 
 userRouter.put('/update-user/:userId',VerifyJWT(1), UpdateUser);
 
-userRouter.post('/create-user', VerifyJWT(), CreateUser);
+userRouter.post('/create-user', VerifyJWT(1), CreateUser);
 
-userRouter.get('/all-users', ShowAllUsers);
+userRouter.get('/all-users', VerifyJWT(1), ShowAllUsers);
 
-userRouter.patch('/change-status/:userId', changeStatus);
+userRouter.patch('/change-status/:userId', VerifyJWT(1), changeStatus);
 
-userRouter.patch('/promotion/:userId', promotion);
+userRouter.patch('/promotion/:userId', VerifyJWT(1), promotion);
 
-userRouter.delete('/delete-user/:userId', deleteUser);
+userRouter.delete('/delete-user/:userId', VerifyJWT(1), deleteUser);
 
 
 
