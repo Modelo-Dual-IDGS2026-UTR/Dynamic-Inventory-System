@@ -1,5 +1,5 @@
 import { User, UserRole, UserSession } from "@dis/model";
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { Response,Request } from "express";
 import { 
     GenerateJWT, 
@@ -7,8 +7,8 @@ import {
     verifyRefreshToken, 
     type JwtPayloadContent 
 } from "../middleware/jwtUtils.js";
-import { Op } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
+import { createSessionTokens } from "../services/authService.js";
 
 const REPORT_INCLUDES = [
     {
@@ -32,48 +32,7 @@ const formatUsers = (userInstance: any) => {
 
 const REFRESH_TOKEN_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
-const createSessionTokens = async (userId: number, role: number) => {
-    await cleanUserSessions(userId);
 
-    const sessionId = randomUUID();
-    const refreshToken = generateRefreshToken({ userId, sessionId });
-    
-    const refreshTokenHash = createHash('sha256')
-        .update(refreshToken)
-        .digest('hex');
-
-    await UserSession.create({
-        sessionId,
-        userId,
-        refreshTokenHash,
-        expiresAt: new Date(Date.now() + REFRESH_TOKEN_DURATION_MS)
-    });
-
-    return {
-        accessToken: GenerateJWT({ userId, role }),
-        refreshToken
-    };
-};
-
-const cleanUserSessions = async (userId: number) => {
-    await UserSession.destroy({
-        where: {
-            userId,
-            [Op.or]: [
-                {
-                    expiresAt: {
-                        [Op.lt]: new Date()
-                    }
-                },
-                {
-                    revokedAt: {
-                        [Op.not]: null
-                    }
-                }
-            ]
-        }
-    });
-};
 
 const CreateUser= async (req:Request,res:Response,)=>{
     
@@ -245,7 +204,7 @@ const LogUser= async (req:Request,res:Response)=>{
             }
             const { accessToken, refreshToken } = await createSessionTokens(
                 payload.userId,
-                payload.role
+                payload.role,
             );
             const isComplete=IsUserComplete(newUser)
             res.cookie('jwtToken',accessToken,{
