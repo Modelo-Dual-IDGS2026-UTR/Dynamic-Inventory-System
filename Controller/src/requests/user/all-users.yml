@@ -1,24 +1,14 @@
 info:
-  name: create-user
+  name: all-users
   type: http
-  seq: 1
+  seq: 4
 
 http:
-  method: POST
-  url: http://localhost:3000/api/user/create-user
+  method: GET
+  url: http://localhost:3000/api/user/all-users
   headers:
     - name: Cookie
       value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDE3NjQwMiwiZXhwIjoxNzkwMTc3MzAyfQ.jzueLZynS2QL76kq3K3j8TrDscYTYXbS7vmB9AASPk4
-  body:
-    type: json
-    data: |-
-      {
-        "firstName": "Ron",
-        "lastName": "Guapo",
-        "email": "ronguapo@gmail.com",
-        "area": "IT",
-        "googleUserId": "papuculon"
-      }
   auth: inherit
 
 settings:

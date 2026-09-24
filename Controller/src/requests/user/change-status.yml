@@ -1,16 +1,16 @@
 info:
-  name: delete-report
+  name: change-status
   type: http
-  seq: 9
+  seq: 5
 
 http:
-  method: DELETE
-  url: http://localhost:3000/api/report/delete-report/1
+  method: PATCH
+  url: http://localhost:3000/api/user/change-status/1
   body:
     type: json
     data: |-
       {
-        "priority": "3"
+        "userStatus": true
       }
   auth: inherit
 

@@ -6,6 +6,9 @@ info:
 http:
   method: POST
   url: http://localhost:3000/api/report/new-report
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDE3NjQwMiwiZXhwIjoxNzkwMTc3MzAyfQ.jzueLZynS2QL76kq3K3j8TrDscYTYXbS7vmB9AASPk4
   body:
     type: json
     data: |-
