@@ -1,16 +1,27 @@
-import { itemController } from "../controllers/itemController.js";
+import { 
+    CreateItem,
+    SearchItemById,
+    SearchItems,
+    UpdateItem,
+    DeleteItemByID
+} from "../controllers/itemController.js";
 import  express  from "express";
-export const itemRouter=express.Router()
+export const itemRouter=express.Router();
+import { VerifyJWT } from '../middleware/jwtUtils.js';
 
 //Admin & Superadmin
-itemRouter.post('/new-item',itemController.CreateItem)
+itemRouter.post('/new-item', VerifyJWT(2), CreateItem);
 
 //No Security
-itemRouter.get('/read-item/:itemId',itemController.SearchItemById)
+itemRouter.get('/read-item/:itemId', SearchItemById);
 
+//No Security
+itemRouter.post('/read-items', SearchItems);
 
-itemRouter.post('/read-items',itemController.SearchItems)
+//Admin & Superadmin
+itemRouter.put('/update-item/:itemId',  VerifyJWT(2), UpdateItem);
 
-itemRouter.put('/update-item/:itemId',itemController.UpdateItem)
+itemRouter.patch('/set-status/:itemId', VerifyJWT(2), )
 
-itemRouter.delete('/delete-item/:itemId',itemController.DeleteItemByID)
+//Superadmin
+itemRouter.delete('/delete-item/:itemId',  VerifyJWT(1), DeleteItemByID);

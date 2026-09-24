@@ -5,6 +5,12 @@ enum Categories{
     NOCATEGORY="No Category"
 }
 
+export enum ItemStatus {
+    IN_USE = "In Use",
+    IN_STOCK = "In Stock",
+    DAMAGED = "Damaged"
+}
+
 export const Item = mySequelize.define("Item",{
     itemId:{
         type:DataTypes.INTEGER,
@@ -18,6 +24,10 @@ export const Item = mySequelize.define("Item",{
     itemDescription:{
         type:DataTypes.STRING,
         allowNull:false
+    },
+    itemStatus:{
+        type: DataTypes.ENUM(...Object.values(ItemStatus)),
+        defaultValue: ItemStatus.IN_STOCK
     },
     cost:{
         type:DataTypes.INTEGER,
