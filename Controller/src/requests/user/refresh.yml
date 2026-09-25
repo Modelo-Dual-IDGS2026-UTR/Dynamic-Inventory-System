@@ -8,7 +8,7 @@ http:
   url: http://localhost:3000/api/user/refresh
   headers:
     - name: Cookie
-      value: refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInNlc3Npb25JZCI6ImFiNTYxZGNiLWExMTctNGMxNi1hMGM1LWNkNWJiZGNmNjZkZSIsImlhdCI6MTc5MDE3NjQwMiwiZXhwIjoxNzkwNzgxMjAyfQ.uXhbYvDlg0oyEIiEpUfZgRJsxNLBcW-MavrX97NjKxQ
+      value: refreshToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInNlc3Npb25JZCI6IjRiZmU1YzQ5LTYxYjMtNDFkZC04ZjQ5LTJhZjc5OGU0NmFmNCIsImlhdCI6MTc5MDM1NDgyNywiZXhwIjoxNzkwOTU5NjI3fQ.jaCFhRU4SDLVf5-ElM5RrQNJqxQieJwdj262cDFrM1g
   auth: inherit
 
 settings:
