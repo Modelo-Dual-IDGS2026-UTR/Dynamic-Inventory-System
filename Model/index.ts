@@ -3,7 +3,7 @@ import { mySequelize } from '@dis/db/dbConection.js';
 // 2. Importas todos tus modelos ya definidos
 import { User } from './userModel.js';
 import { UserRole } from './roleModel.js';
-import { Item } from './itemModel.js';
+import { Item, ItemStatus } from './itemModel.js';
 import { Place } from './placeModel.js';
 import { Permission } from './permissionModel.js';
 import { RolePermission } from './rolePermissionModel.js';
@@ -221,6 +221,7 @@ export {
     User,
     UserRole,
     Item,
+    ItemStatus,
     Place,
     Permission,
     RolePermission,

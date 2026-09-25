@@ -1,6 +1,6 @@
-import { Item, Place, User } from '@dis/model';
+import { Item, ItemStatus, Place, User } from '@dis/model';
 import type { Response, Request } from 'express'
-import { type WhereOptions } from 'sequelize';
+import { Model, type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
 
 const CreateItem = async (req: Request, res: Response) => {
@@ -72,7 +72,7 @@ const SearchItemById = async (req: Request, res: Response) => {
         const id = req.params.itemId
         if (!id) {
             return res.status(400).json({
-                message: "No ID recived"
+                message: "No ID received"
             })
         }
         const convertedId = Number(id)
@@ -132,7 +132,7 @@ const SearchItems = async (req: Request, res: Response) => {
             order: [[sortBy, order.toUpperCase()]]
         })
 
-        const formatedItems = foundItems.map((itemInstance) => {
+        const formatedItems = foundItems.map((itemInstance: Model) => {
             const item = itemInstance.toJSON()
             const userName = item.responsible_user.firstName + " " + item.responsible_user.lastName
             const formated = {
@@ -229,18 +229,18 @@ const UpdateItem = async (req: Request, res: Response) => {
 const SetStatus = async (req: Request, res: Response) => {
     try {
         const parsedItemId = Number(req.params.itemId);
-        const itemStatus = req.body;
+        const { itemStatus } = req.body || {};
 
-        if (!parsedItemId || !itemStatus) {
+        if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !Object.values(ItemStatus).includes(itemStatus)) {
             return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
         }
 
         const foundItem = await Item.findByPk(parsedItemId);
         if (!foundItem) {
-            res.status(404).json({ message: "Item Not Found" })
+            return res.status(404).json({ message: "Item Not Found" });
         }
-        foundItem?.set('itemStatus', itemStatus);
-        foundItem?.save();
+        foundItem.set('itemStatus', itemStatus);
+        await foundItem.save();
 
         return res.status(200).json({ message: 'Item status successfully updated' });
     } catch (error) {
@@ -296,7 +296,7 @@ async function ShowItem(id: number, res: Response) {
         })
         if (!foundItem) {
             return res.status(404).json({
-                message: "Item not foud"
+                message: "Item not found"
             })
         }
         const item = foundItem.toJSON()
@@ -335,5 +335,6 @@ export {
     SearchItemById,
     SearchItems,
     UpdateItem,
-    DeleteItemByID
+    DeleteItemByID,
+    SetStatus
 }

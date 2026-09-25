@@ -3,7 +3,8 @@ import {
     SearchItemById,
     SearchItems,
     UpdateItem,
-    DeleteItemByID
+    DeleteItemByID,
+    SetStatus
 } from "../controllers/itemController.js";
 import  express  from "express";
 export const itemRouter=express.Router();
@@ -16,12 +17,12 @@ itemRouter.post('/new-item', VerifyJWT(2), CreateItem);
 itemRouter.get('/read-item/:itemId', SearchItemById);
 
 //No Security
-itemRouter.post('/read-items', SearchItems);
+itemRouter.get('/read-items', SearchItems);
 
 //Admin & Superadmin
 itemRouter.put('/update-item/:itemId',  VerifyJWT(2), UpdateItem);
 
-itemRouter.patch('/set-status/:itemId', VerifyJWT(2), )
+itemRouter.patch('/set-status/:itemId', VerifyJWT(2), SetStatus);
 
 //Superadmin
 itemRouter.delete('/delete-item/:itemId',  VerifyJWT(1), DeleteItemByID);
