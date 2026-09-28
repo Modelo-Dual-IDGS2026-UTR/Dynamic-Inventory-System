@@ -4,7 +4,8 @@ import {
     SearchItems,
     UpdateItem,
     DeleteItemByID,
-    SetStatus
+    SetStatus,
+    SetCategory
 } from "../controllers/itemController.js";
 import  express  from "express";
 export const itemRouter=express.Router();
@@ -22,7 +23,11 @@ itemRouter.get('/read-items', SearchItems);
 //Admin & Superadmin
 itemRouter.put('/update-item/:itemId',  VerifyJWT(2), UpdateItem);
 
+//Admin & Superadmin
 itemRouter.patch('/set-status/:itemId', VerifyJWT(2), SetStatus);
+
+//Admin & Superadmin
+itemRouter.patch('/set-category/:itemId', VerifyJWT(2), SetCategory);
 
 //Superadmin
 itemRouter.delete('/delete-item/:itemId',  VerifyJWT(1), DeleteItemByID);

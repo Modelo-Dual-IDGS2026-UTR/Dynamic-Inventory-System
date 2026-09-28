@@ -248,6 +248,28 @@ const SetStatus = async (req: Request, res: Response) => {
     }
 }
 
+const SetCategory = async (req: Request, res: Response) => {
+    try {
+        const parsedItemId = Number(req.params.itemId);
+        const { category } = req.body || {};
+
+        if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !category) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundItem = await Item.findByPk(parsedItemId);
+        if (!foundItem) {
+            return res.status(404).json({ message: "Item Not Found" });
+        }
+        foundItem.set('category', category);
+        await foundItem.save();
+
+        return res.status(200).json({ message: 'Item category successfully updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+}
+
 const DeleteItemByID = async (req: Request, res: Response) => {
     try {
         const id = req.params.itemId
@@ -336,5 +358,6 @@ export {
     SearchItems,
     UpdateItem,
     DeleteItemByID,
-    SetStatus
+    SetStatus,
+    SetCategory
 }
