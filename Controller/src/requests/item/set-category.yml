@@ -1,7 +1,7 @@
 info:
-  name: set-status
+  name: set-category
   type: http
-  seq: 6
+  seq: 7
 
 http:
   method: PATCH
