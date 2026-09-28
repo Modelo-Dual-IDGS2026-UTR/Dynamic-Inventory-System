@@ -66,6 +66,16 @@ CREATE TABLE Place (
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE Category (
+    categoryId INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+    categoryName varchar(255) NOT NULL,
+    categoryDescription varchar(255) NOT NULL,
+    categoryStatus Boolean DEFAULT TRUE,
+    folioNumber varchar(255) NOT NULL,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE Item (
     itemId INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
     itemName varchar(30) NOT NULL,
@@ -74,9 +84,9 @@ CREATE TABLE Item (
     cost INT NOT NULL,
     manufacter varchar(25),
     codeBar varchar(25),
-    category ENUM("No Category") DEFAULT "No Category",
-    fk_user_responsible INT NOT NULL,
-    fk_place INT NOT NULL,
+    fk_category INT,
+    fk_user_responsible INT,
+    fk_place INT,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -150,15 +160,20 @@ ALTER TABLE Role_Permission
         ON UPDATE CASCADE;
 
 ALTER TABLE Item
+    ADD CONSTRAINT fk_item_category
+        FOREIGN KEY (fk_category)
+        REFERENCES Category(categoryId)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
     ADD CONSTRAINT fk_item_user
         FOREIGN KEY (fk_user_responsible)
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE,
     ADD CONSTRAINT fk_item_place
         FOREIGN KEY (fk_place)
         REFERENCES Place(placeId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 ALTER TABLE History
@@ -244,3 +259,32 @@ VALUES ("sddasddasds","TEST USER", "01", "1234", TRUE, "st1234@utr.edu.mx", "IDG
 
 INSERT INTO Place(placeName, placeDescription, class, ip_range, placeLocation)
 VALUES ("A101", "Le falta un pito", " Salon Normal", "172.0.0.1-172.0.240", "A Building");
+
+INSERT INTO Category(folioNumber, categoryName, categoryDescription)
+VALUES 
+("1231", "Terrenos", "Terrenos"),
+("1233", "Edificios no Habitacionales", "Edificios no Habitacionales"),
+("1239", "Otros Bienes Inmuebles", "Otros Bienes Inmuebles"),
+("1241-1", "Muebles de Oficina y Estantería", "Muebles de Oficina y Estantería"),
+("1241-2", "Muebles, Excepto de Oficina y Estantería", "Muebles, Excepto de Oficina y Estantería"),
+("1241-3", "Equipo de Cómputo y de Tecnologías de la Información", "Equipo de Cómputo y de Tecnologías de la Información"),
+("1241-9", "Otros Mobiliarios y Equipos de Administración", "Otros Mobiliarios y Equipos de Administración"),
+("1242-1", "Equipos y Aparatos Audiovisuales", "Equipos y Aparatos Audiovisuales"),
+("1242-3", "Cámaras Fotográficas y de Video", "Cámaras Fotográficas y de Video"),
+("1242-9", "Otro Mobiliario y Equipo Educacional y Recreativo", "Otro Mobiliario y Equipo Educacional y Recreativo"),
+("1243-1", "Equipo Médico y de Laboratorio", "Equipo Médico y de Laboratorio"),
+("1243-2", "Instrumental Médico y de Laboratorio", "Instrumental Médico y de Laboratorio"),
+("1244-1", "Vehículos y Equipo Terrestre", "Vehículos y Equipo Terrestre"),
+("1244-2", "Carrocerías y Remolques", "Carrocerías y Remolques"),
+("1245", "Equipo de Defensa y Seguridad", "Equipo de Defensa y Seguridad"),
+("1246-1", "Maquinaria y Equipo Agropecuario", "Maquinaria y Equipo Agropecuario"),
+("1246-2", "Maquinaria y Equipo Industrial", "Maquinaria y Equipo Industrial"),
+("1246-4", "Sistemas de Aire Acondicionado, Calefacción y de Refrigeración Industrial y Comercial", "Sistemas de Aire Acondicionado, Calefacción y de Refrigeración Industrial y Comercial"),
+("1246-5", "Equipo de Comunicación y Telecomunicación", "Equipo de Comunicación y Telecomunicación"),
+("1246-6", "Equipos de Generación Eléctrica, Aparatos y Accesorios Eléctricos", "Equipos de Generación Eléctrica, Aparatos y Accesorios Eléctricos"),
+("1246-7", "Herramientas y Máquinas-Herramienta", "Herramientas y Máquinas-Herramienta"),
+("1246-9", "Otros Equipos", "Otros Equipos"),
+("1251", "Software", "Software"),
+("1252-2", "Marcas", "Marcas"),
+("1254-1", "Licencias Informáticas e Intelectuales", "Licencias Informáticas e Intelectuales"),
+("1259", "Otros Bienes Activos Intangibles", "Otros Bienes Activos Intangibles");

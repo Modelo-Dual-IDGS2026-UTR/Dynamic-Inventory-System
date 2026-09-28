@@ -12,203 +12,215 @@ import { History } from './historyModel.js';
 import { Request } from './requestModel.js';
 import { UserNotification } from './userNotificationModel.js';
 import { UserSession } from './userSessionModel.js';
+import { Category } from './categoryModel.js';
 
-const setupAssociations=()=>{
-//######User-Role################
-    UserRole.hasMany(User,{
-        foreignKey: 'fk_role',
-        sourceKey:'roleId',
-        as: 'related_users'
-    });
-    User.belongsTo(UserRole,{
-        foreignKey:'fk_role',
-        targetKey:'roleId',
-        as: 'related_role'
-    });
-
-//######User-Session################
-User.hasMany(UserSession, {
-    foreignKey: 'userId',
-    as: 'sessions'
-});
-
-UserSession.belongsTo(User, {
-    foreignKey: 'userId',
-    as: 'user'
-});
-//######Place-Item################
-    Place.hasMany(Item,{
-        foreignKey:'fk_place',
-        sourceKey:'placeId',
-        as: 'related_item'
-    });
-    Item.belongsTo(Place,{
-        foreignKey:'fk_place',
-        targetKey:'placeId',
-        as: 'related_place'
-    });
-//######User-Item################
-    User.hasMany(Item,{
-        foreignKey:'fk_user_responsible',
-        sourceKey: 'userId',
-        as: 'related_item'
-    });
-    Item.belongsTo(User,{
-        foreignKey:'fk_user_responsible',
-        targetKey:'userId',
-        as: 'responsible_user'
-    });
-//######Role-Permission################
-    UserRole.hasMany(RolePermission,{
+const setupAssociations = () => {
+    //######User-Role################
+    UserRole.hasMany(User, {
         foreignKey: 'fk_role',
         sourceKey: 'roleId',
-        as: 'role_permissions'
+        as: 'related_users'
     });
-    RolePermission.belongsTo(UserRole,{
+    User.belongsTo(UserRole, {
         foreignKey: 'fk_role',
         targetKey: 'roleId',
         as: 'related_role'
     });
-    Permission.hasMany(RolePermission,{
+
+    //######User-Session################
+    User.hasMany(UserSession, {
+        foreignKey: 'userId',
+        as: 'sessions'
+    });
+
+    UserSession.belongsTo(User, {
+        foreignKey: 'userId',
+        as: 'user'
+    });
+    //######Place-Item################
+    Place.hasMany(Item, {
+        foreignKey: 'fk_place',
+        sourceKey: 'placeId',
+        as: 'related_item'
+    });
+    Item.belongsTo(Place, {
+        foreignKey: 'fk_place',
+        targetKey: 'placeId',
+        as: 'related_place'
+    });
+    //######User-Item################
+    User.hasMany(Item, {
+        foreignKey: 'fk_user_responsible',
+        sourceKey: 'userId',
+        as: 'related_item'
+    });
+    Item.belongsTo(User, {
+        foreignKey: 'fk_user_responsible',
+        targetKey: 'userId',
+        as: 'responsible_user'
+    });
+    //######Category-Item################
+    Category.hasMany(Item, {
+        foreignKey: 'fk_category',
+        sourceKey: 'categoryId',
+        as: 'related_item'
+    });
+    Item.belongsTo(Category, {
+        foreignKey: 'fk_category',
+        targetKey: 'categoryId',
+        as: 'category'
+    })
+    //######Role-Permission################
+    UserRole.hasMany(RolePermission, {
+        foreignKey: 'fk_role',
+        sourceKey: 'roleId',
+        as: 'role_permissions'
+    });
+    RolePermission.belongsTo(UserRole, {
+        foreignKey: 'fk_role',
+        targetKey: 'roleId',
+        as: 'related_role'
+    });
+    Permission.hasMany(RolePermission, {
         foreignKey: 'fk_permission',
         sourceKey: 'permissionId',
         as: 'role_permissions'
     });
-    RolePermission.belongsTo(Permission,{
+    RolePermission.belongsTo(Permission, {
         foreignKey: 'fk_permission',
         targetKey: 'permissionId',
         as: 'related_permission'
     });
-//######Report################
-    User.hasMany(Report,{
+    //######Report################
+    User.hasMany(Report, {
         foreignKey: 'fk_user_creator',
         sourceKey: 'userId',
         as: 'user_created_reports'
     });
-    Report.belongsTo(User,{
+    Report.belongsTo(User, {
         foreignKey: 'fk_user_creator',
         targetKey: 'userId',
         as: 'related_user_creator'
     });
-    User.hasMany(Report,{
+    User.hasMany(Report, {
         foreignKey: 'fk_user_assigned',
         sourceKey: 'userId',
         as: 'user_assigned_reports'
     });
-    Report.belongsTo(User,{
+    Report.belongsTo(User, {
         foreignKey: 'fk_user_assigned',
         targetKey: 'userId',
         as: 'related_user_assigned'
     });
-    Place.hasMany(Report,{
+    Place.hasMany(Report, {
         foreignKey: 'fk_place',
         sourceKey: 'placeId',
         as: 'place_reports'
     });
-    Report.belongsTo(Place,{
+    Report.belongsTo(Place, {
         foreignKey: 'fk_place',
         targetKey: 'placeId',
         as: 'related_place'
     });
-    Item.hasMany(Report,{
+    Item.hasMany(Report, {
         foreignKey: 'fk_item',
         sourceKey: 'itemId',
         as: 'item_reports'
     });
-    Report.belongsTo(Item,{
+    Report.belongsTo(Item, {
         foreignKey: 'fk_item',
         targetKey: 'itemId',
         as: 'related_item'
     });
-//######History################
-    User.hasMany(History,{
+    //######History################
+    User.hasMany(History, {
         foreignKey: 'fk_user',
         sourceKey: 'userId',
         as: 'user_histories'
     });
-    History.belongsTo(User,{
+    History.belongsTo(User, {
         foreignKey: 'fk_user',
         targetKey: 'userId',
         as: 'related_user'
     });
-    Item.hasMany(History,{
+    Item.hasMany(History, {
         foreignKey: 'fk_item',
         sourceKey: 'itemId',
         as: 'item_histories'
     });
-    History.belongsTo(Item,{
+    History.belongsTo(Item, {
         foreignKey: 'fk_item',
         targetKey: 'itemId',
         as: 'related_item'
     });
-    Place.hasMany(History,{
+    Place.hasMany(History, {
         foreignKey: 'fk_place',
         sourceKey: 'placeId',
         as: 'place_histories'
     });
-    History.belongsTo(Place,{
+    History.belongsTo(Place, {
         foreignKey: 'fk_place',
         targetKey: 'placeId',
         as: 'related_place'
     });
-    Report.hasMany(History,{
+    Report.hasMany(History, {
         foreignKey: 'fk_report',
         sourceKey: 'reportId',
         as: 'report_histories'
     });
-    History.belongsTo(Report,{
+    History.belongsTo(Report, {
         foreignKey: 'fk_report',
         targetKey: 'reportId',
         as: 'related_report'
     });
-//######Request################
-    User.hasMany(Request,{
+    //######Request################
+    User.hasMany(Request, {
         foreignKey: 'fk_user_reciver',
         sourceKey: 'userId',
         as: 'received_requests'
     });
-    Request.belongsTo(User,{
+    Request.belongsTo(User, {
         foreignKey: 'fk_user_reciver',
         targetKey: 'userId',
         as: 'receiver'
     });
-    User.hasMany(Request,{
+    User.hasMany(Request, {
         foreignKey: 'fk_user_requester',
         sourceKey: 'userId',
         as: 'sent_requests'
     });
-    Request.belongsTo(User,{
+    Request.belongsTo(User, {
         foreignKey: 'fk_user_requester',
         targetKey: 'userId',
         as: 'requester'
     });
-    Item.hasMany(Request,{
+    Item.hasMany(Request, {
         foreignKey: 'fk_item',
         sourceKey: 'itemId',
         as: 'item_requests'
     });
-    Request.belongsTo(Item,{
+    Request.belongsTo(Item, {
         foreignKey: 'fk_item',
         targetKey: 'itemId',
         as: 'related_item'
     });
-//######UserNotification################
-    User.hasMany(UserNotification,{
+    //######UserNotification################
+    User.hasMany(UserNotification, {
         foreignKey: 'fk_user_trigger',
         sourceKey: 'userId',
         as: 'triggered_notifications'
     });
-    UserNotification.belongsTo(User,{
+    UserNotification.belongsTo(User, {
         foreignKey: 'fk_user_trigger',
         targetKey: 'userId',
         as: 'triggerer'
     });
-    User.hasMany(UserNotification,{
+    User.hasMany(UserNotification, {
         foreignKey: 'fk_notified',
         sourceKey: 'userId',
         as: 'received_notifications'
     });
-    UserNotification.belongsTo(User,{
+    UserNotification.belongsTo(User, {
         foreignKey: 'fk_notified',
         targetKey: 'userId',
         as: 'notified_user'
