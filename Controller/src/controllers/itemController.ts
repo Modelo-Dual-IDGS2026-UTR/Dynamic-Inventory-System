@@ -1,7 +1,47 @@
-import { Item, ItemStatus, Place, User } from '@dis/model';
+import { Item, ItemStatus, Place, User, Category } from '@dis/model';
 import type { Response, Request } from 'express'
-import { Model, type WhereOptions } from 'sequelize';
+import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
+
+const ITEM_INCLUDES = [
+    {
+        model: Category,
+        as: 'category',
+        attributes: ['categoryId', 'categoryName']
+    },
+    {
+        model: Place,
+        as: 'related_place',
+        attributes: ['placeId', 'placeName']
+    },
+    {
+        model: User,
+        as: 'responsible_user',
+        attributes: ['userId', 'firstName', 'lastName']
+    }
+];
+
+const formatItems = (itemInstance: InstanceType<typeof Item>) => {
+    const item = typeof itemInstance.toJSON === 'function' ? itemInstance.toJSON() : itemInstance;
+    const { category, related_place, responsible_user, ...rest } = item;
+
+    return {
+        ...rest,
+        fk_category: category
+            ? { id: category.categoryId, name: category.categoryName }
+            : null,
+        fk_place: related_place
+            ? { id: related_place.placeId, name: related_place.placeName }
+            : null,
+        fk_user_responsible: responsible_user
+            ? {
+                id: responsible_user.userId,
+                firstName: responsible_user.firstName,
+                lastName: responsible_user.lastName
+            }
+            : null
+    };
+};
 
 const CreateItem = async (req: Request, res: Response) => {
     try {
@@ -9,12 +49,12 @@ const CreateItem = async (req: Request, res: Response) => {
             itemName,
             itemDescription,
             codeBar,
-            category,
             cost,
             manufacter,
+            fk_category,
             fk_user_responsible,
             fk_place } = req.body
-        if (!itemDescription || !itemName || !fk_user_responsible || !category || !fk_place || !cost || !manufacter) {
+        if (!itemDescription || !itemName || !fk_user_responsible || !fk_category || !fk_place || !cost || !manufacter) {
             return res.status(400).json({
                 message: "All parameters must be field please check documentation"
             })
@@ -32,7 +72,7 @@ const CreateItem = async (req: Request, res: Response) => {
             existingWhere.fk_user_responsible = fk_user_responsible;
             existingWhere.codeBar = null;
             existingWhere.fk_place = fk_place;
-            existingWhere.category = category;
+            existingWhere.fk_category = fk_category;
             existingWhere.cost = cost;
             existingWhere.manufacter = manufacter
 
@@ -50,7 +90,7 @@ const CreateItem = async (req: Request, res: Response) => {
             cost,
             manufacter,
             codeBar,
-            category,
+            fk_category,
             fk_user_responsible,
             fk_place
         })
@@ -117,44 +157,11 @@ const SearchItems = async (req: Request, res: Response) => {
         })
         const foundItems = await Item.findAll({
             where: searchOptions,
-            include: [
-                {
-                    model: Place,
-                    as: 'related_place',
-                    attributes: ['placeId', 'placeName']
-                },
-                {
-                    model: User,
-                    as: 'responsible_user',
-                    attributes: ['userId', 'firstName', 'lastName']
-                }
-            ],
+            include: ITEM_INCLUDES,
             order: [[sortBy, order.toUpperCase()]]
         })
 
-        const formatedItems = foundItems.map((itemInstance: Model) => {
-            const item = itemInstance.toJSON()
-            const userName = item.responsible_user.firstName + " " + item.responsible_user.lastName
-            const formated = {
-                ...item,
-                fk_place: item.related_place ?
-                    {
-                        id: item.related_place.placeId,
-                        name: item.related_place.placeName
-                    } : item.related_place.placeId,
-                fk_user_responsible: item.responsible_user ?
-                    {
-                        id: item.responsible_user.userId,
-                        userName: userName
-                    } : item.responsible_user.userId
-            }
-            delete formated.related_place
-            delete formated.responsible_user
-
-            return formated
-
-
-        })
+        const formatedItems = foundItems.map(formatItems)
         return res.status(200).json(formatedItems)
 
     } catch (error) {
