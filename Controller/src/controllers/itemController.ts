@@ -197,6 +197,20 @@ const UpdateItem = async (req: Request, res: Response) => {
             fk_responsible_user,
             fk_place
         } = body
+
+        if (
+            !itemName ||
+            !itemDescription ||
+            !cost ||
+            !manufacter ||
+            !codeBar ||
+            !fk_responsible_user ||
+            !fk_place 
+        ) {
+            return res.status(400).json({ message: 'All parameters must be filled in,'
+                + ' please check documentation' });
+        }
+
         const [modifiedRows] = await Item.update({
             itemName,
             itemDescription,
@@ -298,7 +312,6 @@ const DeleteItemByID = async (req: Request, res: Response) => {
             error: error
         })
     }
-
 }
 
 async function ShowItem(id: number, res: Response) {
