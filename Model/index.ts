@@ -241,5 +241,6 @@ export {
     History,
     Request,
     UserNotification,
-    UserSession
+    UserSession,
+    Category
 }

@@ -3,8 +3,8 @@ import { DataTypes } from 'sequelize'
 
 export const Category = mySequelize.define('Category', {
     categoryId: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
         primaryKey: true
     },
     categoryName: {
@@ -31,6 +31,6 @@ export const Category = mySequelize.define('Category', {
     }
 
 }, {
-    tableName: 'Categories',
+    tableName: 'Category',
     timeStamps: true
 });
