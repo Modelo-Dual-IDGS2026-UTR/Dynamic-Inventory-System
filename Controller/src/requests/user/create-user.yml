@@ -8,7 +8,7 @@ http:
   url: http://localhost:3000/api/user/create-user
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDE3NjQwMiwiZXhwIjoxNzkwMTc3MzAyfQ.jzueLZynS2QL76kq3K3j8TrDscYTYXbS7vmB9AASPk4
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDc5MjYwNSwiZXhwIjoxNzkwNzkyNjM1fQ.P1xeXw9UAhUPXqHrT1eerKM0TAR3m8KPwXntN-7zh8o
   body:
     type: json
     data: |-

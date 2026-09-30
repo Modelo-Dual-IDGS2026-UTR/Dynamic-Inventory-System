@@ -8,7 +8,7 @@ http:
   url: http://localhost:3000/api/item/read-item/1
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDM1MDMwNCwiZXhwIjoxNzkwMzUxMjA0fQ.6QtxWKHkCdObigbEWxELiROqsMQvgxEbYX75kCOtFpc
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDc5MjYwNSwiZXhwIjoxNzkwNzkyNjM1fQ.P1xeXw9UAhUPXqHrT1eerKM0TAR3m8KPwXntN-7zh8o
   auth: inherit
 
 settings:

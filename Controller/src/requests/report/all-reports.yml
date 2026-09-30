@@ -8,7 +8,7 @@ http:
   url: http://localhost:3000/api/report/all-reports
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDE3NjQwMiwiZXhwIjoxNzkwMTc3MzAyfQ.jzueLZynS2QL76kq3K3j8TrDscYTYXbS7vmB9AASPk4
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDc5MzgzOSwiZXhwIjoxNzkwNzkzODY5fQ.-UB66HeD6RZ8BiFEOy9IDHK5pSmp7-z7vEHbd_hJ0Nw
   auth: inherit
 
 settings:
