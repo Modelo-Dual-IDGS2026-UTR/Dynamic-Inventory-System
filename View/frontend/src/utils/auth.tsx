@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState} from 'react';
+import { createContext, useContext, useEffect, useRef, useState} from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean | null;
@@ -10,8 +10,14 @@ const AuthContext = createContext<AuthContextType>({ isAuthenticated: null, setI
 //Auth provider is a wrapper that will contain the business logic, in this case inside of <App/> 
 export const AuthProvider = ({ children }: { children: React.ReactNode}) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const authenticationCheckStarted = useRef(false);
   
   useEffect(() => {
+    if (authenticationCheckStarted.current) {
+      return;
+    }
+    authenticationCheckStarted.current = true;
+
     const request = (url: string, options: RequestInit = {}) => fetch(url, {
         method: 'GET',
         headers: {

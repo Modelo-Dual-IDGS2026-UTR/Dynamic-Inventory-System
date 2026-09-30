@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'node:crypto';
 import type {SignOptions, VerifyOptions} from 'jsonwebtoken';
 import type { Response,Request,NextFunction } from 'express';
 
@@ -35,7 +36,8 @@ export const generateRefreshToken = (
 ): string => {
     return jwt.sign(payload, refreshSecret, {
         algorithm,
-        expiresIn: '7d'
+        expiresIn: '7d',
+        jwtid: randomUUID()
     });
 };
 

@@ -284,8 +284,14 @@ const RefreshToken = async (req: Request, res: Response) => {
 
         //PUEDE SER ESTA BLOWJOB
         if (!session) {
+            res.clearCookie('refreshToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/api/user'
+            });
             return res.status(401).json({
-                message: 'Session not found or revoked'
+                message: (`Session not found or revoked`)
             });
         }
 
