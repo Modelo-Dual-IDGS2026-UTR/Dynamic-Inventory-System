@@ -26,10 +26,22 @@ export const Inventory: React.FC = () => {
   return (
     <div className={styles.container}>
       <div className={styles.statsGrid}>
-        <div className={styles.statCard}><span className={styles.statLabel}>Total de Mobiliario</span><span className={styles.statValue}>{items.length}</span></div>
-        <div className={styles.statCard}><span className={styles.statLabel}>Elementos cargados</span><span className={styles.statValue}>{items.length}</span></div>
-        <div className={styles.statCard}><span className={styles.statLabel}>Vista actual</span><span className={styles.statValue}>{viewType}</span></div>
-        <div className={styles.statCard}><span className={styles.statLabel}>Elementos</span><span className={styles.statValue}>{items.length}</span></div>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconRed}`}>🪑</div>
+          <div className={styles.statInfo}><span className={styles.statLabel}>Total de Mobiliario</span><span className={styles.statValue}>{items.length}</span><span className={styles.statSubtext}>Todos los ítems registrados</span></div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconGreen}`}>✓</div>
+          <div className={styles.statInfo}><span className={styles.statLabel}>En Uso</span><span className={styles.statValue}>980</span><span className={styles.statSubtext}>78.4% del total</span></div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconYellow}`}>▣</div>
+          <div className={styles.statInfo}><span className={styles.statLabel}>En Bodega</span><span className={styles.statValue}>210</span><span className={styles.statSubtext}>16.8% del total</span></div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconWarning}`}>!</div>
+          <div className={styles.statInfo}><span className={styles.statLabel}>Dañado</span><span className={styles.statValue}>60</span><span className={styles.statSubtext}>4.8% del total</span></div>
+        </div>
       </div>
 
       <div className={styles.dataContainer}>
@@ -55,6 +67,11 @@ export const Inventory: React.FC = () => {
                 <div className={styles.infoPill}>Costo: ${selectedItem.cost.toFixed(2)}</div>
                 <div className={styles.infoPill}>Categoría: {selectedItem.category}</div>
                 <div className={styles.infoPill}>Código: {selectedItem.codeBar || 'N/A'}</div>
+              </div>
+              <div className={styles.modalRightColumn}>
+                <button className={styles.reportBtn} type="button">📈 Reportar</button>
+                <button className={styles.requestBtn} type="button">📝 Solicitar</button>
+                <div className={styles.historyCard}><h3>Historial</h3></div>
               </div>
             </div>
           </div>

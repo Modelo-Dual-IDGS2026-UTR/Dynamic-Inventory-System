@@ -1,6 +1,5 @@
 import { JSX } from 'react'
 import type { Item } from '../../types'
-
 interface ItemTableProps {
     items: Item[];
     onSelectItem: (item: Item) => void;
