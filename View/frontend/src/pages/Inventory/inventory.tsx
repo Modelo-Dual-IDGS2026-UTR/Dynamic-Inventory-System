@@ -1,107 +1,60 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useView } from '../../context/ViewContext';
 import styles from './Inventario.module.css';
+import ItemTable from './ItemTable';
+import CardGrid from './CardGrid';
+import type { Item } from '../../types';
+import { getItems } from '../../services/ItemServices';
 
 export const Inventory: React.FC = () => {
   const { viewType } = useView();
-  const [selectedItem, setSelectedItem] = useState<boolean>(false);
+  const [items, setItems] = useState<Item[]>([]);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+
+  useEffect(() => {
+    getItems().then(setItems);
+  }, []);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedItem(null);
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, []);
 
   return (
     <div className={styles.container}>
-      {/* 4 Tarjetas de Estadísticas según PDF */}
       <div className={styles.statsGrid}>
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconRed}`}>🪑</div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Total de Mobiliario</span>
-            <span className={styles.statValue}>1,250</span>
-            <span className={styles.statSubtext}>Todos los ítems registrados</span>
-          </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconGreen}`}>✔</div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>En Uso</span>
-            <span className={styles.statValue}>980</span>
-            <span className={styles.statSubtext}>78.4% del total</span>
-          </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconYellow}`}>📦</div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>En Bodega</span>
-            <span className={styles.statValue}>210</span>
-            <span className={styles.statSubtext}>16.8% del total</span>
-          </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconWarning}`}>⚠️</div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Dañado</span>
-            <span className={styles.statValue}>60</span>
-            <span className={styles.statSubtext}>4.8% del total</span>
-          </div>
-        </div>
+        <div className={styles.statCard}><span className={styles.statLabel}>Total de Mobiliario</span><span className={styles.statValue}>{items.length}</span></div>
+        <div className={styles.statCard}><span className={styles.statLabel}>Elementos cargados</span><span className={styles.statValue}>{items.length}</span></div>
+        <div className={styles.statCard}><span className={styles.statLabel}>Vista actual</span><span className={styles.statValue}>{viewType}</span></div>
+        <div className={styles.statCard}><span className={styles.statLabel}>Elementos</span><span className={styles.statValue}>{items.length}</span></div>
       </div>
 
-      {/* Contenedor Principal (Tabla o Grid de Tarjetas) */}
       <div className={styles.dataContainer}>
         {viewType === 'tabla' ? (
-          <div className={styles.tablePlaceholderCard} onClick={() => setSelectedItem(true)}>
-            <h1 className={styles.placeholderTitle}>TABLA PLACE HOLDER</h1>
+          <div className={styles.tablePlaceholderCard}>
+            <ItemTable items={items} onSelectItem={setSelectedItem} />
           </div>
         ) : (
-          <div className={styles.gridContainer}>
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div 
-                key={index} 
-                className={styles.gridCardPlaceholder}
-                onClick={() => setSelectedItem(true)}
-              >
-                information container place holder
-              </div>
-            ))}
-          </div>
+          <CardGrid items={items} onSelectItem={setSelectedItem} />
         )}
       </div>
 
-      {/* Modal de Detalle/Acciones (Página 2 del PDF) */}
       {selectedItem && (
-        <div className={styles.modalOverlay} onClick={() => setSelectedItem(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <button 
-              className={styles.closeBtn} 
-              onClick={() => setSelectedItem(false)}
-              aria-label="Cerrar modal"
-            >
-              ✕
-            </button>
-
+        <div className={styles.modalOverlay} onClick={() => setSelectedItem(null)}>
+          <div className={styles.modalContent} onClick={(event) => event.stopPropagation()}>
+            <button className={styles.closeBtn} type="button" onClick={() => setSelectedItem(null)} aria-label="Cerrar detalle">✕</button>
             <div className={styles.modalBody}>
-              {/* Columna Izquierda: Bloques de Información */}
               <div className={styles.modalLeftColumn}>
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <div key={index} className={styles.infoPill}>
-                    information container place holder
-                  </div>
-                ))}
-              </div>
-
-              {/* Columna Derecha: Acciones e Historial */}
-              <div className={styles.modalRightColumn}>
-                <button className={styles.reportBtn}>
-                  📈 Reportar
-                </button>
-                <button className={styles.requestBtn}>
-                  📝 Solicitar
-                </button>
-
-                <div className={styles.historyCard}>
-                  <h3>Historial</h3>
-                </div>
+                <h2>{selectedItem.itemName}</h2>
+                <div className={styles.infoPill}>ID: {selectedItem.itemId}</div>
+                <div className={styles.infoPill}>Descripción: {selectedItem.itemDescription}</div>
+                <div className={styles.infoPill}>Fabricante: {selectedItem.manufacter}</div>
+                <div className={styles.infoPill}>Costo: ${selectedItem.cost.toFixed(2)}</div>
+                <div className={styles.infoPill}>Categoría: {selectedItem.category}</div>
+                <div className={styles.infoPill}>Código: {selectedItem.codeBar || 'N/A'}</div>
               </div>
             </div>
           </div>

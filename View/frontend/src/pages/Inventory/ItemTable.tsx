@@ -1,6 +1,10 @@
-import {JSX, useState,useEffect} from 'react'
+import { JSX } from 'react'
 import type { Item } from '../../types'
-import { getItems } from '../../services/ItemServices'; 
+
+interface ItemTableProps {
+    items: Item[];
+    onSelectItem: (item: Item) => void;
+}
 
 
 
@@ -8,14 +12,7 @@ import { getItems } from '../../services/ItemServices';
 
 
 
-function ItemTable():JSX.Element {
-    const [items,setItems]=useState<Item[]>([])
-    // useEffect ejecuta la petición solo una vez cuando el componente aparece en pantalla
-    useEffect(() => {
-    getItems().then((data) => {
-      setItems(data);
-    });
-  }, []); // Array de dependencias vacío = se ejecuta 1 sola vez al montar
+function ItemTable({ items, onSelectItem }: ItemTableProps): JSX.Element {
     const table:JSX.Element=(
         <table>
             <thead>
@@ -34,7 +31,18 @@ function ItemTable():JSX.Element {
             <tbody>
                 {items.map((item)=>(
 
-                    <tr key={item.itemId}>
+                    <tr
+                        key={item.itemId}
+                        onClick={() => onSelectItem(item)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                onSelectItem(item);
+                            }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                    >
                         <td>{item.itemId}</td>
                         <td>{item.itemName}</td>
                         <td>{item.itemDescription}</td>
@@ -54,4 +62,4 @@ function ItemTable():JSX.Element {
     return table
 }
 
-export default <ItemTable/>
+export default ItemTable
