@@ -1,11 +1,14 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useView } from '../../../context/ViewContext';
+import { useAuth } from '../../../utils/auth';
 import styles from './Header.module.css';
 
 export const Header: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { viewType, setViewType, searchQuery, setSearchQuery } = useView();
+  const { isAuthenticated, currentUser } = useAuth();
 
   const isInventario = location.pathname === '/dashboard';
 
@@ -49,10 +52,23 @@ export const Header: React.FC = () => {
           </div>
         )}
 
-        <div className={styles.userBadge}>
+        <button
+          className={styles.userBadge}
+          type="button"
+          title={currentUser?.email || 'Estado de la cuenta'}
+          onClick={() => {
+            if (!currentUser) navigate('/login');
+          }}
+        >
           <span className={styles.userIcon}>👤</span>
-          <span>Invitado</span>
-        </div>
+          <span>
+            {isAuthenticated === null
+              ? 'Cargando...'
+              : currentUser
+                ? `${currentUser.firstName} ${currentUser.lastName}`
+                : 'Invitado'}
+          </span>
+        </button>
       </div>
     </header>
   );
