@@ -1,17 +1,14 @@
 info:
-  name: delete-user
+  name: delete-item
   type: http
-  seq: 6
+  seq: 5
 
 http:
   method: DELETE
-  url: http://localhost:3000/api/user/delete-user/2
+  url: http://localhost:3000/api/item/delete-item/1
   headers:
     - name: Cookie
       value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDM1MTg5NCwiZXhwIjoxNzkwMzUyNzk0fQ.xzVO6ow_dbCiFeBHcH5iDf2HcmlVed8k3oIk0pBXZos
-  body:
-    type: json
-    data: ""
   auth: inherit
 
 settings:
@@ -19,4 +16,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
-  forwardAuthorizationHeader: true
+  forwardAuthorizationHeader: false

@@ -16,7 +16,7 @@ try {
     console.log(usuarios);
 
 } catch (error) {
-    console.error('❌ Error en la prueba:', error);
+    console.error('Error en la prueba:', error);
 
 
 
@@ -46,23 +46,14 @@ app.use(cors(corsOptions));
 app.use('/api/user',routes.userRouter);
 app.use('/api/item',routes.itemRouter);
 app.use('/api/report', routes.reportRouter);
+app.use('/api/category', routes.categoryRouter);
 
 // Endpoint GET de prueba
 app.get('/', (req: Request, res: Response) => {
     res.json({ mensaje: '¡Hola, chiquillo! Tu API con TS funciona 🚀' });
 });
 
-// Endpoint POST recibiendo datos
-app.post('/usuarios', (req: Request, res: Response) => {
-    const { nombre, edad } = req.body;
-    
-    // Aquí puedes meterle lógica tipada
-    res.status(201).json({
-        id: 1,
-        nombre,
-        edad
-    });
-});
+
 
 app.listen(PORT, () => {
     //This line down here, acts as a silencer for eslint, to ignore console lines warnings

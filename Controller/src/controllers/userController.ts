@@ -250,9 +250,19 @@ const RefreshToken = async (req: Request, res: Response) => {
 
         const user = await User.findByPk(decoded.userId);
 
-        if (!user || !user.getDataValue('userStatus')) {
+        if (!user) {
             return res.status(401).json({
-                message: 'User is not authorized'
+                message: 'User from refresh token was not found',
+                userId: decoded.userId
+            });
+        }
+
+        const userStatus = user.getDataValue('userStatus');
+        if (userStatus !== true && userStatus !== 1) {
+            return res.status(401).json({
+                message: 'User is not authorized',
+                userId: decoded.userId,
+                userStatus
             });
         }
 
@@ -272,9 +282,16 @@ const RefreshToken = async (req: Request, res: Response) => {
             }
         });
 
+        //PUEDE SER ESTA BLOWJOB
         if (!session) {
+            res.clearCookie('refreshToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/api/user'
+            });
             return res.status(401).json({
-                message: 'Session not found or revoked'
+                message: (`Session not found or revoked`)
             });
         }
 
@@ -306,9 +323,22 @@ const RefreshToken = async (req: Request, res: Response) => {
             .update(newRefreshToken)
             .digest('hex');
 
-        await session.update({
+        const [updatedSessions] = await UserSession.update({
             refreshTokenHash: newRefreshTokenHash
+        }, {
+            where: {
+                sessionId: decoded.sessionId,
+                userId: decoded.userId,
+                revokedAt: null,
+                refreshTokenHash: receivedTokenHash
+            }
         });
+
+        if (updatedSessions !== 1) {
+            return res.status(401).json({
+                message: 'Refresh token already rotated or session revoked'
+            });
+        }
 
         
         res.cookie('jwtToken', newAccessToken, {

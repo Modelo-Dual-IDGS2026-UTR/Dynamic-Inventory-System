@@ -6,6 +6,9 @@ info:
 http:
   method: POST
   url: http://localhost:3000/api/item/new-item
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDc5MzgzOSwiZXhwIjoxNzkwNzkzODY5fQ.-UB66HeD6RZ8BiFEOy9IDHK5pSmp7-z7vEHbd_hJ0Nw
   body:
     type: json
     data: |-
@@ -13,9 +16,11 @@ http:
         "itemName": "PC",
         "itemDescription": "Esto es una PC",
         "codeBar": "OJDJFODAISJFOS",
+        "itemStatus": "In Stock",
         "category": "No Category", 
         "cost": 20,
         "manufacter": "DELL", 
+        "fk_category": 1,
         "fk_user_responsible": 1,
         "fk_place": 1
       }

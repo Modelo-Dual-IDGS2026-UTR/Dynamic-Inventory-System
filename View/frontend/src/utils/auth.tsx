@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState} from 'react';
+import { createContext, useContext, useEffect, useRef, useState} from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean | null;
@@ -10,18 +10,44 @@ const AuthContext = createContext<AuthContextType>({ isAuthenticated: null, setI
 //Auth provider is a wrapper that will contain the business logic, in this case inside of <App/> 
 export const AuthProvider = ({ children }: { children: React.ReactNode}) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const authenticationCheckStarted = useRef(false);
   
   useEffect(() => {
-    console.log("Ejecutando comprobación")
-    fetch('http://localhost:3000/api/user/me', {
+    if (authenticationCheckStarted.current) {
+      return;
+    }
+    authenticationCheckStarted.current = true;
+
+    const request = (url: string, options: RequestInit = {}) => fetch(url, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
         },
         credentials: 'include',
-    })
-    .then((res) => setIsAuthenticated(res.ok))
-    .catch(() => setIsAuthenticated(false))
+    ...options,
+    });
+
+    const checkAuthentication = async () => {
+      try {
+        let response = await request('http://localhost:3000/api/user/me');
+
+        if (response.status === 401) {
+          const refreshResponse = await request('http://localhost:3000/api/user/refresh', {
+            method: 'POST',
+          });
+
+          if (refreshResponse.ok) {
+            response = await request('http://localhost:3000/api/user/me');
+          }
+        }
+
+        setIsAuthenticated(response.ok);
+      } catch {
+        setIsAuthenticated(false);
+      }
+    };
+
+    void checkAuthentication();
   }, []);
 
   return (

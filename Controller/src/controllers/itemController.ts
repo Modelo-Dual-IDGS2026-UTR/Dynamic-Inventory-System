@@ -1,24 +1,64 @@
-import { Item,Place, User} from '@dis/model';
-import type { Response,Request } from 'express'
-import {type WhereOptions } from 'sequelize';
+import { Item, ItemStatus, Place, User, Category } from '@dis/model';
+import type { Response, Request } from 'express'
+import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
 
-const CreateItem=async (req:Request,res:Response)=>{
-    try {
-    const {
-        itemName,
-        itemDescription,
-        codeBar,
-        category,
-        cost,
-        manufacter,
-        fk_user_responsible,
-        fk_place}=req.body
-    if(!itemDescription||!itemName||!fk_user_responsible||!category||!fk_place||!cost||!manufacter){
-        return res.status(400).json({
-            message:"All parameters must be field please check documentation"
-        })
+const ITEM_INCLUDES = [
+    {
+        model: Category,
+        as: 'category',
+        attributes: ['categoryId', 'categoryName']
+    },
+    {
+        model: Place,
+        as: 'related_place',
+        attributes: ['placeId', 'placeName']
+    },
+    {
+        model: User,
+        as: 'responsible_user',
+        attributes: ['userId', 'firstName', 'lastName']
     }
+];
+
+const formatItems = (itemInstance: InstanceType<typeof Item>) => {
+    const item = typeof itemInstance.toJSON === 'function' ? itemInstance.toJSON() : itemInstance;
+    const { category, related_place, responsible_user, ...rest } = item;
+
+    return {
+        ...rest,
+        fk_category: category
+            ? { id: category.categoryId, name: category.categoryName }
+            : null,
+        fk_place: related_place
+            ? { id: related_place.placeId, name: related_place.placeName }
+            : null,
+        fk_user_responsible: responsible_user
+            ? {
+                id: responsible_user.userId,
+                firstName: responsible_user.firstName,
+                lastName: responsible_user.lastName
+            }
+            : null
+    };
+};
+
+const CreateItem = async (req: Request, res: Response) => {
+    try {
+        const {
+            itemName,
+            itemDescription,
+            codeBar,
+            cost,
+            manufacter,
+            fk_category,
+            fk_user_responsible,
+            fk_place } = req.body
+        if (!itemDescription || !itemName || !fk_user_responsible || !fk_category || !fk_place || !cost || !manufacter) {
+            return res.status(400).json({
+                message: "All parameters must be field please check documentation"
+            })
+        }
 
         const existingWhere: WhereOptions = {};
 
@@ -31,15 +71,15 @@ const CreateItem=async (req:Request,res:Response)=>{
             existingWhere.itemDescription = itemDescription;
             existingWhere.fk_user_responsible = fk_user_responsible;
             existingWhere.codeBar = null;
-            existingWhere.fk_place=fk_place;
-            existingWhere.category=category;
-            existingWhere.cost=cost;
-            existingWhere.manufacter=manufacter
-            
-        }
-        const doesItExist=await Item.findOne({where:existingWhere})
+            existingWhere.fk_place = fk_place;
+            existingWhere.fk_category = fk_category;
+            existingWhere.cost = cost;
+            existingWhere.manufacter = manufacter
 
-        if(doesItExist){
+        }
+        const doesItExist = await Item.findOne({ where: existingWhere })
+
+        if (doesItExist) {
             return res.status(409).json({
                 message: "Item already exist"
             })
@@ -50,51 +90,51 @@ const CreateItem=async (req:Request,res:Response)=>{
             cost,
             manufacter,
             codeBar,
-            category,
+            fk_category,
             fk_user_responsible,
             fk_place
         })
 
         return res.status(200).json({
-            message:"item succesfully created"
+            message: "item succesfully created"
         })
     } catch (error) {
         return res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error
+            message: "Internal server error, not your fault :D",
+            error: error
         })
-        
+
+    }
 }
-}
-const SearchItemById=async (req:Request,res:Response)=>{
+
+const SearchItemById = async (req: Request, res: Response) => {
     try {
-        const id=req.params.itemId
-        if(!id){
+        const id = req.params.itemId
+        if (!id) {
             return res.status(400).json({
-                message:"No ID recived"
+                message: "No ID received"
             })
         }
-         const convertedId=Number(id)
-        if(isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0){
-          return res.status(400).json({
-            message:"Invalid User ID"
-        })  
+        const convertedId = Number(id)
+        if (isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0) {
+            return res.status(400).json({
+                message: "Invalid User ID"
+            })
         }
-            
-            ShowItem(convertedId,res)
-        } catch (error) {
-            res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error
-    })
-    }    
+
+        ShowItem(convertedId, res)
+    } catch (error) {
+        res.status(500).json({
+            message: "Internal server error, not your fault :D",
+            error: error
+        })
+    }
 }
 
-
-const SearchItems=async (req:Request,res:Response)=>{
+const SearchItems = async (req: Request, res: Response) => {
     try {
-        const body=req.body||{}
-        const {itemId,
+        const body = req.body || {}
+        const { itemId,
             itemName,
             itemDescription,
             cost,
@@ -102,10 +142,10 @@ const SearchItems=async (req:Request,res:Response)=>{
             codeBar,
             fk_user_responsible,
             fk_place,
-            sortBy='itemId',
-            order='ASC'
-            }=body
-        const searchOptions=await FilterOptions({
+            sortBy = 'itemId',
+            order = 'ASC'
+        } = body
+        const searchOptions = await FilterOptions({
             itemId,
             itemName,
             itemDescription,
@@ -115,183 +155,206 @@ const SearchItems=async (req:Request,res:Response)=>{
             fk_user_responsible,
             fk_place
         })
-            const foundItems= await Item.findAll({
-                where:searchOptions,
-                include:[
-                    {
-                        model:Place,
-                        as:'related_place',
-                        attributes:['placeId','placeName']
-                    },
-                    {
-                        model:User,
-                        as:'responsible_user',
-                        attributes:['userId','firstName','lastName']
-                    }
-                ],
-                order:[[sortBy,order.toUpperCase()]]
-            })
-
-            const formatedItems=foundItems.map((itemInstance)=>{
-                const item=itemInstance.toJSON()
-                const userName=item.responsible_user.firstName+" "+item.responsible_user.lastName
-                const formated={
-                    ...item,
-                    fk_place:item.related_place?
-                            {
-                                id:item.related_place.placeId,
-                                name:item.related_place.placeName
-                            }:item.related_place.placeId,
-                    fk_user_responsible:item.responsible_user?
-                            {
-                                id:item.responsible_user.userId,
-                                userName:userName
-                            }:item.responsible_user.userId
-                }
-                delete formated.related_place
-                delete formated.responsible_user
-
-                return formated
-
-
-            })
-            return res.status(200).json(formatedItems)
-            
-        } catch (error) {
-            res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error
-    })
-    }    
-}
-
-const UpdateItem=async (req:Request,res:Response)=>{
-    try {
-       
-       const id=req.params.itemId
-       if (!id) {
-           return res.status(400).json({
-               message: "No ID received"
-           });
-       }
-
-       const convertedId = Number(id);
-       if (isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0) {
-           return res.status(400).json({
-               message: "Invalid Item ID"
-           });
-       }
-       const doesItExist=await Item.findOne({where:{itemId:convertedId}})
-       if(!doesItExist){
-           res.status(404).json({
-           message:`item  do not exist`
-       })    
-       }
-       const body=req.body||{}
-       const {
-        itemName,
-        itemDescription,
-        cost,
-        manufacter,
-        codeBar,
-        fk_responsible_user,
-        fk_place
-       }=body
-       const [modifiedRows]=await Item.update({
-        itemName,
-        itemDescription,
-        cost,
-        manufacter,
-        codeBar,
-        fk_responsible_user,
-        fk_place},
-        {where:{itemId:convertedId}}
-       )
-       if(modifiedRows==0){
-        res.status(404).json({
-            message:"Item not found or not changes where made"
+        const foundItems = await Item.findAll({
+            where: searchOptions,
+            include: ITEM_INCLUDES,
+            order: [[sortBy, order.toUpperCase()]]
         })
-       }else{
-        res.status(200).json({
-            message:"item succesfully updated"
-        })
-       }
+
+        const formatedItems = foundItems.map(formatItems)
+        return res.status(200).json(formatedItems)
 
     } catch (error) {
-         res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error})
+        res.status(500).json({
+            message: "Internal server error, not your fault :D",
+            error: error
+        })
     }
 }
 
+const UpdateItem = async (req: Request, res: Response) => {
+    try {
 
+        const id = req.params.itemId
+        if (!id) {
+            return res.status(400).json({
+                message: "No ID received"
+            });
+        }
 
+        const convertedId = Number(id);
+        if (isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0) {
+            return res.status(400).json({
+                message: "Invalid Item ID"
+            });
+        }
+        const doesItExist = await Item.findOne({ where: { itemId: convertedId } })
+        if (!doesItExist) {
+            res.status(404).json({
+                message: `item  do not exist`
+            })
+        }
+        const body = req.body || {}
+        const {
+            itemName,
+            itemDescription,
+            cost,
+            manufacter,
+            codeBar,
+            fk_responsible_user,
+            fk_place
+        } = body
 
+        if (
+            !itemName ||
+            !itemDescription ||
+            !cost ||
+            !manufacter ||
+            !codeBar ||
+            !fk_responsible_user ||
+            !fk_place 
+        ) {
+            return res.status(400).json({ message: 'All parameters must be filled in,'
+                + ' please check documentation' });
+        }
 
-const DeleteItemByID=async (req:Request,res:Response)=>{
-   try {
-       const id=req.params.itemId
-       if (!id) {
-           return res.status(400).json({
-               message: "No ID received"
-           });
-       }
+        const [modifiedRows] = await Item.update({
+            itemName,
+            itemDescription,
+            cost,
+            manufacter,
+            codeBar,
+            fk_responsible_user,
+            fk_place
+        },
+            { where: { itemId: convertedId } }
+        )
+        if (modifiedRows == 0) {
+            res.status(404).json({
+                message: "Item not found or not changes where made"
+            })
+        } else {
+            res.status(200).json({
+                message: "item succesfully updated"
+            })
+        }
 
-       const convertedId = Number(id)
-       const deletedRows=await Item.destroy({
-           where:{itemId:convertedId}
-       })
-       if (deletedRows === 0) {
-           return res.status(404).json({
-               message: "Item not found or already deleted"
-           });
-       }
-       res.status(200).json({
-           message:`item ${convertedId} succesfully destroyed`
-       })
-       
-   } catch (error) {
+    } catch (error) {
         res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error})
-   }
-
+            message: "Internal server error, not your fault :D",
+            error: error
+        })
+    }
 }
 
-async function ShowItem(id:number,res:Response){
+const SetStatus = async (req: Request, res: Response) => {
     try {
-        const foundItem=await Item.findByPk(id,{
-            include:[{
+        const parsedItemId = Number(req.params.itemId);
+        const { itemStatus } = req.body || {};
+
+        if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !Object.values(ItemStatus).includes(itemStatus)) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundItem = await Item.findByPk(parsedItemId);
+        if (!foundItem) {
+            return res.status(404).json({ message: "Item Not Found" });
+        }
+        foundItem.set('itemStatus', itemStatus);
+        await foundItem.save();
+
+        return res.status(200).json({ message: 'Item status successfully updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+}
+
+const SetCategory = async (req: Request, res: Response) => {
+    try {
+        const parsedItemId = Number(req.params.itemId);
+        const { category } = req.body || {};
+
+        if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !category) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+
+        const foundItem = await Item.findByPk(parsedItemId);
+        if (!foundItem) {
+            return res.status(404).json({ message: "Item Not Found" });
+        }
+        foundItem.set('category', category);
+        await foundItem.save();
+
+        return res.status(200).json({ message: 'Item category successfully updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    }
+}
+
+const DeleteItemByID = async (req: Request, res: Response) => {
+    try {
+        const id = req.params.itemId
+        if (!id) {
+            return res.status(400).json({
+                message: "No ID received"
+            });
+        }
+
+        const convertedId = Number(id)
+        const deletedRows = await Item.destroy({
+            where: { itemId: convertedId }
+        })
+        if (deletedRows === 0) {
+            return res.status(404).json({
+                message: "Item not found or already deleted"
+            });
+        }
+        res.status(200).json({
+            message: `item ${convertedId} succesfully destroyed`
+        })
+
+    } catch (error) {
+        res.status(500).json({
+            message: "Internal server error, not your fault :D",
+            error: error
+        })
+    }
+}
+
+async function ShowItem(id: number, res: Response) {
+    try {
+        const foundItem = await Item.findByPk(id, {
+            include: [{
                 model: Place,
                 as: 'related_place',
-                attributes:['placeId','placeName']
+                attributes: ['placeId', 'placeName']
 
             },
-        {
-            model: User,
-            as:'responsible_user',
-            attributes:['userId','firstName', 'lastName']
-        }]
+            {
+                model: User,
+                as: 'responsible_user',
+                attributes: ['userId', 'firstName', 'lastName']
+            }]
         })
-        if(!foundItem){
+        if (!foundItem) {
             return res.status(404).json({
-                message:"Item not foud"
+                message: "Item not found"
             })
         }
         const item = foundItem.toJSON()
-        const fullName=
-        item.responsible_user.firstName+
-        item.responsible_user.lastName
-        
-        item.fk_place={
+        const fullName =
+            item.responsible_user.firstName +
+            item.responsible_user.lastName
+
+        item.fk_place = {
             placeId: item.related_place.placeId,
-            placeName:item.related_place.placeName
+            placeName: item.related_place.placeName
         }
-        
-        item.fk_user_responsible={
-            userId:item.responsible_user.userId,
-            
-            userName:fullName
+
+        item.fk_user_responsible = {
+            userId: item.responsible_user.userId,
+
+            userName: fullName
         }
 
         delete item.related_place
@@ -299,20 +362,22 @@ async function ShowItem(id:number,res:Response){
         res.status(200).json(
             item
         )
-    } catch (error){
+    } catch (error) {
         res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error
-    })
+            message: "Internal server error, not your fault :D",
+            error: error
+        })
+    }
 }
-}
 
 
 
-export const itemController={
+export {
     CreateItem,
     SearchItemById,
     SearchItems,
     UpdateItem,
-    DeleteItemByID
+    DeleteItemByID,
+    SetStatus,
+    SetCategory
 }

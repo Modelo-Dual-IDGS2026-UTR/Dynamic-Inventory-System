@@ -1,0 +1,33 @@
+info:
+  name: update-item
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: http://localhost:3000/api/item/update-item/1
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDM1MTI3NSwiZXhwIjoxNzkwMzUyMTc1fQ.2kVOZtPtzmorymytfskd0JRr9fHmkgyYkh8X2Jx3nPo
+  body:
+    type: json
+    data: |-
+      {
+        "itemName": "PC",
+        "itemDescription": "Esto es una PC chida",
+        "codeBar": "OJDJFODAISJFOS",
+        "itemStatus": "In Stock",
+        "category": "No Category", 
+        "cost": 20,
+        "manufacter": "DELL", 
+        "fk_user_responsible": 1,
+        "fk_place": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
