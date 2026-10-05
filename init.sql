@@ -264,7 +264,7 @@ VALUES (1, 1);
 INSERT INTO User(googleUserId, firstName, lastName, universityId, userStatus, email, area, fk_role)
 VALUES ("sddasddasds","TEST USER", "01", "1234", TRUE, "st1234@utr.edu.mx", "IDGS", 1);
 
-INSERT INTO Place(placeName, placeDescription, class, placeLocation)
+INSERT INTO Place(placeName, placeDescription, placeClass, placeLocation)
 VALUES ("A101", "Primer salón edificio A", " Salón", "Edificio A");
 
 INSERT INTO Category(folioNumber, categoryName, categoryDescription)
