@@ -8,7 +8,8 @@ import {
     itemRouter,
     reportRouter,
     categoryRouter,
-    placeRouter
+    placeRouter,
+    historyRouter
 } from './routes/index.js'
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -53,11 +54,11 @@ app.use('/api/user',userRouter);
 app.use('/api/item',itemRouter);
 app.use('/api/report', reportRouter);
 app.use('/api/category', categoryRouter);
-app.use('/api/places', placeRouter)
-
+app.use('/api/places', placeRouter);
+app.use('/api/history', historyRouter);
 // Endpoint GET de prueba
 app.get('/', (req: Request, res: Response) => {
-    res.json({ mensaje: '¡Hola, chiquillo! Tu API con TS funciona 🚀' });
+    res.json({ mensaje: '¡Hola, chiquillo! Tu API con TS funciona' });
 });
 
 

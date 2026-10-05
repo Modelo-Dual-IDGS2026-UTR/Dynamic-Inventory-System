@@ -3,12 +3,14 @@ import { itemRouter } from "./itemRoutes.js";
 import { reportRouter} from "./reportRoutes.js";
 import { categoryRouter} from "./categoryRoutes.js";
 import { placeRouter } from "./placeRoutes.js";
+import { historyRouter } from "./historyRoutes.js";
 
 export {
     userRouter,
     itemRouter,
     reportRouter,
     categoryRouter,
-    placeRouter
+    placeRouter,
+    historyRouter
 }
 
