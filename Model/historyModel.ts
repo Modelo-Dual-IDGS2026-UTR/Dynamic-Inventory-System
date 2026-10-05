@@ -7,45 +7,53 @@ export const History = mySequelize.define("History", {
         autoIncrement: true,
         primaryKey: true
     },
+    historyDescription: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    actionType: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
     fk_user: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'User',
             key: 'userId'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+        onDelete: 'SET NULL'
     },
     fk_item: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'Item',
             key: 'itemId'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+        onDelete: 'SET NULL'
     },
     fk_place: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'Place',
             key: 'placeId'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+        onDelete: 'SET NULL'
     },
     fk_report: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'Report',
             key: 'reportId'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+        onDelete: 'SET NULL'
     },
     createdAt: {
         type: DataTypes.DATE
