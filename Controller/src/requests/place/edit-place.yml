@@ -5,12 +5,12 @@ info:
 
 http:
   method: PUT
-  url: http://localhost:3000/api/places/new-place
+  url: http://localhost:3000/api/places/edit-place/1
   body:
     type: json
     data: |-
       {
-        "placeName": "C101",
+        "placeName": "C102",
         "placeDescription": "Primer salón del edificio C",
         "placeClass": "Salón", 
         "placeLocation": "Edificio C"
