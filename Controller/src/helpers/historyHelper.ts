@@ -1,4 +1,4 @@
-import { History } from '@dis/Model/historyModel.js';
+import { History } from '@dis/model/historyModel.js';
 
 interface HistoryLogParams {
     historyDescription: string;
