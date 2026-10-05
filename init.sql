@@ -113,6 +113,7 @@ CREATE TABLE History (
     fk_item INT,
     fk_place INT,
     fk_report INT,
+    fk_request INT,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -196,6 +197,11 @@ ALTER TABLE History
     ADD CONSTRAINT fk_history_report
         FOREIGN KEY (fk_report) 
         REFERENCES Report(reportId)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    ADD CONSTRAINT fk_history_request
+        FOREIGN KEY (fk_request) 
+        REFERENCES Request(requestId)
         ON DELETE SET NULL
         ON UPDATE CASCADE;
 

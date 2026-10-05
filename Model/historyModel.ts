@@ -55,6 +55,16 @@ export const History = mySequelize.define("History", {
         onUpdate: 'CASCADE',
         onDelete: 'SET NULL'
     },
+    fk_request: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'Request',
+            key: 'requestId'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL'
+    },
     createdAt: {
         type: DataTypes.DATE
     }
