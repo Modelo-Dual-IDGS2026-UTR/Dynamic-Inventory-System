@@ -3,7 +3,13 @@ import type { Request, Response } from 'express';
 //import {TestConection } from '@dis/db/dbConection.js';
 import {User} from '@dis/model'
 import { mySequelize } from '@dis/db/dbConection.js';
-import {routes} from './routes/index.js'
+import {
+    userRouter,
+    itemRouter,
+    reportRouter,
+    categoryRouter,
+    placeRouter
+} from './routes/index.js'
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
@@ -43,10 +49,11 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(cors(corsOptions));
 
-app.use('/api/user',routes.userRouter);
-app.use('/api/item',routes.itemRouter);
-app.use('/api/report', routes.reportRouter);
-app.use('/api/category', routes.categoryRouter);
+app.use('/api/user',userRouter);
+app.use('/api/item',itemRouter);
+app.use('/api/report', reportRouter);
+app.use('/api/category', categoryRouter);
+app.use('/api/places', placeRouter)
 
 // Endpoint GET de prueba
 app.get('/', (req: Request, res: Response) => {

@@ -57,10 +57,9 @@ CREATE TABLE UserSession (
 
 CREATE TABLE Place (
     placeId INT AUTO_INCREMENT PRIMARY KEY,
-    placeName varchar(50) NOT NULL,
+    placeName varchar(50) NOT NULL UNIQUE,
     placeDescription varchar(255) NOT NULL,
-    class varchar(255) NOT NULL,
-    ip_range varchar(255) NOT NULL,
+    placeClass varchar(255) NOT NULL,
     placeLocation varchar(255) NOT NULL,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -257,8 +256,8 @@ VALUES (1, 1);
 INSERT INTO User(googleUserId, firstName, lastName, universityId, userStatus, email, area, fk_role)
 VALUES ("sddasddasds","TEST USER", "01", "1234", TRUE, "st1234@utr.edu.mx", "IDGS", 1);
 
-INSERT INTO Place(placeName, placeDescription, class, ip_range, placeLocation)
-VALUES ("A101", "Le falta un pito", " Salon Normal", "172.0.0.1-172.0.240", "A Building");
+INSERT INTO Place(placeName, placeDescription, class, placeLocation)
+VALUES ("A101", "Primer salón edificio A", " Salón", "Edificio A");
 
 INSERT INTO Category(folioNumber, categoryName, categoryDescription)
 VALUES 
