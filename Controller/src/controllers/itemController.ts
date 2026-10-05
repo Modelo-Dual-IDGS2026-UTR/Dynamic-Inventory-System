@@ -2,6 +2,7 @@ import { Item, ItemStatus, Place, User, Category } from '@dis/model';
 import type { Response, Request } from 'express'
 import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
+import { createHistoryLog } from '../helpers/historyHelper.js';
 
 const ITEM_INCLUDES = [
     {
@@ -84,7 +85,7 @@ const CreateItem = async (req: Request, res: Response) => {
                 message: "Item already exist"
             })
         }
-        await Item.create({
+        const newItem = await Item.create({
             itemName,
             itemDescription,
             cost,
@@ -94,6 +95,14 @@ const CreateItem = async (req: Request, res: Response) => {
             fk_user_responsible,
             fk_place
         })
+
+        await createHistoryLog({
+            historyDescription: `Se creó el item "${newItem.itemName}" con código de barras: ${newItem.codeBar || 'N/A'}`,
+            actionType: 'CREATE',
+            userId: res.locals.jwtPayloadContent?.userId || Number(fk_user_responsible),
+            itemId: (newItem as any).itemId,
+            placeId: fk_place
+        });
 
         return res.status(200).json({
             message: "item succesfully created"
