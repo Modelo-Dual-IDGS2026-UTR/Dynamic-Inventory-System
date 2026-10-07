@@ -1,3 +1,5 @@
+//Native module for http web server
+import http from 'node:http';
 import express from 'express';
 import type { Request, Response } from 'express';
 //import {TestConection } from '@dis/db/dbConection.js';
@@ -9,11 +11,14 @@ import {
     reportRouter,
     categoryRouter,
     placeRouter,
-    historyRouter
+    historyRouter,
+    notificationRouter
 } from './routes/index.js'
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import { errorHandler } from './middleware/errorHandler.js';
+//Initialize WebSockets configuration
+import { initSocketServer } from './services/socketService.js';
 
 const TestSequelize=async ()=>{
 try {
@@ -33,10 +38,12 @@ try {
 
 TestSequelize();
 
-
-
-
 const app = express();
+// We create the HTTP Express Server Inside
+const server = http.createServer(app);
+
+// Initialize Socket.IO 
+initSocketServer(server);
 
 const PORT = 3000;
 
@@ -57,6 +64,7 @@ app.use('/api/report', reportRouter);
 app.use('/api/category', categoryRouter);
 app.use('/api/places', placeRouter);
 app.use('/api/history', historyRouter);
+app.use('/api/notification', notificationRouter);
 // Endpoint GET de prueba
 app.get('/', (req: Request, res: Response) => {
     res.json({ mensaje: '¡Hola, chiquillo! Tu API con TS funciona' });
@@ -64,39 +72,9 @@ app.get('/', (req: Request, res: Response) => {
 
 app.use(errorHandler);
 
+server.listen(PORT, () => {
 
-
-app.listen(PORT, () => {
-    //This line down here, acts as a silencer for eslint, to ignore console lines warnings
-    // eslint-disable-next-line no-console
-   // console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
 
 
 
-//----------------------NOT PRODUCTION CODE------------------------------------------
-        /*
-        import { GenerateJWT , VerifyJWT} from './middleware/jwtUtils.js'; 
-        import type { jwtPayloadContent } from './middleware/jwtUtils.js';
-        */
-        
-        /*
-        const TestJWT=()=>{
-            const userPayload:jwtPayloadContent = {
-                userId:"6969",
-                role: 1,
-                career_area:"TICS",
-                fullName:"Osmar Macias Curiel"
-            }
-        
-            let jwt:string =GenerateJWT(userPayload,"2m");
-        
-            try{
-                VerifyJWT(jwt);
-                console.log(jwt + "\nToken Validaded")
-            }catch{
-                console.log("DUUUUUUDE YOU FUCKED UP")
-            }
-            
-        }
-        */

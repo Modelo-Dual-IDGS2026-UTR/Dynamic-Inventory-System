@@ -4,6 +4,7 @@ import { reportRouter} from "./reportRoutes.js";
 import { categoryRouter} from "./categoryRoutes.js";
 import { placeRouter } from "./placeRoutes.js";
 import { historyRouter } from "./historyRoutes.js";
+import { notificationRouter } from "./notificationRoutes.js";
 
 export {
     userRouter,
@@ -11,6 +12,7 @@ export {
     reportRouter,
     categoryRouter,
     placeRouter,
-    historyRouter
+    historyRouter,
+    notificationRouter
 }
 
