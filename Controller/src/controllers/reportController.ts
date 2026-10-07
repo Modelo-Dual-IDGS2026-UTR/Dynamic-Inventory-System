@@ -180,6 +180,19 @@ const SearchReportsCreatedUser = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'A valid User ID is required' });
         }
 
+        const jwtPayload = res.locals.jwtPayloadContent;
+        if (!jwtPayload) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        const isAdministrator = jwtPayload.role <= 2;
+
+        if (!isAdministrator && jwtPayload.userId !== parsedUserId) {
+            return res.status(403).json({
+                message: 'You can only access your own reports'
+            });
+        }
+
         const userExists = await User.findByPk(parsedUserId);
         if (!userExists) {
             return res.status(404).json({ message: 'User not found' });
