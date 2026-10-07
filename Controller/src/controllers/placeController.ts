@@ -2,6 +2,7 @@ import { Place} from '@dis/model'
 import { FilterOptions } from "../helpers/filterOptions.js";
 import type { Response, Request } from 'express';
 import { UniqueConstraintError } from 'sequelize';
+import { createHistoryLog } from '../helpers/historyHelper.js';
 
 const CreatePlace = async (req: Request, res: Response) => {
     try {
@@ -32,12 +33,22 @@ const CreatePlace = async (req: Request, res: Response) => {
                 message: 'A place with this name already exists'
             });
 }
-    await Place.create({
+    const newPlace = await Place.create({
         placeName,
         placeDescription,
         placeClass,
         placeLocation
 });
+
+const userId = res.locals.jwtPayloadContent?.userId;
+if (userId) {
+    await createHistoryLog({
+        historyDescription: `Se creó el lugar ${placeName}.`,
+        actionType: 'CREATE',
+        userId,
+        placeId: (newPlace as any).placeId,
+    });
+}
 
 return res.status(200).json({ message: 'Place successfully created' });
     } catch (error: unknown) {
@@ -117,7 +128,7 @@ const EditPlace = async (req: Request, res: Response) => {
         }
         const doesItExist = await Place.findOne({ where: { placeId: convertedId } })
         if (!doesItExist) {
-            res.status(404).json({
+            return res.status(404).json({
                 message: `Place does not exist`
             })
         }
@@ -145,7 +156,7 @@ const EditPlace = async (req: Request, res: Response) => {
             where: { placeName: normalizedName }
         });
 
-        if (existingPlace) {
+        if (existingPlace && existingPlace.getDataValue('placeId') !== convertedId) {
             return res.status(409).json({
                 message: 'A place with this name already exists'
             });
@@ -160,11 +171,20 @@ const EditPlace = async (req: Request, res: Response) => {
             { where: { placeId: convertedId } }
         )
         if (modifiedRows == 0) {
-            res.status(404).json({
+            return res.status(404).json({
                 message: "Place not found or not changes where made"
             })
         } else {
-            res.status(200).json({
+            const userId = res.locals.jwtPayloadContent?.userId;
+            if (userId) {
+                await createHistoryLog({
+                    historyDescription: `Se actualizó el lugar ${placeName}.`,
+                    actionType: 'UPDATE',
+                    userId,
+                    placeId: convertedId,
+                });
+            }
+            return res.status(200).json({
                 message: "Place succesfully updated"
             })
         }
@@ -201,7 +221,16 @@ const DeletePlaceByID = async (req: Request, res: Response) => {
                 message: "Place not found or already deleted"
             });
         }
-        res.status(200).json({
+        const userId = res.locals.jwtPayloadContent?.userId;
+        if (userId) {
+            await createHistoryLog({
+                historyDescription: `Se eliminó el lugar ${convertedId}.`,
+                actionType: 'DELETE',
+                userId,
+                placeId: convertedId,
+            });
+        }
+        return res.status(200).json({
             message: `Place ${convertedId} succesfully destroyed`
         })
 

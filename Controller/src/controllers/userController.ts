@@ -9,6 +9,7 @@ import {
 } from "../middleware/jwtUtils.js";
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { createSessionTokens } from "../services/authService.js";
+import { createHistoryLog } from "../helpers/historyHelper.js";
 
 const REPORT_INCLUDES = [
     {
@@ -51,6 +52,11 @@ const CreateUser= async (req:Request,res:Response,)=>{
             googleUserId,
             fk_role:1
         })
+        await createHistoryLog({
+            historyDescription: `Se creó el usuario ${firstName} ${lastName}.`,
+            actionType: 'CREATE',
+            userId: (newUser as any).userId,
+        });
         return res.status(200).json({
             message: "User created"
         })
@@ -96,6 +102,11 @@ const UpdateUser=async (req:Request,res:Response)=>{
             message:"User not found or no changes were made"
         })
     }
+    await createHistoryLog({
+        historyDescription: `Se actualizó el usuario ${convertedId}.`,
+        actionType: 'UPDATE',
+        userId: res.locals.jwtPayloadContent?.userId || convertedId,
+    });
     return res.status(200).json({
         message:"User succefully edited"
     })
@@ -135,6 +146,13 @@ const FullfilUser=async (req:Request,res:Response)=>{
             area
         },{where:{userId:convertedId}})
         
+        if (editedRows > 0) {
+            await createHistoryLog({
+                historyDescription: `Se completó la información del usuario ${convertedId}.`,
+                actionType: 'UPDATE',
+                userId: convertedId,
+            });
+        }
         
         return res.status(200).json({
             message:"User succefully edited"
@@ -198,6 +216,11 @@ const LogUser= async (req:Request,res:Response)=>{
             area:null,
             fk_role:1
         })
+            await createHistoryLog({
+                historyDescription: `Se creó el usuario ${given_name} ${family_name}.`,
+                actionType: 'CREATE',
+                userId: (newUser as any).userId,
+            });
             const payload:JwtPayloadContent={
                 userId:newUser.getDataValue('userId'),
                 role:newUser.getDataValue('fk_role')
@@ -523,6 +546,11 @@ const changeStatus = async (req: Request, res: Response) => {
         foundUser.set('userStatus', userStatus);
 
         await foundUser.save();
+        await createHistoryLog({
+            historyDescription: `Se actualizó el estado del usuario ${parsedUserId}.`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId || parsedUserId,
+        });
         return res.status(200).json({ message: 'User status successfully updated' });
     } catch (error) {
         return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
@@ -545,6 +573,11 @@ const promotion = async (req: Request, res: Response) => {
         foundUser.set('fk_role', fk_role);
 
         await foundUser.save();
+        await createHistoryLog({
+            historyDescription: `Se actualizó el rol del usuario ${parsedUserId}.`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId || parsedUserId,
+        });
         return res.status(200).json({ message: 'User role successfully updated' });
     } catch (error) {
         return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
@@ -563,7 +596,12 @@ const deleteUser = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'User not found' });
         }
         
-        foundUser.destroy();
+        await createHistoryLog({
+            historyDescription: `Se eliminó el usuario ${parsedUserId}.`,
+            actionType: 'DELETE',
+            userId: res.locals.jwtPayloadContent?.userId || parsedUserId,
+        });
+        await foundUser.destroy();
         return res.status(200).json({ message: 'User successfully deleted' });
     } catch (error) {
          return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
@@ -610,4 +648,3 @@ export {
     RefreshToken,
     Logout
 }
-

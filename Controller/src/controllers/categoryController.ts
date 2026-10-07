@@ -1,6 +1,7 @@
 import { Category } from '@dis/model'
 import { FilterOptions } from "../helpers/filterOptions.js";
 import type { Response, Request } from 'express';
+import { createHistoryLog } from '../helpers/historyHelper.js';
 
 const CreateCategory = async (req: Request, res: Response) => {
     try {
@@ -23,6 +24,15 @@ await Category.create({
     categoryDescription,
     folioNumber
 });
+
+const userId = res.locals.jwtPayloadContent?.userId;
+if (userId) {
+    await createHistoryLog({
+        historyDescription: `Se creó la categoría ${categoryName}.`,
+        actionType: 'CREATE',
+        userId,
+    });
+}
 
 return res.status(200).json({ message: 'Category successfully created' });
     } catch (error) {
@@ -93,7 +103,7 @@ const UpdateCategory = async (req: Request, res: Response) => {
         }
         const doesItExist = await Category.findOne({ where: { categoryId: convertedId } })
         if (!doesItExist) {
-            res.status(404).json({
+            return res.status(404).json({
                 message: `Category does not exist`
             })
         }
@@ -121,11 +131,19 @@ const UpdateCategory = async (req: Request, res: Response) => {
             { where: { categoryId: convertedId } }
         )
         if (modifiedRows == 0) {
-            res.status(404).json({
+            return res.status(404).json({
                 message: "Category not found or not changes where made"
             })
         } else {
-            res.status(200).json({
+            const userId = res.locals.jwtPayloadContent?.userId;
+            if (userId) {
+                await createHistoryLog({
+                    historyDescription: `Se actualizó la categoría ${categoryName}.`,
+                    actionType: 'UPDATE',
+                    userId,
+                });
+            }
+            return res.status(200).json({
                 message: "Category succesfully updated"
             })
         }
@@ -156,7 +174,15 @@ const DeleteCategoryByID = async (req: Request, res: Response) => {
                 message: "Category not found or already deleted"
             });
         }
-        res.status(200).json({
+        const userId = res.locals.jwtPayloadContent?.userId;
+        if (userId) {
+            await createHistoryLog({
+                historyDescription: `Se eliminó la categoría ${convertedId}.`,
+                actionType: 'DELETE',
+                userId,
+            });
+        }
+        return res.status(200).json({
             message: `Category ${convertedId} succesfully destroyed`
         })
 
