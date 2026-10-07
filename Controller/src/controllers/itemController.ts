@@ -4,41 +4,30 @@ import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { createHistoryLog } from '../helpers/historyHelper.js';
 
-const ITEM_INCLUDES = [
+const PUBLIC_ITEM_INCLUDES = [
     {
         model: Category,
         as: 'category',
         attributes: ['categoryId', 'categoryName']
-    },
-    {
-        model: Place,
-        as: 'related_place',
-        attributes: ['placeId', 'placeName']
-    },
-    {
-        model: User,
-        as: 'responsible_user',
-        attributes: ['userId', 'firstName', 'lastName']
     }
 ];
 
-const formatItems = (itemInstance: InstanceType<typeof Item>) => {
+const PUBLIC_SORT_FIELDS = ['itemId', 'itemName', 'itemStatus', 'manufacter'] as const;
+
+const formatPublicItem = (itemInstance: InstanceType<typeof Item>) => {
     const item = typeof itemInstance.toJSON === 'function' ? itemInstance.toJSON() : itemInstance;
     const { category, related_place, responsible_user, ...rest } = item;
 
     return {
-        ...rest,
-        fk_category: category
-            ? { id: category.categoryId, name: category.categoryName }
-            : null,
-        fk_place: related_place
-            ? { id: related_place.placeId, name: related_place.placeName }
-            : null,
-        fk_user_responsible: responsible_user
+        itemId: item.itemId,
+        itemName: item.itemName,
+        itemDescription: item.itemDescription,
+        itemStatus: item.itemStatus,
+        manufacter: item.manufacter,
+        category: item.category
             ? {
-                id: responsible_user.userId,
-                firstName: responsible_user.firstName,
-                lastName: responsible_user.lastName
+                id: item.category.categoryId,
+                name: item.category.categoryName
             }
             : null
     };
@@ -181,8 +170,16 @@ const SearchItems = async (req: Request, res: Response) => {
             offset
         })
 
-        const formatedItems = foundItems.map(formatItems)
-        return res.status(200).json(formatedItems)
+        const formatedItems = foundItems.map(formatPublicItem)
+        return res.status(200).json({
+            data: formatedItems,
+            pagination: {
+                page,
+                pageSize,
+                totalItems,
+                totalPages: Math.ceil(totalItems / pageSize)
+            }
+        })
 
     } catch (error) {
         res.status(500).json({
@@ -387,44 +384,15 @@ const DeleteItemByID = async (req: Request, res: Response) => {
 async function ShowItem(id: number, res: Response) {
     try {
         const foundItem = await Item.findByPk(id, {
-            include: [{
-                model: Place,
-                as: 'related_place',
-                attributes: ['placeId', 'placeName']
-
-            },
-            {
-                model: User,
-                as: 'responsible_user',
-                attributes: ['userId', 'firstName', 'lastName']
-            }]
+            attributes: ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'],
+            include: PUBLIC_ITEM_INCLUDES
         })
         if (!foundItem) {
             return res.status(404).json({
                 message: "Item not found"
             })
         }
-        const item = foundItem.toJSON()
-        const fullName =
-            item.responsible_user.firstName +
-            item.responsible_user.lastName
-
-        item.fk_place = {
-            placeId: item.related_place.placeId,
-            placeName: item.related_place.placeName
-        }
-
-        item.fk_user_responsible = {
-            userId: item.responsible_user.userId,
-
-            userName: fullName
-        }
-
-        delete item.related_place
-        delete item.responsible_user
-        res.status(200).json(
-            item
-        )
+        return res.status(200).json(formatPublicItem(foundItem))
     } catch (error) {
         res.status(500).json({
             message: "Internal server error, not your fault :D",
