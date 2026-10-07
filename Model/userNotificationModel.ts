@@ -45,6 +45,11 @@ export const UserNotification = mySequelize.define("UserNotification", {
         onUpdate: 'CASCADE',
         onDelete: 'SET NULL'
     },
+    isRead: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false
+    },
     createdAt: {
         type: DataTypes.DATE
     }

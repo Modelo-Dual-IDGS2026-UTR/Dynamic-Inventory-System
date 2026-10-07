@@ -135,6 +135,7 @@ CREATE TABLE UserNotification (
     fk_trigger INT NOT NULL,
     fk_user_trigger INT,
     fk_notified INT,
+    isRead BOOLEAN DEFAULT FALSE,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

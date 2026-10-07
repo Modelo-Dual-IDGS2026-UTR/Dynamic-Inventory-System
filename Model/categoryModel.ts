@@ -32,5 +32,5 @@ export const Category = mySequelize.define('Category', {
 
 }, {
     tableName: 'Category',
-    timeStamps: true
+    timestamps: true
 });
