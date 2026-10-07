@@ -58,7 +58,7 @@ return res.status(200).json({ message: 'Place successfully created' });
         });
         }
 
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
 }
 };
 
@@ -76,7 +76,7 @@ const SearchPlacesById = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundCategory);
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -106,7 +106,7 @@ const AllPlaces = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundCategories);
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -196,10 +196,7 @@ const EditPlace = async (req: Request, res: Response) => {
             });
         }
 
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -235,10 +232,7 @@ const DeletePlaceByID = async (req: Request, res: Response) => {
         })
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 

@@ -62,11 +62,7 @@ const CreateUser= async (req:Request,res:Response,)=>{
         })
         
     } catch (error) {
-        return res.status(500).json({
-
-            message:"Internal Error: Dont Worry Is Not Your fault :D",
-            error: error
-        })
+        throw error;
     }
 };
 
@@ -112,10 +108,7 @@ const UpdateUser=async (req:Request,res:Response)=>{
     })
 
     }catch (error) {
-           return res.status(500).json({
-            message:"Internal Error: Dont Worry Is Not Your fault :D",
-            error: error
-        })
+           throw error;
     }
 }
 
@@ -158,10 +151,7 @@ const FullfilUser=async (req:Request,res:Response)=>{
             message:"User succefully edited"
         })
     } catch (error) {
-        return res.status(500).json({
-            message:"Internal Error: Dont Worry Is Not Your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -252,10 +242,7 @@ const LogUser= async (req:Request,res:Response)=>{
         }
         
     } catch (error) {
-        return res.status(500).json({
-            message:"Internal Error: Dont Worry Is Not Your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -438,10 +425,7 @@ const SearchUserById=async (req:Request,res:Response)=>{
         ShowUser(convertedId,res); 
         
     } catch (error) {
-         return res.status(500).json({
-            message:"Internal Error: Dont Worry Is Not Your fault :D",
-            error:error
-        })
+         throw error;
     }
 }
 const WhoAmI=(req:Request,res:Response)=>{
@@ -454,10 +438,7 @@ const WhoAmI=(req:Request,res:Response)=>{
     try {
         ShowUser(userId,res)
     } catch (error) {
-         return res.status(500).json({
-           message:"Internal Error: Dont Worry Is Not Your fault :D",
-            error:error
-        })
+         throw error;
     }
 }
 
@@ -525,7 +506,7 @@ const ShowAllUsers = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundUsers.map(formatUsers));
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -553,7 +534,7 @@ const changeStatus = async (req: Request, res: Response) => {
         });
         return res.status(200).json({ message: 'User status successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -580,7 +561,7 @@ const promotion = async (req: Request, res: Response) => {
         });
         return res.status(200).json({ message: 'User role successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -604,7 +585,7 @@ const deleteUser = async (req: Request, res: Response) => {
         await foundUser.destroy();
         return res.status(200).json({ message: 'User successfully deleted' });
     } catch (error) {
-         return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+         throw error;
     }
 }
 
@@ -627,7 +608,7 @@ const deleteUser = async (req: Request, res: Response) => {
         await foundUser.save();
         return res.status(200).json({ message: 'Report status successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 } */
 

@@ -89,7 +89,7 @@ const AllItemHistory = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundHistory.map(formatHistory));
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -135,7 +135,7 @@ const AllUserHistory = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundHistory.map(formatHistory));
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 

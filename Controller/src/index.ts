@@ -13,6 +13,7 @@ import {
 } from './routes/index.js'
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import { errorHandler } from './middleware/errorHandler.js';
 
 const TestSequelize=async ()=>{
 try {
@@ -60,6 +61,8 @@ app.use('/api/history', historyRouter);
 app.get('/', (req: Request, res: Response) => {
     res.json({ mensaje: '¡Hola, chiquillo! Tu API con TS funciona' });
 });
+
+app.use(errorHandler);
 
 
 

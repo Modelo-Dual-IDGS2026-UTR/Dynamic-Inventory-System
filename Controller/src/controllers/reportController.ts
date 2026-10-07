@@ -109,7 +109,7 @@ const CreateReport = async (req: Request, res: Response) => {
 
         return res.status(200).json({ message: 'Item successfully created' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -127,7 +127,7 @@ const SearchReportById = async (req: Request, res: Response) => {
 
         return res.status(200).json(formatReport(foundReport));
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -169,7 +169,7 @@ const SearchReports = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundReports.map(formatReport));
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -206,7 +206,7 @@ const SearchReportsCreatedUser = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundReports.map(formatReport));
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -233,7 +233,7 @@ const SetReportStatus = async (req: Request, res: Response) => {
         });
         return res.status(200).json({ message: 'Report status successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -263,7 +263,7 @@ const SetDueDate = async (req: Request, res: Response) => {
 
         return res.status(200).json({ message: 'Report Due Date successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -293,7 +293,7 @@ const setPriority = async (req: Request, res: Response) => {
 
         return res.status(200).json({ message: 'Report priority successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
  
 }
@@ -322,7 +322,7 @@ const deleteReport = async (req: Request, res: Response) => {
 
         return res.status(200).json({ message: 'Report deleted successfully' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal erver error, not your fault :D', error });
+        throw error;
     }
 }
 

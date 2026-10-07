@@ -36,7 +36,7 @@ if (userId) {
 
 return res.status(200).json({ message: 'Category successfully created' });
     } catch (error) {
-    return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    throw error;
 }
 };
 
@@ -54,7 +54,7 @@ const SearchCategoryById = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundCategory);
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -81,7 +81,7 @@ const AllCategories = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundCategories);
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -149,10 +149,7 @@ const UpdateCategory = async (req: Request, res: Response) => {
         }
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -187,10 +184,7 @@ const DeleteCategoryByID = async (req: Request, res: Response) => {
         })
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 

@@ -16,7 +16,6 @@ const PUBLIC_SORT_FIELDS = ['itemId', 'itemName', 'itemStatus', 'manufacter'] as
 
 const formatPublicItem = (itemInstance: InstanceType<typeof Item>) => {
     const item = typeof itemInstance.toJSON === 'function' ? itemInstance.toJSON() : itemInstance;
-    const { category, related_place, responsible_user, ...rest } = item;
 
     return {
         itemId: item.itemId,
@@ -97,10 +96,7 @@ const CreateItem = async (req: Request, res: Response) => {
             message: "item succesfully created"
         })
     } catch (error) {
-        return res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
 
     }
 }
@@ -122,10 +118,7 @@ const SearchItemById = async (req: Request, res: Response) => {
 
         ShowItem(convertedId, res)
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -133,14 +126,10 @@ const SearchItems = async (req: Request, res: Response) => {
     try {
         const body = req.query || {}
         const {         itemId,
-            itemName,
-            itemDescription,
-            cost,
-            manufacter,
-            codeBar,
-            fk_user_responsible,
-            fk_place,
-            sortBy = 'itemId',
+        itemName,
+        itemDescription,
+        manufacter,
+        sortBy = 'itemId',
             order = 'ASC'
         } = body
         const page = Math.min(10000, Math.max(1, Number(body.page) || 1));
@@ -155,11 +144,7 @@ const SearchItems = async (req: Request, res: Response) => {
             itemId,
             itemName,
             itemDescription,
-            cost,
             manufacter,
-            codeBar,
-            fk_user_responsible,
-            fk_place
         })
         const { rows: foundItems, count: totalItems } = await Item.findAndCountAll({
             where: searchOptions,
@@ -182,10 +167,7 @@ const SearchItems = async (req: Request, res: Response) => {
         })
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -269,10 +251,7 @@ const UpdateItem = async (req: Request, res: Response) => {
         }
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -309,7 +288,7 @@ const SetStatus = async (req: Request, res: Response) => {
 
         return res.status(200).json({ message: 'Item status successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -339,7 +318,7 @@ const SetCategory = async (req: Request, res: Response) => {
 
         return res.status(200).json({ message: 'Item category successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -374,10 +353,7 @@ const DeleteItemByID = async (req: Request, res: Response) => {
         })
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -394,10 +370,7 @@ async function ShowItem(id: number, res: Response) {
         }
         return res.status(200).json(formatPublicItem(foundItem))
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
