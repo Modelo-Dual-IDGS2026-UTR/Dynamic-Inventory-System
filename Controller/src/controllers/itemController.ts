@@ -142,8 +142,8 @@ const SearchItemById = async (req: Request, res: Response) => {
 
 const SearchItems = async (req: Request, res: Response) => {
     try {
-        const body = req.body || {}
-        const { itemId,
+        const body = req.query || {}
+        const {         itemId,
             itemName,
             itemDescription,
             cost,
@@ -154,6 +154,14 @@ const SearchItems = async (req: Request, res: Response) => {
             sortBy = 'itemId',
             order = 'ASC'
         } = body
+        const page = Math.min(10000, Math.max(1, Number(body.page) || 1));
+        const pageSize = Math.min(50, Math.max(1, Number(body.pageSize) || 20));
+        const offset = (page - 1) * pageSize;
+        const requestedSort = String(sortBy);
+        const safeSortBy = PUBLIC_SORT_FIELDS.includes(
+            requestedSort as typeof PUBLIC_SORT_FIELDS[number]
+        ) ? requestedSort : 'itemId';
+        const safeOrder = String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
         const searchOptions = await FilterOptions({
             itemId,
             itemName,
@@ -164,10 +172,13 @@ const SearchItems = async (req: Request, res: Response) => {
             fk_user_responsible,
             fk_place
         })
-        const foundItems = await Item.findAll({
+        const { rows: foundItems, count: totalItems } = await Item.findAndCountAll({
             where: searchOptions,
-            include: ITEM_INCLUDES,
-            order: [[sortBy, order.toUpperCase()]]
+            attributes: ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'],
+            include: PUBLIC_ITEM_INCLUDES,
+            order: [[safeSortBy, safeOrder]],
+            limit: pageSize,
+            offset
         })
 
         const formatedItems = foundItems.map(formatItems)

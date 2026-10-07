@@ -47,7 +47,7 @@ const corsOptions: cors.CorsOptions = {
 
 // Middleware para entender JSON
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(cors(corsOptions));
 
 app.use('/api/user',userRouter);

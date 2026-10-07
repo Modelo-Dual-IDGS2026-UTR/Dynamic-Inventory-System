@@ -10,15 +10,16 @@ import {
 import  express  from "express";
 export const itemRouter=express.Router();
 import { VerifyJWT } from '../middleware/jwtUtils.js';
+import { publicCatalogLimiter } from '../middleware/publicCatalogLimiter.js';
 
 //Admin & Superadmin
 itemRouter.post('/new-item', VerifyJWT(2), CreateItem);
 
-//No Security
-itemRouter.get('/read-item/:itemId', SearchItemById);
+// Public inventory catalog
+itemRouter.get('/read-item/:itemId', publicCatalogLimiter, SearchItemById);
 
-//No Security
-itemRouter.get('/read-items', SearchItems);
+// Public inventory catalog
+itemRouter.get('/read-items', publicCatalogLimiter, SearchItems);
 
 //Admin & Superadmin
 itemRouter.put('/update-item/:itemId',  VerifyJWT(2), UpdateItem);
