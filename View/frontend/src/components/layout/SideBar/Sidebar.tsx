@@ -24,11 +24,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
       {/* Botón de Hamburguesa */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className={styles.hamburgerBtn}
+        className={`${styles.hamburgerBtn} ${isCollapsed ? styles.collapsedHamburger : ''}`}
         aria-label="Toggle Sidebar"
-
       >
-        ☰
+        <span className={styles.hamburgerLine} />
+        <span className={styles.hamburgerLine} />
+        <span className={styles.hamburgerLine} />
       </button>
 
       {/* Contenedor Principal de la Sidebar */}
