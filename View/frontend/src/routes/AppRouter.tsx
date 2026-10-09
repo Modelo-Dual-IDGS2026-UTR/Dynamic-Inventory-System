@@ -7,6 +7,7 @@ import  Inventory  from '../pages/Inventory/inventory';
 import  MainLayout  from '../components/layout/MainLayout/MainLayout';
 import Reports from '../pages/Reports/Reports';
 import Requests from '../pages/Requests/Requests';
+import Users from '../pages/Users/Users';
 export const AppRouter = () => {
     return (
         <Routes>
@@ -18,6 +19,7 @@ export const AppRouter = () => {
                     <Route index element={<Inventory />} />
                     <Route path="reportes" element={<Reports />} />
                     <Route path="solicitudes" element={<Requests />} />
+                    <Route path="usuarios" element={<Users />} />
                 </Route>
             </Route>
         </Routes>

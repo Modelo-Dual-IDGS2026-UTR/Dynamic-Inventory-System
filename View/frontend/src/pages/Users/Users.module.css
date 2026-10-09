@@ -1,0 +1,16 @@
+.page { display: flex; flex-direction: column; gap: 20px; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.header h1 { margin: 0; color: #1f2937; }
+.header p { margin: 6px 0 0; color: #6b7280; }
+.demoBadge { padding: 7px 10px; border-radius: 999px; background: #dbeafe; color: #1e40af; font-size: .8rem; font-weight: 700; }
+.warning, .success { padding: 12px 16px; border-radius: 8px; }
+.warning { background: #fff7ed; color: #9a3412; }
+.success { background: #dcfce7; color: #166534; }
+.tableCard { overflow-x: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; }
+.tableCard table { width: 100%; min-width: 760px; border-collapse: collapse; }
+.tableCard th, .tableCard td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; text-align: left; color: #374151; }
+.tableCard th { background: #f8fafc; color: #1f2937; font-size: .85rem; }
+.tableCard select { border: 1px solid #d1d5db; border-radius: 6px; padding: 7px; background: #fff; }
+.adminBadge, .userBadge { display: inline-block; border-radius: 999px; padding: 5px 9px; font-size: .75rem; font-weight: 700; }
+.adminBadge { background: #fee2e2; color: #991b1b; }
+.userBadge { background: #e5e7eb; color: #374151; }

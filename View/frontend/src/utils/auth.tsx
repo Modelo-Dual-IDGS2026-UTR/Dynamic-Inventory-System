@@ -15,6 +15,8 @@ interface AuthContextType {
   currentUser: AuthUser | null;
   setIsAuthenticated: (val: boolean) => void;
   refreshAuth: () => Promise<boolean>;
+  logout: () => Promise<void>;
+  setDemoRole: (userId: number, role: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,6 +24,8 @@ const AuthContext = createContext<AuthContextType>({
   currentUser: null,
   setIsAuthenticated: () => {},
   refreshAuth: async () => false,
+  logout: async () => {},
+  setDemoRole: () => {},
 });
 
 //Auth provider is a wrapper that will contain the business logic, in this case inside of <App/> 
@@ -44,6 +48,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode}) => {
       }
 
       const user: AuthUser = await response.json();
+      const savedRole = localStorage.getItem(`demo-role-${user.userId}`);
+      if (savedRole) user.fk_role = Number(savedRole);
       setCurrentUser(user);
       setIsAuthenticated(true);
       return true;
@@ -54,12 +60,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode}) => {
     }
   };
 
+  const logout = async (): Promise<void> => {
+    try {
+      await fetch('http://localhost:3000/api/user/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.error('No se pudo cerrar la sesión en el servidor.', error);
+    } finally {
+      setCurrentUser(null);
+      setIsAuthenticated(false);
+    }
+  };
+
+  const setDemoRole = (userId: number, role: number): void => {
+    localStorage.setItem(`demo-role-${userId}`, String(role));
+    setCurrentUser((user) => user && user.userId === userId ? { ...user, fk_role: role } : user);
+  };
+
   useEffect(() => {
     void refreshAuth();
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, currentUser, setIsAuthenticated, refreshAuth }}>
+    <AuthContext.Provider value={{ isAuthenticated, currentUser, setIsAuthenticated, refreshAuth, logout, setDemoRole }}>
       {children}
     </AuthContext.Provider>
   );

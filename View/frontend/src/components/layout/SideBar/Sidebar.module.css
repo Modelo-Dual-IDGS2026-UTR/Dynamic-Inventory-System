@@ -30,8 +30,8 @@
 }
 
 .collapsedHamburger {
-  background-color: #ffffff;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  background-color: #ffffffd3;
+
 }
 
 .collapsedHamburger:hover {
@@ -140,6 +140,7 @@
 }
 
 .footer {
+  position: relative;
   padding: 30px 20px;
   display: flex;
   justify-content: center;
@@ -150,11 +151,52 @@
   width: 55px;
   height: 55px;
   border-radius: 50%;
-  background-color: #b81d24;
+  background-color: #f7f7f7;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 1.8rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
   cursor: pointer;
+  border: 0;
+}
+
+.accountMenu {
+  position: absolute;
+  bottom: 94px;
+  left: 20px;
+  right: 20px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #374151;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .2);
+}
+
+.accountMenu span {
+  overflow: hidden;
+  color: #6b7280;
+  font-size: .75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountMenu button {
+  border: 0;
+  border-radius: 6px;
+  padding: 8px;
+  background: #f3f4f6;
+  color: #374151;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.accountMenu button:hover {
+  background: #fee2e2;
+  color: #991b1b;
 }

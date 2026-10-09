@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styles from './Sidebar.module.css';
+import { useAuth } from '../../../utils/auth';
 
 const utrLogo = new URL('../../../assets/images/UTR LOGO W BORDER.png', import.meta.url).href;
 
@@ -12,11 +13,14 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser, logout } = useAuth();
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
   const menuItems = [
     { name: 'Inventario', path: '/Dashboard', icon: '📋' },
     { name: 'Reportes', path: '/Dashboard/reportes', icon: '📊' },
     { name: 'Solicitudes', path: '/Dashboard/solicitudes', icon: '📥' },
+    { name: 'Usuarios', path: '/Dashboard/usuarios', icon: '👥' },
   ];
 
   return (
@@ -65,13 +69,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
 
         {/* Footer con el Avatar */}
         <div className={styles.footer}>
-          <div
+          <button
+            type="button"
             className={styles.avatar}
-            onClick={() => navigate('/select-area')}
-            title="Perfil / Cambiar Área"
+            onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
+            title="Abrir menú de cuenta"
+            aria-expanded={isAccountMenuOpen}
           >
             👤
-          </div>
+          </button>
+          {isAccountMenuOpen && (
+            <div className={styles.accountMenu}>
+              <strong>{currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Cuenta'}</strong>
+              <span>{currentUser?.email}</span>
+              <button type="button" onClick={() => navigate('/Dashboard/usuarios')}>Administrar usuarios</button>
+              <button type="button" onClick={() => void logout().then(() => navigate('/login'))}>Cerrar sesión</button>
+            </div>
+          )}
         </div>
       </aside>
     </>
