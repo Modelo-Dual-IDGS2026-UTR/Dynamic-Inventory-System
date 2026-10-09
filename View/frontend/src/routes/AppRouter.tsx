@@ -5,6 +5,8 @@ import { ProtectedRoute } from './ProtectedRoute';
 import ItemTable from '../pages/Inventory/ItemTable';
 import  Inventory  from '../pages/Inventory/inventory';
 import  MainLayout  from '../components/layout/MainLayout/MainLayout';
+import Reports from '../pages/Reports/Reports';
+import Requests from '../pages/Requests/Requests';
 export const AppRouter = () => {
     return (
         <Routes>
@@ -14,6 +16,8 @@ export const AppRouter = () => {
                 <Route path="/select-area" element={<SelectArea />} />
                 <Route path="/Dashboard" element={<MainLayout />}>
                     <Route index element={<Inventory />} />
+                    <Route path="reportes" element={<Reports />} />
+                    <Route path="solicitudes" element={<Requests />} />
                 </Route>
             </Route>
         </Routes>

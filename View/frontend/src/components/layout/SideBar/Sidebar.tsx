@@ -14,9 +14,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
   const location = useLocation();
 
   const menuItems = [
-    { name: 'Inventario', path: '/inventario', icon: '📋' },
-    { name: 'Reportes', path: '/reportes', icon: '📊' },
-    { name: 'Solicitudes', path: '/solicitudes', icon: '📥' },
+    { name: 'Inventario', path: '/Dashboard', icon: '📋' },
+    { name: 'Reportes', path: '/Dashboard/reportes', icon: '📊' },
+    { name: 'Solicitudes', path: '/Dashboard/solicitudes', icon: '📥' },
   ];
 
   return (
