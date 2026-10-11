@@ -3,6 +3,7 @@ import type { Response, Request } from 'express'
 import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { createHistoryLog } from '../helpers/historyHelper.js';
+import { mySequelize } from '@dis/db/dbConection.js';
 
 const PUBLIC_ITEM_INCLUDES = [
     {
@@ -199,6 +200,7 @@ const UpdateItem = async (req: Request, res: Response) => {
             itemDescription,
             cost,
             manufacter,
+            itemStatus,
             codeBar,
             category,
             fk_responsible_user,
@@ -209,6 +211,7 @@ const UpdateItem = async (req: Request, res: Response) => {
             !itemName ||
             !itemDescription ||
             !cost ||
+            !itemStatus ||
             !manufacter ||
             !category ||
             !codeBar ||
@@ -224,6 +227,7 @@ const UpdateItem = async (req: Request, res: Response) => {
             itemDescription,
             cost,
             manufacter,
+            itemStatus,
             codeBar,
             fk_responsible_user,
             fk_place
@@ -333,19 +337,30 @@ const DeleteItemByID = async (req: Request, res: Response) => {
 
         const convertedId = Number(id)
         const foundItem = await Item.findByPk(convertedId)
-        const deletedRows = await Item.destroy({
-            where: { itemId: convertedId }
-        })
-        if (deletedRows === 0) {
+        if (!foundItem) {
             return res.status(404).json({
                 message: "Item not found or already deleted"
             });
         }
-        await createHistoryLog({
-            historyDescription: `Se eliminó el item ${convertedId}.`,
-            actionType: 'DELETE',
-            userId: res.locals.jwtPayloadContent?.userId || Number(foundItem?.getDataValue('fk_user_responsible')),
-            itemId: convertedId
+
+        await mySequelize.transaction(async (transaction) => {
+            await createHistoryLog({
+                historyDescription: `Se eliminó el item ${convertedId}.`,
+                actionType: 'DELETE',
+                userId: res.locals.jwtPayloadContent?.userId || Number(foundItem.getDataValue('fk_user_responsible')),
+                itemId: convertedId,
+                placeId: foundItem.getDataValue('fk_place'),
+                transaction
+            });
+
+            const deletedRows = await Item.destroy({
+                where: { itemId: convertedId },
+                transaction
+            });
+
+            if (deletedRows === 0) {
+                throw new Error('Item could not be deleted');
+            }
         });
 
         return res.status(200).json({

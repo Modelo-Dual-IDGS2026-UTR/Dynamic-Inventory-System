@@ -1,5 +1,6 @@
 import { History } from '@dis/model/historyModel.js';
 import { emitNotification } from '../services/socketService.js';
+import type { Transaction } from 'sequelize';
 
 interface HistoryLogParams {
     historyDescription: string;
@@ -9,9 +10,10 @@ interface HistoryLogParams {
     placeId?: number | null;
     reportId?: number | null;
     requestId?: number | null;
+    transaction?: Transaction;
 }
 
-export const createHistoryLog = async (params: HistoryLogParams): Promise<void> => {
+export const    createHistoryLog = async (params: HistoryLogParams): Promise<void> => {
     try {
         const historyRecord = await History.create({
             historyDescription: params.historyDescription,
@@ -21,10 +23,9 @@ export const createHistoryLog = async (params: HistoryLogParams): Promise<void> 
             fk_place: params.placeId || null,
             fk_report: params.reportId || null,
             fk_request: params.requestId || null
-        });
+        }, params.transaction ? { transaction: params.transaction } : undefined);
 
-        // emit notification in real time through Socket.IO
-        emitNotification('inventory_change', {
+        const notification = {
             historyId: (historyRecord as unknown as { historyId?: number })?.historyId,
             actionType: params.actionType,
             description: params.historyDescription,
@@ -34,8 +35,20 @@ export const createHistoryLog = async (params: HistoryLogParams): Promise<void> 
             reportId: params.reportId || null,
             requestId: params.requestId || null,
             timestamp: new Date()
-        });
+        };
+
+        if (params.transaction) {
+            params.transaction.afterCommit(() => {
+                emitNotification('inventory_change', notification);
+            });
+        } else {
+            emitNotification('inventory_change', notification);
+        }
     } catch (error) {
         console.error("Error al guardar el registro en History:", error);
+
+        if (params.transaction) {
+            throw error;
+        }
     }
 };
