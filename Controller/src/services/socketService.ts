@@ -4,7 +4,7 @@ import type { Server as HTTPServer } from 'node:http';
 //Saves the instance of the global server
 let io: SocketIOServer | null = null;
 
-//Rceives the native server from index.ts in the parameters
+//Receives the native server from index.ts in the parameters
 export const initSocketServer = (httpServer: HTTPServer): SocketIOServer => {
     io = new SocketIOServer(httpServer, {
         
