@@ -8,7 +8,7 @@ http:
   url: http://localhost:3000/api/item/delete-item/1
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDM1MTg5NCwiZXhwIjoxNzkwMzUyNzk0fQ.xzVO6ow_dbCiFeBHcH5iDf2HcmlVed8k3oIk0pBXZos
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTQ3NTExMSwiZXhwIjoxNzkxNDc2MDExfQ.E7XWyGDt9bji6hbFIrzs1pMDhDrT2y8gNWurRgfq1ho
   auth: inherit
 
 settings:

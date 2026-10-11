@@ -8,14 +8,14 @@ http:
   url: http://localhost:3000/api/item/new-item
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDc5MzgzOSwiZXhwIjoxNzkwNzkzODY5fQ.-UB66HeD6RZ8BiFEOy9IDHK5pSmp7-z7vEHbd_hJ0Nw
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTQ3NTExMSwiZXhwIjoxNzkxNDc2MDExfQ.E7XWyGDt9bji6hbFIrzs1pMDhDrT2y8gNWurRgfq1ho
   body:
     type: json
     data: |-
       {
         "itemName": "PC",
         "itemDescription": "Esto es una PC",
-        "codeBar": "OJDJFODAISJFOS",
+        "codeBar": "OJDJFODAISJFOS2",
         "itemStatus": "In Stock",
         "category": "No Category", 
         "cost": 20,

@@ -5,10 +5,10 @@ info:
 
 http:
   method: PATCH
-  url: http://localhost:3000/api/item/set-status/1
+  url: http://localhost:3000/api/item/set-status/4
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDM1OTYyOSwiZXhwIjoxNzkwMzYwNTI5fQ.RRl2R9UKAaOT0q8CEX9mhdqtuW2W5PlzQcXAlaysq64
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTQ3NTExMSwiZXhwIjoxNzkxNDc2MDExfQ.E7XWyGDt9bji6hbFIrzs1pMDhDrT2y8gNWurRgfq1ho
   body:
     type: json
     data: |-
