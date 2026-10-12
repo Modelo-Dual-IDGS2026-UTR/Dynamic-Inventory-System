@@ -1,6 +1,7 @@
 import { Category } from '@dis/model'
 import { FilterOptions } from "../helpers/filterOptions.js";
 import type { Response, Request } from 'express';
+import { createHistoryLog } from '../helpers/historyHelper.js';
 
 const CreateCategory = async (req: Request, res: Response) => {
     try {
@@ -24,9 +25,18 @@ await Category.create({
     folioNumber
 });
 
+const userId = res.locals.jwtPayloadContent?.userId;
+if (userId) {
+    await createHistoryLog({
+        historyDescription: `Se creó la categoría ${categoryName}.`,
+        actionType: 'CREATE',
+        userId,
+    });
+}
+
 return res.status(200).json({ message: 'Category successfully created' });
     } catch (error) {
-    return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+    throw error;
 }
 };
 
@@ -44,7 +54,7 @@ const SearchCategoryById = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundCategory);
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -71,7 +81,7 @@ const AllCategories = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundCategories);
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -93,7 +103,7 @@ const UpdateCategory = async (req: Request, res: Response) => {
         }
         const doesItExist = await Category.findOne({ where: { categoryId: convertedId } })
         if (!doesItExist) {
-            res.status(404).json({
+            return res.status(404).json({
                 message: `Category does not exist`
             })
         }
@@ -121,20 +131,25 @@ const UpdateCategory = async (req: Request, res: Response) => {
             { where: { categoryId: convertedId } }
         )
         if (modifiedRows == 0) {
-            res.status(404).json({
+            return res.status(404).json({
                 message: "Category not found or not changes where made"
             })
         } else {
-            res.status(200).json({
+            const userId = res.locals.jwtPayloadContent?.userId;
+            if (userId) {
+                await createHistoryLog({
+                    historyDescription: `Se actualizó la categoría ${categoryName}.`,
+                    actionType: 'UPDATE',
+                    userId,
+                });
+            }
+            return res.status(200).json({
                 message: "Category succesfully updated"
             })
         }
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -156,15 +171,20 @@ const DeleteCategoryByID = async (req: Request, res: Response) => {
                 message: "Category not found or already deleted"
             });
         }
-        res.status(200).json({
+        const userId = res.locals.jwtPayloadContent?.userId;
+        if (userId) {
+            await createHistoryLog({
+                historyDescription: `Se eliminó la categoría ${convertedId}.`,
+                actionType: 'DELETE',
+                userId,
+            });
+        }
+        return res.status(200).json({
             message: `Category ${convertedId} succesfully destroyed`
         })
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 

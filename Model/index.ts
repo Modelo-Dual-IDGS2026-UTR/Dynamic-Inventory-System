@@ -173,6 +173,16 @@ const setupAssociations = () => {
         targetKey: 'reportId',
         as: 'related_report'
     });
+    Request.hasMany(History, {
+        foreignKey: 'fk_request',
+        sourceKey: 'requestId',
+        as: 'request_histories'
+    });
+    History.belongsTo(Request, {
+        foreignKey: 'fk_request',
+        targetKey: 'requestId',
+        as: 'related_request'
+    });
     //######Request################
     User.hasMany(Request, {
         foreignKey: 'fk_user_reciver',

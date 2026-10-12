@@ -31,7 +31,7 @@ CREATE TABLE User (
     userStatus Boolean DEFAULT TRUE,
     email varchar(100) NOT NULL,
     area varchar(10),
-    fk_role INT NOT NULL,
+    fk_role INT,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -97,20 +97,23 @@ CREATE TABLE Report (
     reportStatus int DEFAULT 1,
     reportPriority int DEFAULT 3,
     dueDate Date,
-    fk_user_creator INT NOT NULL,
-    fk_user_assigned INT NOT NULL,
-    fk_item INT NOT NULL,
-    fk_place INT NOT NULL,  
+    fk_user_creator INT,
+    fk_user_assigned INT,
+    fk_item INT,
+    fk_place INT,  
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP  
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE History (
     historyId INT AUTO_INCREMENT PRIMARY KEY,
-    fk_user INT NOT NULL,
-    fk_item INT NOT NULL,
-    fk_place INT NOT NULL,
-    fk_report INT NOT NULL,
+    historyDescription varchar(255) NOT NULL,
+    actionType varchar(255) NOT NULL,
+    fk_user INT,
+    fk_item INT,
+    fk_place INT,
+    fk_report INT,
+    fk_request INT,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -119,9 +122,9 @@ CREATE TABLE Request (
     requestName varchar(20),
     requestDescription varchar(255),
     requestStatus INT DEFAULT 1,
-    fk_user_reciver INT NOT NULL,
-    fk_user_requester INT NOT NULL,
-    fk_item INT NOT NULL,
+    fk_user_reciver INT,
+    fk_user_requester INT,
+    fk_item INT,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -130,8 +133,9 @@ CREATE TABLE UserNotification (
     requestDescription varchar(255),
     notificationType ENUM("Request","Report","item") DEFAULT "item",
     fk_trigger INT NOT NULL,
-    fk_user_trigger INT NOT NULL,
-    fk_notified INT NOT NULL,
+    fk_user_trigger INT,
+    fk_notified INT,
+    isRead BOOLEAN DEFAULT FALSE,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -143,7 +147,7 @@ ALTER TABLE User
     ADD CONSTRAINT fk_user_role 
         FOREIGN KEY (fk_role)
         REFERENCES UserRole(roleId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 ALTER TABLE Role_Permission
@@ -179,61 +183,66 @@ ALTER TABLE History
     ADD CONSTRAINT fk_history_user 
         FOREIGN KEY (fk_user) 
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_history_item
         FOREIGN KEY (fk_item) 
         REFERENCES Item(itemId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_history_place 
         FOREIGN KEY (fk_place) 
         REFERENCES Place(placeId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE,
     ADD CONSTRAINT fk_history_report
         FOREIGN KEY (fk_report) 
         REFERENCES Report(reportId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    ADD CONSTRAINT fk_history_request
+        FOREIGN KEY (fk_request) 
+        REFERENCES Request(requestId)
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 ALTER TABLE Request
     ADD CONSTRAINT fk_request_user
         FOREIGN KEY (fk_user_reciver) 
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_requester_user 
         FOREIGN KEY (fk_user_requester) 
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_request_item
         FOREIGN KEY (fk_item) 
         REFERENCES Item(itemId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 ALTER TABLE Report
     ADD CONSTRAINT fk_report_user_creator 
         FOREIGN KEY (fk_user_creator) 
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_report_user_assigned
         FOREIGN KEY (fk_user_assigned) 
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_report_place 
         FOREIGN KEY (fk_place) 
         REFERENCES Place(placeId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_report_item
         FOREIGN KEY (fk_item) 
         REFERENCES Item(itemId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 /*===============================
@@ -256,7 +265,7 @@ VALUES (1, 1);
 INSERT INTO User(googleUserId, firstName, lastName, universityId, userStatus, email, area, fk_role)
 VALUES ("sddasddasds","TEST USER", "01", "1234", TRUE, "st1234@utr.edu.mx", "IDGS", 1);
 
-INSERT INTO Place(placeName, placeDescription, class, placeLocation)
+INSERT INTO Place(placeName, placeDescription, placeClass, placeLocation)
 VALUES ("A101", "Primer salón edificio A", " Salón", "Edificio A");
 
 INSERT INTO Category(folioNumber, categoryName, categoryDescription)

@@ -36,13 +36,13 @@ export const User = mySequelize.define("User",{
     },
     fk_role:{
         type: DataTypes.INTEGER,
-        allowNull:false,
+        allowNull:true,
         references:{
             model:'UserRole',
             key:'roleId'
         },
         onUpdate:'CASCADE',
-        onDelete:'CASCADE'
+        onDelete:'SET NULL'
     },
     createdAt:{
         type:DataTypes.DATE

@@ -5,10 +5,10 @@ info:
 
 http:
   method: DELETE
-  url: http://localhost:3000/api/item/delete-item/1
+  url: http://localhost:3000/api/item/delete-item/4
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDM1MTg5NCwiZXhwIjoxNzkwMzUyNzk0fQ.xzVO6ow_dbCiFeBHcH5iDf2HcmlVed8k3oIk0pBXZos
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTgxOTE1NiwiZXhwIjoxNzkxODIwMDU2fQ.dljg7i8RwhlbI9II0bft2nDtTj8O_H7PihUKIcTFLhQ
   auth: inherit
 
 settings:

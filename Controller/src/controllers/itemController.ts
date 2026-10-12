@@ -2,17 +2,14 @@ import { Item, ItemStatus, Place, User, Category } from '@dis/model';
 import type { Response, Request } from 'express'
 import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
+import { createHistoryLog } from '../helpers/historyHelper.js';
+import { mySequelize } from '@dis/db/dbConection.js';
 
-const ITEM_INCLUDES = [
+const PUBLIC_ITEM_INCLUDES = [
     {
         model: Category,
         as: 'category',
         attributes: ['categoryId', 'categoryName']
-    },
-    {
-        model: Place,
-        as: 'related_place',
-        attributes: ['placeId', 'placeName']
     },
     {
         model: User,
@@ -21,25 +18,33 @@ const ITEM_INCLUDES = [
     }
 ];
 
-const formatItems = (itemInstance: InstanceType<typeof Item>) => {
+interface ItemWithRelations {
+    cost?: number;
+    codeBar?: string;
+    responsible_user?: {
+        userId: number;
+        firstName: string;
+        lastName: string;
+    } | null;
+}
+
+const PUBLIC_SORT_FIELDS = ['itemId', 'itemName', 'itemStatus', 'manufacter'] as const;
+
+const formatPublicItem = (itemInstance: InstanceType<typeof Item>) => {
     const item = typeof itemInstance.toJSON === 'function' ? itemInstance.toJSON() : itemInstance;
-    const { category, related_place, responsible_user, ...rest } = item;
 
     return {
-        ...rest,
-        fk_category: category
-            ? { id: category.categoryId, name: category.categoryName }
-            : null,
-        fk_place: related_place
-            ? { id: related_place.placeId, name: related_place.placeName }
-            : null,
-        fk_user_responsible: responsible_user
+        itemId: item.itemId,
+        itemName: item.itemName,
+        itemDescription: item.itemDescription,
+        itemStatus: item.itemStatus,
+        manufacter: item.manufacter,
+        category: item.category
             ? {
-                id: responsible_user.userId,
-                firstName: responsible_user.firstName,
-                lastName: responsible_user.lastName
+                id: item.category.categoryId,
+                name: item.category.categoryName
             }
-            : null
+            : null,
     };
 };
 
@@ -84,7 +89,7 @@ const CreateItem = async (req: Request, res: Response) => {
                 message: "Item already exist"
             })
         }
-        await Item.create({
+        const newItem = await Item.create({
             itemName,
             itemDescription,
             cost,
@@ -95,14 +100,19 @@ const CreateItem = async (req: Request, res: Response) => {
             fk_place
         })
 
+        await createHistoryLog({
+            historyDescription: `Se creó el item ${itemName} con código de barras: ${codeBar || 'N/A'}`,
+            actionType: 'CREATE',
+            userId: res.locals.jwtPayloadContent?.userId || Number(fk_user_responsible),
+            itemId: (newItem as any).itemId,
+            placeId: fk_place
+        });
+
         return res.status(200).json({
             message: "item succesfully created"
         })
     } catch (error) {
-        return res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
 
     }
 }
@@ -124,51 +134,81 @@ const SearchItemById = async (req: Request, res: Response) => {
 
         ShowItem(convertedId, res)
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
 const SearchItems = async (req: Request, res: Response) => {
     try {
-        const body = req.body || {}
-        const { itemId,
-            itemName,
-            itemDescription,
-            cost,
-            manufacter,
-            codeBar,
-            fk_user_responsible,
-            fk_place,
-            sortBy = 'itemId',
+        const role = res.locals.jwtPayloadContent?.role
+        const body = req.query || {}
+        const {         itemId,
+        itemName,
+        itemDescription,
+        manufacter,
+        sortBy = 'itemId',
             order = 'ASC'
         } = body
+        const page = Math.min(10000, Math.max(1, Number(body.page) || 1));
+        const pageSize = Math.min(50, Math.max(1, Number(body.pageSize) || 20));
+        const offset = (page - 1) * pageSize;
+        const requestedSort = String(sortBy);
+        const safeSortBy = PUBLIC_SORT_FIELDS.includes(
+            requestedSort as typeof PUBLIC_SORT_FIELDS[number]
+        ) ? requestedSort : 'itemId';
+        const safeOrder = String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
         const searchOptions = await FilterOptions({
             itemId,
             itemName,
             itemDescription,
-            cost,
             manufacter,
-            codeBar,
-            fk_user_responsible,
-            fk_place
-        })
-        const foundItems = await Item.findAll({
-            where: searchOptions,
-            include: ITEM_INCLUDES,
-            order: [[sortBy, order.toUpperCase()]]
         })
 
-        const formatedItems = foundItems.map(formatItems)
-        return res.status(200).json(formatedItems)
+        const findAttributes = role === 1
+            ? ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'cost', 'codeBar', 'manufacter']
+            : ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'];
+
+        const { rows: foundItems, count: totalItems } = await Item.findAndCountAll({
+            where: searchOptions,
+            attributes: findAttributes,
+            include: PUBLIC_ITEM_INCLUDES,
+            order: [[safeSortBy, safeOrder]],
+            limit: pageSize,
+            offset
+        })
+
+        const formatedItems = foundItems.map(item => {
+            const rawItem = (typeof item.toJSON === 'function' ? item.toJSON() : item) as ItemWithRelations;
+            const publicData = formatPublicItem(item);
+            if (role === 1) {
+                return {
+                    ...publicData,
+                    cost: item.getDataValue('cost'),
+                    codeBar: item.getDataValue('codeBar'),
+                    responsibleUser: rawItem.responsible_user
+                        ? {
+                            id: rawItem.responsible_user.userId,
+                            firstName: rawItem.responsible_user.firstName,
+                            lastName: rawItem.responsible_user.lastName
+                        } 
+                        : null
+                }
+            }
+            return publicData;
+        });
+
+        return res.status(200).json({
+            data: formatedItems,
+            pagination: {
+                page,
+                pageSize,
+                totalItems,
+                totalPages: Math.ceil(totalItems / pageSize)
+            }
+        })
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -191,7 +231,7 @@ const UpdateItem = async (req: Request, res: Response) => {
         const doesItExist = await Item.findOne({ where: { itemId: convertedId } })
         if (!doesItExist) {
             res.status(404).json({
-                message: `item  do not exist`
+                message: `Item does not exist`
             })
         }
         const body = req.body || {}
@@ -200,7 +240,9 @@ const UpdateItem = async (req: Request, res: Response) => {
             itemDescription,
             cost,
             manufacter,
+            itemStatus,
             codeBar,
+            category,
             fk_responsible_user,
             fk_place
         } = body
@@ -209,7 +251,9 @@ const UpdateItem = async (req: Request, res: Response) => {
             !itemName ||
             !itemDescription ||
             !cost ||
+            !itemStatus ||
             !manufacter ||
+            !category ||
             !codeBar ||
             !fk_responsible_user ||
             !fk_place 
@@ -223,27 +267,35 @@ const UpdateItem = async (req: Request, res: Response) => {
             itemDescription,
             cost,
             manufacter,
+            itemStatus,
             codeBar,
             fk_responsible_user,
             fk_place
         },
             { where: { itemId: convertedId } }
         )
+        await createHistoryLog({
+            historyDescription: `Se actualizo la información el item ${itemName} con código de barras: ${codeBar || 'N/A'}`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId || Number(fk_responsible_user),
+            itemId: (doesItExist as any).itemId,
+            placeId: fk_place
+        });
+
+
+
         if (modifiedRows == 0) {
             res.status(404).json({
                 message: "Item not found or not changes where made"
             })
         } else {
             res.status(200).json({
-                message: "item succesfully updated"
+                message: "Item succesfully updated"
             })
         }
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
@@ -260,12 +312,27 @@ const SetStatus = async (req: Request, res: Response) => {
         if (!foundItem) {
             return res.status(404).json({ message: "Item Not Found" });
         }
+        if (foundItem.getDataValue('itemStatus') === itemStatus) {
+              res.status(404).json({
+                message: "Not changes where made"
+            })
+        }
+
         foundItem.set('itemStatus', itemStatus);
         await foundItem.save();
 
+        await createHistoryLog({
+            historyDescription: `Se actualizó el estado del item a ${foundItem.getDataValue('itemStatus')}.`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId,
+            itemId: (foundItem as any).itemId,
+            placeId: foundItem.getDataValue('fk_place')
+        });
+
+
         return res.status(200).json({ message: 'Item status successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -285,9 +352,17 @@ const SetCategory = async (req: Request, res: Response) => {
         foundItem.set('category', category);
         await foundItem.save();
 
+        await createHistoryLog({
+            historyDescription: `Se actualizó la categoría del item ${foundItem.getDataValue('itemName')}.`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId || Number(foundItem.getDataValue('fk_user_responsible')),
+            itemId: (foundItem as any).itemId,
+            placeId: foundItem.getDataValue('fk_place')
+        });
+
         return res.status(200).json({ message: 'Item category successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -301,72 +376,56 @@ const DeleteItemByID = async (req: Request, res: Response) => {
         }
 
         const convertedId = Number(id)
-        const deletedRows = await Item.destroy({
-            where: { itemId: convertedId }
-        })
-        if (deletedRows === 0) {
+        const foundItem = await Item.findByPk(convertedId)
+        if (!foundItem) {
             return res.status(404).json({
                 message: "Item not found or already deleted"
             });
         }
-        res.status(200).json({
+
+        await mySequelize.transaction(async (transaction) => {
+            await createHistoryLog({
+                historyDescription: `Se eliminó el item ${convertedId}.`,
+                actionType: 'DELETE',
+                userId: res.locals.jwtPayloadContent?.userId || Number(foundItem.getDataValue('fk_user_responsible')),
+                itemId: convertedId,
+                placeId: foundItem.getDataValue('fk_place'),
+                transaction
+            });
+
+            const deletedRows = await Item.destroy({
+                where: { itemId: convertedId },
+                transaction
+            });
+
+            if (deletedRows === 0) {
+                throw new Error('Item could not be deleted');
+            }
+        });
+
+        return res.status(200).json({
             message: `item ${convertedId} succesfully destroyed`
         })
 
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 
 async function ShowItem(id: number, res: Response) {
     try {
         const foundItem = await Item.findByPk(id, {
-            include: [{
-                model: Place,
-                as: 'related_place',
-                attributes: ['placeId', 'placeName']
-
-            },
-            {
-                model: User,
-                as: 'responsible_user',
-                attributes: ['userId', 'firstName', 'lastName']
-            }]
+            attributes: ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'],
+            include: PUBLIC_ITEM_INCLUDES
         })
         if (!foundItem) {
             return res.status(404).json({
                 message: "Item not found"
             })
         }
-        const item = foundItem.toJSON()
-        const fullName =
-            item.responsible_user.firstName +
-            item.responsible_user.lastName
-
-        item.fk_place = {
-            placeId: item.related_place.placeId,
-            placeName: item.related_place.placeName
-        }
-
-        item.fk_user_responsible = {
-            userId: item.responsible_user.userId,
-
-            userName: fullName
-        }
-
-        delete item.related_place
-        delete item.responsible_user
-        res.status(200).json(
-            item
-        )
+        return res.status(200).json(formatPublicItem(foundItem))
     } catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        })
+        throw error;
     }
 }
 

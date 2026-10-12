@@ -2,6 +2,7 @@ import { Report, User, Item, Place } from '@dis/model';
 import type { Response, Request } from 'express';
 import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
+import { createHistoryLog } from '../helpers/historyHelper.js';
 
 // Standard includes for Report queries
 const REPORT_INCLUDES = [
@@ -85,7 +86,7 @@ const CreateReport = async (req: Request, res: Response) => {
         if (!item) return res.status(404).json({ message: 'Item not found' });
         if (!place) return res.status(404).json({ message: 'Place not found' });
 
-        await Report.create({
+        const newReport = await Report.create({
             reportName,
             reportDescription,
             reportStatus,
@@ -97,9 +98,18 @@ const CreateReport = async (req: Request, res: Response) => {
             fk_place
         });
 
+        await createHistoryLog({
+            historyDescription: `Se creó el reporte ${reportName}.`,
+            actionType: 'REPORT',
+            userId: res.locals.jwtPayloadContent?.userId || Number(fk_user_creator),
+            itemId: fk_item,
+            placeId: fk_place,
+            reportId: (newReport as any).reportId,
+        });
+
         return res.status(200).json({ message: 'Item successfully created' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -117,7 +127,7 @@ const SearchReportById = async (req: Request, res: Response) => {
 
         return res.status(200).json(formatReport(foundReport));
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -159,7 +169,7 @@ const SearchReports = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundReports.map(formatReport));
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -168,6 +178,19 @@ const SearchReportsCreatedUser = async (req: Request, res: Response) => {
         const parsedUserId = Number(req.params.userId);
         if (isNaN(parsedUserId) || !Number.isInteger(parsedUserId) || parsedUserId <= 0) {
             return res.status(400).json({ message: 'A valid User ID is required' });
+        }
+
+        const jwtPayload = res.locals.jwtPayloadContent;
+        if (!jwtPayload) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        const isAdministrator = jwtPayload.role <= 2;
+
+        if (!isAdministrator && jwtPayload.userId !== parsedUserId) {
+            return res.status(403).json({
+                message: 'You can only access your own reports'
+            });
         }
 
         const userExists = await User.findByPk(parsedUserId);
@@ -183,7 +206,7 @@ const SearchReportsCreatedUser = async (req: Request, res: Response) => {
 
         return res.status(200).json(foundReports.map(formatReport));
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 };
 
@@ -200,9 +223,17 @@ const SetReportStatus = async (req: Request, res: Response) => {
         }
         foundReport.set('reportStatus', status);
         await foundReport.save();
+        await createHistoryLog({
+            historyDescription: `Se actualizó el estado del reporte ${parsedReportId} a ${status}.`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
+            itemId: foundReport.getDataValue('fk_item'),
+            placeId: foundReport.getDataValue('fk_place'),
+            reportId: parsedReportId,
+        });
         return res.status(200).json({ message: 'Report status successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -217,14 +248,22 @@ const SetDueDate = async (req: Request, res: Response) => {
 
         const foundReport = await Report.findByPk(parsedReportId);
         if (!foundReport) {
-            res.status(404).json({ message: "Report Not Found"})
+            return res.status(404).json({ message: "Report Not Found"})
         }
-        foundReport?.set('dueDate', dueDate);
-        await foundReport?.save()   
+        foundReport.set('dueDate', dueDate);
+        await foundReport.save()
+        await createHistoryLog({
+            historyDescription: `Se actualizó la fecha límite del reporte ${parsedReportId}.`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
+            itemId: foundReport.getDataValue('fk_item'),
+            placeId: foundReport.getDataValue('fk_place'),
+            reportId: parsedReportId,
+        });
 
         return res.status(200).json({ message: 'Report Due Date successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
 }
 
@@ -239,14 +278,22 @@ const setPriority = async (req: Request, res: Response) => {
 
         const foundReport = await Report.findByPk(parsedReportId);
         if (!foundReport){
-            res.status(404).json({ message: "Report Not Found"})
+            return res.status(404).json({ message: "Report Not Found"})
         }
-        foundReport?.set('reportPriority', priority);
-        foundReport?.save();
+        foundReport.set('reportPriority', priority);
+        await foundReport.save();
+        await createHistoryLog({
+            historyDescription: `Se actualizó la prioridad del reporte ${parsedReportId} a ${priority}.`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
+            itemId: foundReport.getDataValue('fk_item'),
+            placeId: foundReport.getDataValue('fk_place'),
+            reportId: parsedReportId,
+        });
 
         return res.status(200).json({ message: 'Report priority successfully updated' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error, not your fault :D', error });
+        throw error;
     }
  
 }
@@ -261,13 +308,21 @@ const deleteReport = async (req: Request, res: Response) => {
 
         const foundReport = await Report.findByPk(parsedReportId);
         if (!foundReport){
-            res.status(404).json({ message: "Report Not Found"})
+            return res.status(404).json({ message: "Report Not Found"})
         }
-        foundReport?.destroy();
+        await createHistoryLog({
+            historyDescription: `Se eliminó el reporte ${parsedReportId}.`,
+            actionType: 'DELETE',
+            userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
+            itemId: foundReport.getDataValue('fk_item'),
+            placeId: foundReport.getDataValue('fk_place'),
+            reportId: parsedReportId,
+        });
+        await foundReport.destroy();
 
         return res.status(200).json({ message: 'Report deleted successfully' });
     } catch (error) {
-        return res.status(500).json({ message: 'Internal erver error, not your fault :D', error });
+        throw error;
     }
 }
 

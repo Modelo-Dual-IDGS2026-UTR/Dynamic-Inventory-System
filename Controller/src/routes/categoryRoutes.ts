@@ -5,7 +5,6 @@ import {
     CreateCategory,
     UpdateCategory,
     DeleteCategoryByID
-
 } from "../controllers/categoryController.js";
 
 import  express  from "express";

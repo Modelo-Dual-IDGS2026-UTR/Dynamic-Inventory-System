@@ -8,7 +8,7 @@ http:
   url: http://localhost:3000/api/item/new-item
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDc5MzgzOSwiZXhwIjoxNzkwNzkzODY5fQ.-UB66HeD6RZ8BiFEOy9IDHK5pSmp7-z7vEHbd_hJ0Nw
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTgxOTE1NiwiZXhwIjoxNzkxODIwMDU2fQ.dljg7i8RwhlbI9II0bft2nDtTj8O_H7PihUKIcTFLhQ
   body:
     type: json
     data: |-
