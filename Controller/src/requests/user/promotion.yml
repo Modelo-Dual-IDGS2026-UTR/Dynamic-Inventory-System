@@ -8,7 +8,7 @@ http:
   url: http://localhost:3000/api/user/promotion/2
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInNlc3Npb25JZCI6ImFiNTYxZGNiLWExMTctNGMxNi1hMGM1LWNkNWJiZGNmNjZkZSIsImlhdCI6MTc5MDE3NjQwMiwiZXhwIjoxNzkwNzgxMjAyfQ.uXhbYvDlg0oyEIiEpUfZgRJsxNLBcW-MavrX97NjKxQ
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjMsImlhdCI6MTc5MTg0MzYyMiwiZXhwIjoxNzkxODQ0NTIyfQ.JNDhxSQu-ut_dVvjECJLebVKOqXGlBF3ZQzqOPnUaoI
   body:
     type: json
     data: |-

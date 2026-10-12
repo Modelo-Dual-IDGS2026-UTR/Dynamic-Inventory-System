@@ -16,10 +16,10 @@ import { publicCatalogLimiter } from '../middleware/publicCatalogLimiter.js';
 itemRouter.post('/new-item', VerifyJWT(2), CreateItem);
 
 // Public inventory catalog
-itemRouter.get('/read-item/:itemId', publicCatalogLimiter, SearchItemById);
+itemRouter.get('/read-item/:itemId', VerifyJWT(), publicCatalogLimiter, SearchItemById);
 
 // Public inventory catalog
-itemRouter.get('/read-items', publicCatalogLimiter, SearchItems);
+itemRouter.get('/read-items', VerifyJWT(), publicCatalogLimiter, SearchItems);
 
 //Admin & Superadmin
 itemRouter.put('/update-item/:itemId',  VerifyJWT(2), UpdateItem);

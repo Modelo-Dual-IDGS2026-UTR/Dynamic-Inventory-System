@@ -10,8 +10,23 @@ const PUBLIC_ITEM_INCLUDES = [
         model: Category,
         as: 'category',
         attributes: ['categoryId', 'categoryName']
+    },
+    {
+        model: User,
+        as: 'responsible_user',
+        attributes: ['userId', 'firstName', 'lastName']
     }
 ];
+
+interface ItemWithRelations {
+    cost?: number;
+    codeBar?: string;
+    responsible_user?: {
+        userId: number;
+        firstName: string;
+        lastName: string;
+    } | null;
+}
 
 const PUBLIC_SORT_FIELDS = ['itemId', 'itemName', 'itemStatus', 'manufacter'] as const;
 
@@ -29,7 +44,7 @@ const formatPublicItem = (itemInstance: InstanceType<typeof Item>) => {
                 id: item.category.categoryId,
                 name: item.category.categoryName
             }
-            : null
+            : null,
     };
 };
 
@@ -125,6 +140,7 @@ const SearchItemById = async (req: Request, res: Response) => {
 
 const SearchItems = async (req: Request, res: Response) => {
     try {
+        const role = res.locals.jwtPayloadContent?.role
         const body = req.query || {}
         const {         itemId,
         itemName,
@@ -147,16 +163,40 @@ const SearchItems = async (req: Request, res: Response) => {
             itemDescription,
             manufacter,
         })
+
+        const findAttributes = role === 1
+            ? ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'cost', 'codeBar', 'manufacter']
+            : ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'];
+
         const { rows: foundItems, count: totalItems } = await Item.findAndCountAll({
             where: searchOptions,
-            attributes: ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'],
+            attributes: findAttributes,
             include: PUBLIC_ITEM_INCLUDES,
             order: [[safeSortBy, safeOrder]],
             limit: pageSize,
             offset
         })
 
-        const formatedItems = foundItems.map(formatPublicItem)
+        const formatedItems = foundItems.map(item => {
+            const rawItem = (typeof item.toJSON === 'function' ? item.toJSON() : item) as ItemWithRelations;
+            const publicData = formatPublicItem(item);
+            if (role === 1) {
+                return {
+                    ...publicData,
+                    cost: item.getDataValue('cost'),
+                    codeBar: item.getDataValue('codeBar'),
+                    responsibleUser: rawItem.responsible_user
+                        ? {
+                            id: rawItem.responsible_user.userId,
+                            firstName: rawItem.responsible_user.firstName,
+                            lastName: rawItem.responsible_user.lastName
+                        } 
+                        : null
+                }
+            }
+            return publicData;
+        });
+
         return res.status(200).json({
             data: formatedItems,
             pagination: {
@@ -191,7 +231,7 @@ const UpdateItem = async (req: Request, res: Response) => {
         const doesItExist = await Item.findOne({ where: { itemId: convertedId } })
         if (!doesItExist) {
             res.status(404).json({
-                message: `item  do not exist`
+                message: `Item does not exist`
             })
         }
         const body = req.body || {}
@@ -250,7 +290,7 @@ const UpdateItem = async (req: Request, res: Response) => {
             })
         } else {
             res.status(200).json({
-                message: "item succesfully updated"
+                message: "Item succesfully updated"
             })
         }
 
