@@ -352,6 +352,50 @@ const SetStatus = async (req: Request, res: Response) => {
     }
 }
 
+const ChangeResponsible = async(req: Request, res: Response) => {
+    const parsedItemId = Number(req.params.itemId);
+    const { responsible_user } = req.body || {};
+
+    if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !responsible_user) {
+        return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+    }
+
+    const foundItem = await Item.findByPk(parsedItemId);
+    if (!foundItem) {
+        return res.status(404).json({ message: "Item Not Found" });
+    }
+
+    if (Number(responsible_user) === Number(foundItem.getDataValue('fk_user_responsible'))) {
+        return res.status(400).json({
+            message: "The responsible user could not change because is the same user"
+        });
+    }
+
+    foundItem.set('fk_user_responsible', responsible_user);
+    await foundItem.save();
+
+    await createHistoryLog({
+        historyDescription: `Se actualizó el usuario responsable del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${responsible_user}.`,
+        actionType: 'UPDATE',
+        userId: res.locals.jwtPayloadContent?.userId,
+        itemId: (foundItem as any).itemId,
+        placeId: foundItem.getDataValue('fk_place')
+    });
+
+    const currentUserId = res.locals.jwtPayloadContent?.userId;
+    if (Number(responsible_user) !== Number(currentUserId)) {
+        await createUserNotification({
+            notificationType: NotificationType.ITEM,
+            requestDescription: `Se te ha asignado la responsabilidad del item "${foundItem.getDataValue('itemName')}".`,
+            fk_trigger: parsedItemId,
+            fk_user_trigger: currentUserId || null,
+            fk_notified: Number(responsible_user)
+        });
+    }
+
+    return res.status(200).json({ message: 'Item responsible successfully updated' });
+}
+
 const SetCategory = async (req: Request, res: Response) => {
     try {
         const parsedItemId = Number(req.params.itemId);

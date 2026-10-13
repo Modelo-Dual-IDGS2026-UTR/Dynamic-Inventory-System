@@ -5,7 +5,8 @@ import {
     UpdateItem,
     DeleteItemByID,
     SetStatus,
-    SetCategory
+    SetCategory,
+    ChangeResponsible
 } from "../controllers/itemController.js";
 import  express  from "express";
 export const itemRouter=express.Router();
@@ -29,6 +30,9 @@ itemRouter.patch('/set-status/:itemId', VerifyJWT(2), SetStatus);
 
 //Admin & Superadmin
 itemRouter.patch('/set-category/:itemId', VerifyJWT(2), SetCategory);
+
+//Superadmin
+itemRouter.patch('/assign-responsible/:itemId', VerifyJWT(1), ChangeResponsible);
 
 //Superadmin
 itemRouter.delete('/delete-item/:itemId',  VerifyJWT(1), DeleteItemByID);
