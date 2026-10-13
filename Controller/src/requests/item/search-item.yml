@@ -5,10 +5,10 @@ info:
 
 http:
   method: GET
-  url: http://localhost:3000/api/item/read-item/5
+  url: http://localhost:3000/api/item/read-item/1
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTg0MzE5NywiZXhwIjoxNzkxODQ0MDk3fQ.LxYtTgWUwpH9ZbrFCoeJpj_YIA7sW777j1CIcm0o7IY
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTg0OTgzMywiZXhwIjoxNzkxODUwNzMzfQ.nnHloCEsI5f80TSNogDDHfcPZ_mXiPmIU9Ce3n1TZb8
   auth: inherit
 
 settings:
