@@ -1,8 +1,10 @@
 import { Item, ItemStatus, Place, User, Category } from '@dis/model';
+import { NotificationType } from '@dis/model/userNotificationModel.js';
 import type { Response, Request } from 'express'
 import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { createHistoryLog } from '../helpers/historyHelper.js';
+import { createUserNotification } from '../helpers/notificationHelper.js';
 import { mySequelize } from '@dis/db/dbConection.js';
 
 const PUBLIC_ITEM_INCLUDES = [
@@ -116,6 +118,17 @@ const CreateItem = async (req: Request, res: Response) => {
             itemId: (newItem as any).itemId,
             placeId: fk_place
         });
+
+        const currentUserId = res.locals.jwtPayloadContent?.userId;
+        if (fk_user_responsible && Number(fk_user_responsible) !== Number(currentUserId)) {
+            await createUserNotification({
+                notificationType: NotificationType.ITEM,
+                requestDescription: `Se te ha asignado la responsabilidad del nuevo item "${itemName}".`,
+                fk_trigger: (newItem as any).itemId,
+                fk_user_trigger: currentUserId || null,
+                fk_notified: Number(fk_user_responsible)
+            });
+        }
 
         return res.status(200).json({
             message: "item succesfully created"
@@ -345,6 +358,17 @@ const SetStatus = async (req: Request, res: Response) => {
             placeId: foundItem.getDataValue('fk_place')
         });
 
+        const responsibleId = foundItem.getDataValue('fk_user_responsible');
+        const currentUserId = res.locals.jwtPayloadContent?.userId;
+        if (responsibleId && Number(responsibleId) !== Number(currentUserId)) {
+            await createUserNotification({
+                notificationType: NotificationType.ITEM,
+                requestDescription: `El item "${foundItem.getDataValue('itemName')}" a tu cargo cambió de estado a: ${itemStatus}.`,
+                fk_trigger: parsedItemId,
+                fk_user_trigger: currentUserId || null,
+                fk_notified: Number(responsibleId)
+            });
+        }
 
         return res.status(200).json({ message: 'Item status successfully updated' });
     } catch (error) {
