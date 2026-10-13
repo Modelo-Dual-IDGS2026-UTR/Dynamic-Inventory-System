@@ -221,10 +221,15 @@ const SetReportStatus = async (req: Request, res: Response) => {
         if (!foundReport) {
             return res.status(404).json({ message: 'Report not found' });
         }
+
+        if (status === foundReport.getDataValue('reportStatus')) {
+            return res.status(400).json({ message: 'The status could not change because is the same status' });
+        }
+
         foundReport.set('reportStatus', status);
         await foundReport.save();
         await createHistoryLog({
-            historyDescription: `Se actualizó el estado del reporte ${parsedReportId} a ${status}.`,
+            historyDescription: `Se actualizó el estado del reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) a ${status}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
             itemId: foundReport.getDataValue('fk_item'),
@@ -248,12 +253,18 @@ const SetDueDate = async (req: Request, res: Response) => {
 
         const foundReport = await Report.findByPk(parsedReportId);
         if (!foundReport) {
-            return res.status(404).json({ message: "Report Not Found"})
+            return res.status(404).json({ message: "Report Not Found"});
         }
+
+        const currentDueDate = foundReport.getDataValue('dueDate');
+        if (currentDueDate && new Date(dueDate).getTime() === new Date(currentDueDate).getTime()) {
+            return res.status(400).json({ message: 'The due date could not change because is the same date' });
+        }
+
         foundReport.set('dueDate', dueDate);
-        await foundReport.save()
+        await foundReport.save();
         await createHistoryLog({
-            historyDescription: `Se actualizó la fecha límite del reporte ${parsedReportId}.`,
+            historyDescription: `Se actualizó la fecha límite del reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) a ${dueDate}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
             itemId: foundReport.getDataValue('fk_item'),
@@ -278,12 +289,17 @@ const setPriority = async (req: Request, res: Response) => {
 
         const foundReport = await Report.findByPk(parsedReportId);
         if (!foundReport){
-            return res.status(404).json({ message: "Report Not Found"})
+            return res.status(404).json({ message: "Report Not Found"});
         }
+
+        if (priority === foundReport.getDataValue('reportPriority')) {
+            return res.status(400).json({ message: 'The priority could not change because is the same priority' });
+        }
+
         foundReport.set('reportPriority', priority);
         await foundReport.save();
         await createHistoryLog({
-            historyDescription: `Se actualizó la prioridad del reporte ${parsedReportId} a ${priority}.`,
+            historyDescription: `Se actualizó la prioridad del reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) a ${priority}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
             itemId: foundReport.getDataValue('fk_item'),
