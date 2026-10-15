@@ -6,6 +6,9 @@ info:
 http:
   method: PATCH
   url: http://localhost:3000/api/user/change-status/1
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTg1MDEwNywiZXhwIjoxNzkxODUxMDA3fQ.hh4IxNtMV2ZcGGyzBSNLPnoJm9JHFPAUkfAd-bBFVnU
   body:
     type: json
     data: |-

@@ -104,6 +104,10 @@ export const markAsRead = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Notificación no encontrada' });
         }
 
+        if (notification.getDataValue('isRead')) {
+            return res.status(400).json({ message: 'The notification is already marked as read' });
+        }
+
         await notification.update({ isRead: true });
 
         return res.status(200).json({

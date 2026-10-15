@@ -524,11 +524,16 @@ const changeStatus = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'User not found' });
         }
         
+        if (userStatus === foundUser.getDataValue('userStatus')){
+            return res.status(400).json({ message: 'The status could not change because is the same status' });
+        }
+
         foundUser.set('userStatus', userStatus);
 
         await foundUser.save();
+        const userName = `${foundUser.getDataValue('firstName')} ${foundUser.getDataValue('lastName')}`;
         await createHistoryLog({
-            historyDescription: `Se actualizó el estado del usuario ${parsedUserId}.`,
+            historyDescription: `Se actualizó el estado del usuario "${userName}" (#${parsedUserId}) a ${userStatus}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId || parsedUserId,
         });
@@ -551,11 +556,16 @@ const promotion = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'User not found' });
         }
         
+        if (Number(fk_role) === Number(foundUser.getDataValue('fk_role'))){
+            return res.status(400).json({ message: 'The role could not change because is the same role' });
+        }
+
         foundUser.set('fk_role', fk_role);
 
         await foundUser.save();
+        const userName = `${foundUser.getDataValue('firstName')} ${foundUser.getDataValue('lastName')}`;
         await createHistoryLog({
-            historyDescription: `Se actualizó el rol del usuario ${parsedUserId}.`,
+            historyDescription: `Se actualizó el rol del usuario "${userName}" (#${parsedUserId}) a ${fk_role}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId || parsedUserId,
         });

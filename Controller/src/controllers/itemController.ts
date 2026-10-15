@@ -1,8 +1,10 @@
 import { Item, ItemStatus, Place, User, Category } from '@dis/model';
+import { NotificationType } from '@dis/model/userNotificationModel.js';
 import type { Response, Request } from 'express'
 import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { createHistoryLog } from '../helpers/historyHelper.js';
+import { createUserNotification } from '../helpers/notificationHelper.js';
 import { mySequelize } from '@dis/db/dbConection.js';
 
 const PUBLIC_ITEM_INCLUDES = [
@@ -15,6 +17,11 @@ const PUBLIC_ITEM_INCLUDES = [
         model: User,
         as: 'responsible_user',
         attributes: ['userId', 'firstName', 'lastName']
+    },
+    {
+        model: Place,
+        as: 'related_place',
+        attributes: ['placeId', 'placeName']
     }
 ];
 
@@ -25,6 +32,10 @@ interface ItemWithRelations {
         userId: number;
         firstName: string;
         lastName: string;
+    } | null;
+    related_place?: {
+        placeId: string;
+        placeName: string;
     } | null;
 }
 
@@ -108,6 +119,17 @@ const CreateItem = async (req: Request, res: Response) => {
             placeId: fk_place
         });
 
+        const currentUserId = res.locals.jwtPayloadContent?.userId;
+        if (fk_user_responsible && Number(fk_user_responsible) !== Number(currentUserId)) {
+            await createUserNotification({
+                notificationType: NotificationType.ITEM,
+                requestDescription: `Se te ha asignado la responsabilidad del nuevo item "${itemName}".`,
+                fk_trigger: (newItem as any).itemId,
+                fk_user_trigger: currentUserId || null,
+                fk_notified: Number(fk_user_responsible)
+            });
+        }
+
         return res.status(200).json({
             message: "item succesfully created"
         })
@@ -119,6 +141,7 @@ const CreateItem = async (req: Request, res: Response) => {
 
 const SearchItemById = async (req: Request, res: Response) => {
     try {
+        const role = res.locals.jwtPayloadContent?.role
         const id = req.params.itemId
         if (!id) {
             return res.status(400).json({
@@ -132,7 +155,7 @@ const SearchItemById = async (req: Request, res: Response) => {
             })
         }
 
-        ShowItem(convertedId, res)
+        return await ShowItem(convertedId, role, res);
     } catch (error) {
         throw error;
     }
@@ -191,7 +214,13 @@ const SearchItems = async (req: Request, res: Response) => {
                             firstName: rawItem.responsible_user.firstName,
                             lastName: rawItem.responsible_user.lastName
                         } 
-                        : null
+                        : null,
+                    relatedPlace: rawItem.related_place
+                    ? {
+                        id: rawItem.related_place.placeId,
+                        placeName: rawItem.related_place.placeName
+                    }
+                    : null,
                 }
             }
             return publicData;
@@ -313,27 +342,82 @@ const SetStatus = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Item Not Found" });
         }
         if (foundItem.getDataValue('itemStatus') === itemStatus) {
-              res.status(404).json({
-                message: "Not changes where made"
-            })
+            return res.status(400).json({
+                message: "The status could not change because is the same status"
+            });
         }
 
         foundItem.set('itemStatus', itemStatus);
         await foundItem.save();
 
         await createHistoryLog({
-            historyDescription: `Se actualizó el estado del item a ${foundItem.getDataValue('itemStatus')}.`,
+            historyDescription: `Se actualizó el estado del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${itemStatus}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId,
             itemId: (foundItem as any).itemId,
             placeId: foundItem.getDataValue('fk_place')
         });
 
+        const responsibleId = foundItem.getDataValue('fk_user_responsible');
+        const currentUserId = res.locals.jwtPayloadContent?.userId;
+        if (responsibleId && Number(responsibleId) !== Number(currentUserId)) {
+            await createUserNotification({
+                notificationType: NotificationType.ITEM,
+                requestDescription: `El item "${foundItem.getDataValue('itemName')}" a tu cargo cambió de estado a: ${itemStatus}.`,
+                fk_trigger: parsedItemId,
+                fk_user_trigger: currentUserId || null,
+                fk_notified: Number(responsibleId)
+            });
+        }
 
         return res.status(200).json({ message: 'Item status successfully updated' });
     } catch (error) {
         throw error;
     }
+}
+
+const ChangeResponsible = async(req: Request, res: Response) => {
+    const parsedItemId = Number(req.params.itemId);
+    const { responsible_user } = req.body || {};
+
+    if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !responsible_user) {
+        return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+    }
+
+    const foundItem = await Item.findByPk(parsedItemId);
+    if (!foundItem) {
+        return res.status(404).json({ message: "Item Not Found" });
+    }
+
+    if (Number(responsible_user) === Number(foundItem.getDataValue('fk_user_responsible'))) {
+        return res.status(400).json({
+            message: "The responsible user could not change because is the same user"
+        });
+    }
+
+    foundItem.set('fk_user_responsible', responsible_user);
+    await foundItem.save();
+
+    await createHistoryLog({
+        historyDescription: `Se actualizó el usuario responsable del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${responsible_user}.`,
+        actionType: 'UPDATE',
+        userId: res.locals.jwtPayloadContent?.userId,
+        itemId: (foundItem as any).itemId,
+        placeId: foundItem.getDataValue('fk_place')
+    });
+
+    const currentUserId = res.locals.jwtPayloadContent?.userId;
+    if (Number(responsible_user) !== Number(currentUserId)) {
+        await createUserNotification({
+            notificationType: NotificationType.ITEM,
+            requestDescription: `Se te ha asignado la responsabilidad del item "${foundItem.getDataValue('itemName')}".`,
+            fk_trigger: parsedItemId,
+            fk_user_trigger: currentUserId || null,
+            fk_notified: Number(responsible_user)
+        });
+    }
+
+    return res.status(200).json({ message: 'Item responsible successfully updated' });
 }
 
 const SetCategory = async (req: Request, res: Response) => {
@@ -349,11 +433,18 @@ const SetCategory = async (req: Request, res: Response) => {
         if (!foundItem) {
             return res.status(404).json({ message: "Item Not Found" });
         }
-        foundItem.set('category', category);
+
+        if (Number(category) === Number(foundItem.getDataValue('fk_category'))) {
+            return res.status(400).json({
+                message: "The category could not change because is the same category"
+            });
+        }
+
+        foundItem.set('fk_category', category);
         await foundItem.save();
 
         await createHistoryLog({
-            historyDescription: `Se actualizó la categoría del item ${foundItem.getDataValue('itemName')}.`,
+            historyDescription: `Se actualizó la categoría del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${category}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId || Number(foundItem.getDataValue('fk_user_responsible')),
             itemId: (foundItem as any).itemId,
@@ -412,10 +503,15 @@ const DeleteItemByID = async (req: Request, res: Response) => {
     }
 }
 
-async function ShowItem(id: number, res: Response) {
+async function ShowItem(id: number, role: number, res: Response) {
     try {
+
+        const findAttributes = role === 1
+        ? ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'cost', 'codeBar', 'manufacter']
+        : ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'];
+
         const foundItem = await Item.findByPk(id, {
-            attributes: ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'],
+            attributes: findAttributes,
             include: PUBLIC_ITEM_INCLUDES
         })
         if (!foundItem) {
@@ -423,7 +519,32 @@ async function ShowItem(id: number, res: Response) {
                 message: "Item not found"
             })
         }
-        return res.status(200).json(formatPublicItem(foundItem))
+
+        const rawItem = (typeof foundItem.toJSON === 'function' ? foundItem.toJSON() : foundItem) as ItemWithRelations;
+        const publicData = formatPublicItem(foundItem);
+
+        if (role === 1) {
+            return res.status(200).json({
+                ...publicData,
+                cost: foundItem.getDataValue('cost'),
+                codeBar: foundItem.getDataValue('codeBar'),
+                responsibleUser: rawItem.responsible_user
+                    ? {
+                        id: rawItem.responsible_user.userId,
+                        firstName: rawItem.responsible_user.firstName,
+                        lastName: rawItem.responsible_user.lastName
+                    } 
+                    : null,
+                relatedPlace: rawItem.related_place
+                ? {
+                    id: rawItem.related_place.placeId,
+                    placeName: rawItem.related_place.placeName
+                }
+                : null,
+            });
+        }
+
+        return res.status(200).json(publicData);
     } catch (error) {
         throw error;
     }
@@ -438,5 +559,6 @@ export {
     UpdateItem,
     DeleteItemByID,
     SetStatus,
-    SetCategory
+    SetCategory,
+    ChangeResponsible
 }

@@ -1,8 +1,10 @@
 import { Report, User, Item, Place } from '@dis/model';
+import { NotificationType } from '@dis/model/userNotificationModel.js';
 import type { Response, Request } from 'express';
 import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { createHistoryLog } from '../helpers/historyHelper.js';
+import { createUserNotification } from '../helpers/notificationHelper.js';
 
 // Standard includes for Report queries
 const REPORT_INCLUDES = [
@@ -106,6 +108,17 @@ const CreateReport = async (req: Request, res: Response) => {
             placeId: fk_place,
             reportId: (newReport as any).reportId,
         });
+
+        const currentUserId = res.locals.jwtPayloadContent?.userId || Number(fk_user_creator);
+        if (fk_user_assigned && Number(fk_user_assigned) !== Number(currentUserId)) {
+            await createUserNotification({
+                notificationType: NotificationType.REPORT,
+                requestDescription: `Se te ha asignado el reporte "${reportName}".`,
+                fk_trigger: (newReport as any).reportId,
+                fk_user_trigger: currentUserId || null,
+                fk_notified: Number(fk_user_assigned)
+            });
+        }
 
         return res.status(200).json({ message: 'Item successfully created' });
     } catch (error) {
@@ -221,16 +234,45 @@ const SetReportStatus = async (req: Request, res: Response) => {
         if (!foundReport) {
             return res.status(404).json({ message: 'Report not found' });
         }
+
+        if (status === foundReport.getDataValue('reportStatus')) {
+            return res.status(400).json({ message: 'The status could not change because is the same status' });
+        }
+
         foundReport.set('reportStatus', status);
         await foundReport.save();
         await createHistoryLog({
-            historyDescription: `Se actualizó el estado del reporte ${parsedReportId} a ${status}.`,
+            historyDescription: `Se actualizó el estado del reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) a ${status}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
             itemId: foundReport.getDataValue('fk_item'),
             placeId: foundReport.getDataValue('fk_place'),
             reportId: parsedReportId,
         });
+
+        const creatorId = foundReport.getDataValue('fk_user_creator');
+        const assignedId = foundReport.getDataValue('fk_user_assigned');
+        const currentUserId = res.locals.jwtPayloadContent?.userId;
+
+        if (creatorId && Number(creatorId) !== Number(currentUserId)) {
+            await createUserNotification({
+                notificationType: NotificationType.REPORT,
+                requestDescription: `Tu reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) ha cambiado a estado: ${status}.`,
+                fk_trigger: parsedReportId,
+                fk_user_trigger: currentUserId || null,
+                fk_notified: Number(creatorId)
+            });
+        }
+        if (assignedId && Number(assignedId) !== Number(currentUserId) && Number(assignedId) !== Number(creatorId)) {
+            await createUserNotification({
+                notificationType: NotificationType.REPORT,
+                requestDescription: `El reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) asignado a ti cambió a estado: ${status}.`,
+                fk_trigger: parsedReportId,
+                fk_user_trigger: currentUserId || null,
+                fk_notified: Number(assignedId)
+            });
+        }
+
         return res.status(200).json({ message: 'Report status successfully updated' });
     } catch (error) {
         throw error;
@@ -248,12 +290,18 @@ const SetDueDate = async (req: Request, res: Response) => {
 
         const foundReport = await Report.findByPk(parsedReportId);
         if (!foundReport) {
-            return res.status(404).json({ message: "Report Not Found"})
+            return res.status(404).json({ message: "Report Not Found"});
         }
+
+        const currentDueDate = foundReport.getDataValue('dueDate');
+        if (currentDueDate && new Date(dueDate).getTime() === new Date(currentDueDate).getTime()) {
+            return res.status(400).json({ message: 'The due date could not change because is the same date' });
+        }
+
         foundReport.set('dueDate', dueDate);
-        await foundReport.save()
+        await foundReport.save();
         await createHistoryLog({
-            historyDescription: `Se actualizó la fecha límite del reporte ${parsedReportId}.`,
+            historyDescription: `Se actualizó la fecha límite del reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) a ${dueDate}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
             itemId: foundReport.getDataValue('fk_item'),
@@ -278,12 +326,17 @@ const setPriority = async (req: Request, res: Response) => {
 
         const foundReport = await Report.findByPk(parsedReportId);
         if (!foundReport){
-            return res.status(404).json({ message: "Report Not Found"})
+            return res.status(404).json({ message: "Report Not Found"});
         }
+
+        if (priority === foundReport.getDataValue('reportPriority')) {
+            return res.status(400).json({ message: 'The priority could not change because is the same priority' });
+        }
+
         foundReport.set('reportPriority', priority);
         await foundReport.save();
         await createHistoryLog({
-            historyDescription: `Se actualizó la prioridad del reporte ${parsedReportId} a ${priority}.`,
+            historyDescription: `Se actualizó la prioridad del reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) a ${priority}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
             itemId: foundReport.getDataValue('fk_item'),
