@@ -1,4 +1,4 @@
-import { User, UserRole, UserSession } from "@dis/model";
+import { Employee, User, UserRole, UserSession } from "@dis/model";
 import { createHash } from 'node:crypto';
 import type { Response,Request } from "express";
 import { 
@@ -16,6 +16,11 @@ const REPORT_INCLUDES = [
         model: UserRole,
         as: 'related_role',
         attributes: ['roleId', 'roleName']
+    },
+    {
+        model: Employee,
+        as: 'employee',
+        attributes: ['employeeId', 'firstName', 'lastName', 'email', 'employeeType', 'area', 'status']
     },
 ];
 
@@ -38,18 +43,32 @@ const REFRESH_TOKEN_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const CreateUser= async (req:Request,res:Response,)=>{
     
     try {
-        const {firstName,lastName, googleUserId, email,area}=req.body
+        const {firstName,lastName, googleUserId, email,area, universityId}=req.body
         if(!firstName||!lastName||!googleUserId||!email||!area){
             return res.status(400).json({
                 message: "All fields (firstName,lastName,email,area) are required"
             });
         }
+        const normalizedEmail = String(email).trim().toLowerCase()
+        const employee = await Employee.findOne({
+            where: {
+                email: normalizedEmail,
+                status: true
+            }
+        })
+        if (universityId && employee) {
+            return res.status(400).json({
+                message: 'A student account cannot use an employee email'
+            })
+        }
         const newUser= await User.create({
             firstName,
             lastName,
-            email,
+            email: normalizedEmail,
             area,
             googleUserId,
+            universityId,
+            employeeId: employee?.getDataValue('employeeId') ?? null,
             fk_role:1
         })
         await createHistoryLog({
@@ -81,14 +100,37 @@ const UpdateUser=async (req:Request,res:Response)=>{
           return res.status(400).json({
             message:"Invalid User ID"
         })  
-        
+        }
+        const foundUser = await User.findByPk(convertedId)
+        if (!foundUser) {
+            return res.status(404).json({
+                message: 'User not found'
+            })
+        }
+        const normalizedEmail = email ? String(email).trim().toLowerCase() : foundUser.getDataValue('email')
+        const employee = await Employee.findOne({
+            where: {
+                email: normalizedEmail,
+                status: true
+            }
+        })
+        if (universityId && employee) {
+            return res.status(400).json({
+                message: 'A student account cannot use an employee email'
+            })
+        }
+        if (foundUser.getDataValue('employeeId') && !employee) {
+            return res.status(403).json({
+                message: 'The employee email must belong to an active employee'
+            })
+        }
 
-    } 
     const [editedRows]=await User.update({
         universityId,
+        employeeId: employee?.getDataValue('employeeId') ?? null,
         firstName,
         lastName,
-        email,
+        email: normalizedEmail,
         area,
         fk_role
     },{where:{userId:convertedId}})
@@ -129,6 +171,11 @@ const FullfilUser=async (req:Request,res:Response)=>{
         })}
         const foundUser=await User.findByPk(convertedId)
         if(!foundUser)return res.status(204).json({message:"User not found"})
+        if (foundUser.getDataValue('employeeId') && universityId) {
+            return res.status(400).json({
+                message: 'An employee account cannot have universityId'
+            })
+        }
         if(IsUserComplete(foundUser)){
             return res.status(403).json({
                 message:"This user is already complete you cannot edit it"
@@ -160,12 +207,45 @@ const LogUser= async (req:Request,res:Response)=>{
     
     try {
         const {sub,email,given_name,family_name}=res.locals.user
-        const userSearch=await User.findOne({
-                where:{
-                    googleUserId:sub
-                }
+        if (!sub || !email) {
+            return res.status(401).json({
+                message: 'Google account did not provide the required identity'
             })
+        }
+
+        const normalizedEmail = String(email).trim().toLowerCase()
+        const userSearch=await User.findOne({
+            where:{
+                googleUserId:sub
+            },
+            include: REPORT_INCLUDES
+        })
+        const employee = await Employee.findOne({
+            where: {
+                email: normalizedEmail,
+                status: true
+            }
+        })
         if(userSearch){
+            const linkedUniversityId = userSearch.getDataValue('universityId')
+            const linkedEmployeeId = userSearch.getDataValue('employeeId')
+            const matchedEmployeeId = employee?.getDataValue('employeeId')
+            if (linkedEmployeeId && !employee) {
+                return res.status(403).json({
+                    message: 'The employee assigned to this user is inactive or not registered'
+                })
+            }
+            if (linkedEmployeeId && matchedEmployeeId && Number(linkedEmployeeId) !== Number(matchedEmployeeId)) {
+                return res.status(409).json({
+                    message: 'Google account does not match the employee assigned to this user'
+                })
+            }
+            if (employee && !linkedUniversityId && !linkedEmployeeId) {
+                await userSearch.update({
+                    employeeId: employee.getDataValue('employeeId'),
+                    email: normalizedEmail
+                })
+            }
             const payload:JwtPayloadContent={
                 userId:userSearch.getDataValue('userId'),
                 role:userSearch.getDataValue('fk_role')
@@ -195,19 +275,42 @@ const LogUser= async (req:Request,res:Response)=>{
 
             return res.status(200).json({
                 message:"User Logged in",
-                isUserComplete:isComplete
+                isUserComplete:isComplete,
+                employee: employee
+                    ? {
+                        employeeId: employee.getDataValue('employeeId'),
+                        firstName: employee.getDataValue('firstName'),
+                        lastName: employee.getDataValue('lastName'),
+                        email: employee.getDataValue('email')
+                    }
+                    : null
             })
         }else{
-            const newUser= await User.create({
-            firstName:given_name,
-            lastName:family_name,
-            googleUserId:sub,
-            email,
-            area:null,
-            fk_role:1
-        })
+            const employeeId = employee?.getDataValue('employeeId') ?? null
+            const linkedUser = employeeId
+                ? await User.findOne({
+                    where: { employeeId }
+                })
+                : null
+            if (employeeId && linkedUser && linkedUser.getDataValue('googleUserId') !== sub) {
+                return res.status(409).json({
+                    message: 'This employee is already linked to another Google account'
+                })
+            }
+
+            const newUser = linkedUser || await User.create({
+                firstName:given_name || employee?.getDataValue('firstName') || 'Pending',
+                lastName:family_name || employee?.getDataValue('lastName') || 'User',
+                googleUserId:sub,
+                employeeId,
+                email:normalizedEmail,
+                area:employee?.getDataValue('area') ?? null,
+                fk_role:1
+            })
             await createHistoryLog({
-                historyDescription: `Se creó el usuario ${given_name} ${family_name}.`,
+                historyDescription: employeeId
+                    ? `Se vinculó la cuenta de Google del empleado ${employeeId}.`
+                    : `Se creó una cuenta estudiantil pendiente de matrícula.`,
                 actionType: 'CREATE',
                 userId: (newUser as any).userId,
             });
@@ -236,7 +339,15 @@ const LogUser= async (req:Request,res:Response)=>{
             })
             return res.status(200).json({
                 message:"User Created",
-                isUserComplete:isComplete
+                isUserComplete:isComplete,
+                employee: employee
+                    ? {
+                        employeeId,
+                        firstName: employee.getDataValue('firstName'),
+                        lastName: employee.getDataValue('lastName'),
+                        email: employee.getDataValue('email')
+                    }
+                    : null
             })
 
         }
@@ -445,14 +556,15 @@ const WhoAmI=(req:Request,res:Response)=>{
 
 function IsUserComplete(user:InstanceType<typeof User>):boolean {
     const userData=user.toJSON()
-    for(const value of Object.values(userData)){
-        if(value==null){
-            return false
-        }
-    }
-    return true
+    const hasRequiredIdentity = Boolean(userData.universityId || userData.employeeId)
+    const requiredFields = [
+        userData.firstName,
+        userData.lastName,
+        userData.email,
+        userData.fk_role
+    ]
 
-
+    return hasRequiredIdentity && requiredFields.every(Boolean)
 }
 async function ShowUser(id:number,res:Response){
     
@@ -476,6 +588,7 @@ const ShowAllUsers = async (req: Request, res: Response) => {
             userId,
             googleUserId,
             universityId,
+            employeeId,
             firstName,
             lastName,
             userStatus,
