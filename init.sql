@@ -16,6 +16,18 @@ CREATE TABLE Permission (
     permissionDescription varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE Employee (
+    employeeId INT PRIMARY KEY,
+    firstName varchar(255) NOT NULL,
+    lastName varchar(255) NOT NULL,
+    employeeType varchar(255),
+    email varchar(100) NOT NULL UNIQUE,
+    area varchar(255),
+    status BOOLEAN NOT NULL DEFAULT TRUE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE Role_Permission(
     RPId INT AUTO_INCREMENT PRIMARY KEY,
     fk_role INT NOT NULL,
@@ -24,16 +36,22 @@ CREATE TABLE Role_Permission(
 
 CREATE TABLE User (
     userId INT AUTO_INCREMENT PRIMARY KEY,
-    googleUserId VARCHAR(50) NOT NULL,
-    universityId VARCHAR(50),
-    firstName varchar(50) NOT NULL,
-    lastName varchar(50) NOT NULL,
+    googleUserId VARCHAR(255) NOT NULL UNIQUE,
+    universityId VARCHAR(255) UNIQUE,
+    employeeId INT UNIQUE,
+    firstName varchar(255) NOT NULL,
+    lastName varchar(255) NOT NULL,
     userStatus Boolean DEFAULT TRUE,
-    email varchar(100) NOT NULL,
-    area varchar(10),
+    email varchar(100) NOT NULL UNIQUE,
+    area varchar(255),
     fk_role INT,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_employee
+        FOREIGN KEY (employeeId)
+        REFERENCES Employee(employeeId)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE UserSession (
@@ -170,7 +188,7 @@ ALTER TABLE Item
         ON UPDATE CASCADE,
     ADD CONSTRAINT fk_item_user
         FOREIGN KEY (fk_user_responsible)
-        REFERENCES User(userId)
+        REFERENCES Employee(employeeId)
         ON DELETE SET NULL
         ON UPDATE CASCADE,
     ADD CONSTRAINT fk_item_place
