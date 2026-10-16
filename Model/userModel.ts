@@ -10,10 +10,12 @@ export const User = mySequelize.define("User",{
     },
     googleUserId:{
         type:DataTypes.STRING,
-        allowNull:false
+        allowNull:false,
+        unique:true
     },
     universityId:{
-        type:DataTypes.STRING
+        type:DataTypes.STRING,
+        unique:true
     },
     firstName:{
         type: DataTypes.STRING,
@@ -29,10 +31,22 @@ export const User = mySequelize.define("User",{
     },
     email:{
         type:DataTypes.STRING,
-        allowNull:false
+        allowNull:false,
+        unique:true
     },
     area:{
         type:DataTypes.STRING
+    },
+    employeeId:{
+        type:DataTypes.INTEGER,
+        allowNull:true,
+        unique:true,
+        references:{
+            model:'Employee',
+            key:'employeeId'
+        },
+        onUpdate:'CASCADE',
+        onDelete:'SET NULL'
     },
     fk_role:{
         type: DataTypes.INTEGER,
@@ -53,5 +67,15 @@ export const User = mySequelize.define("User",{
 
 },{
     tableName:'User',
-    timestamps:false
-});
+timestamps:false,
+validate: {
+    exclusiveInstitutionalIdentity(this: any) {
+        const universityId = this.getDataValue('universityId')
+        const employeeId = this.getDataValue('employeeId')
+
+        if (universityId && employeeId) {
+            throw new Error('A user cannot have both universityId and employeeId')
+        }
+    }
+}
+ });
