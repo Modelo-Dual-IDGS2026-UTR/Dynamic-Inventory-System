@@ -22,17 +22,7 @@ export interface CreateReportPayload {
   status: ReportStatus;
   priority: ReportPriority;
   dueDate: string;
-  fk_user: {
-    id: number;
-    firstName: string;
-    lastName: string;
-  };
-  fk_item: {
-    id: number;
-    itemName: string;
-  };
-  fk_place: {
-    id: number;
-    name: string;
-  };
+  fk_user: number;
+  fk_item: number;
+  fk_place: number;
 }

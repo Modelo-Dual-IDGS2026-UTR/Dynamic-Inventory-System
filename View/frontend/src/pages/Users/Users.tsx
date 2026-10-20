@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { useAuth, type AuthUser } from '../../utils/auth';
+import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { getAdminUsers, updateUserRole, type AdminUser } from '../../services/UserServices';
+import { useAuth } from '../../utils/auth';
 import styles from './Users.module.css';
 
 const roleLabels: Record<number, string> = {
@@ -8,37 +10,33 @@ const roleLabels: Record<number, string> = {
   3: 'Usuario básico',
 };
 
-const demoAccounts: AuthUser[] = [
-  {
-    userId: 9001,
-    firstName: 'María',
-    lastName: 'Vargas',
-    email: 'maria.vargas@demo.utr.edu.mx',
-    userStatus: true,
-    area: 'Mantenimiento',
-    fk_role: 3,
-  },
-  {
-    userId: 9002,
-    firstName: 'Andrés',
-    lastName: 'Gómez',
-    email: 'andres.gomez@demo.utr.edu.mx',
-    userStatus: true,
-    area: 'Tecnologías de la Información',
-    fk_role: 3,
-  },
-];
-
 export const Users: React.FC = () => {
-  const { currentUser, setDemoRole } = useAuth();
-  const [accounts, setAccounts] = useState<AuthUser[]>(demoAccounts);
+  const { currentUser } = useAuth();
+  const [accounts, setAccounts] = useState<AdminUser[]>([]);
   const [message, setMessage] = useState('');
-  const allAccounts = useMemo(() => currentUser ? [currentUser, ...accounts.filter((account) => account.userId !== currentUser.userId)] : accounts, [currentUser, accounts]);
+  const [error, setError] = useState('');
 
-  const changeRole = (account: AuthUser, role: number) => {
-    setDemoRole(account.userId, role);
-    setAccounts((currentAccounts) => currentAccounts.map((item) => item.userId === account.userId ? { ...item, fk_role: role } : item));
-    setMessage(`El rol de ${account.firstName} se cambió a ${roleLabels[role]} en modo demostración.`);
+  useEffect(() => {
+    if (currentUser?.fk_role !== 1) return;
+    getAdminUsers().then(setAccounts).catch((loadError) => {
+      setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar los usuarios.');
+    });
+  }, [currentUser]);
+
+  if (currentUser?.fk_role !== 1) {
+    return <Navigate to="/Dashboard" replace />;
+  }
+
+  const changeRole = async (account: AdminUser, role: number) => {
+    setMessage('');
+    setError('');
+    try {
+      await updateUserRole(account.userId, role);
+      setAccounts((currentAccounts) => currentAccounts.map((item) => item.userId === account.userId ? { ...item, fk_role: role } : item));
+      setMessage(`El rol de ${account.firstName} se cambió a ${roleLabels[role]}.`);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : 'No se pudo actualizar el rol.');
+    }
   };
 
   return (
@@ -46,19 +44,20 @@ export const Users: React.FC = () => {
       <header className={styles.header}>
         <div>
           <h1>Administración de usuarios</h1>
-          <p>Asigna permisos para probar las vistas de usuario y administrador.</p>
+          <p>Consulta permisos y asigna roles persistentes a los usuarios.</p>
         </div>
-        <span className={styles.demoBadge}>Modo demostración</span>
+          <span className={styles.demoBadge}>Panel real</span>
       </header>
       <div className={styles.warning}>
-        Estos cambios solo se guardan en este navegador. El backend aún no tiene un endpoint para cambiar roles.
+          Los cambios se guardan en la base de datos. No puedes cambiar tu propio rol.
       </div>
       {message && <div className={styles.success}>{message}</div>}
+      {error && <div className={styles.warning}>{error}</div>}
       <div className={styles.tableCard}>
         <table>
           <thead><tr><th>Usuario</th><th>Correo</th><th>Área</th><th>Rol</th><th>Permisos</th></tr></thead>
           <tbody>
-            {allAccounts.map((account) => (
+            {accounts.map((account) => (
               <tr key={account.userId}>
                 <td><strong>{account.firstName} {account.lastName}</strong></td>
                 <td>{account.email}</td>
@@ -70,7 +69,11 @@ export const Users: React.FC = () => {
                     <option value={3}>Usuario básico</option>
                   </select>
                 </td>
-                <td><span className={account.fk_role === 3 ? styles.userBadge : styles.adminBadge}>{roleLabels[account.fk_role]}</span></td>
+                <td>
+                  {account.permissions.length > 0
+                    ? account.permissions.map((permission) => permission.permissionName).join(', ')
+                    : 'Sin permisos asignados'}
+                </td>
               </tr>
             ))}
           </tbody>

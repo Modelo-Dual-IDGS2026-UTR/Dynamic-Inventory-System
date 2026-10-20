@@ -83,6 +83,42 @@
   width: 100%;
 }
 
+.tableSection {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  min-height: 420px;
+  overflow-x: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.tableToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.addItemBtn {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.addItemBtn:hover,
+.addItemBtn:focus-visible {
+  background: #b91c1c;
+}
+
 .tablePlaceholderCard {
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
@@ -325,7 +361,8 @@ tbody tr:focus-visible {
 }
 
 .reportForm select,
-.reportForm textarea {
+.reportForm textarea,
+.reportForm input {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font: inherit;
@@ -334,6 +371,12 @@ tbody tr:focus-visible {
 
 .reportForm textarea {
   resize: vertical;
+}
+
+.formHint {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: -8px 0 12px;
 }
 
 .reportActions {

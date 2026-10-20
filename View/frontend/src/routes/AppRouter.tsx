@@ -19,6 +19,9 @@ export const AppRouter = () => {
                     <Route index element={<Inventory />} />
                     <Route path="reportes" element={<Reports />} />
                     <Route path="solicitudes" element={<Requests />} />
+                    <Route path="solicitudes/usuario" element={<Requests view="usuario" />} />
+                    <Route path="solicitudes/admin" element={<Requests view="admin" />} />
+                    <Route path="solicitudes/superadmin" element={<Requests view="superadmin" />} />
                     <Route path="usuarios" element={<Users />} />
                 </Route>
             </Route>

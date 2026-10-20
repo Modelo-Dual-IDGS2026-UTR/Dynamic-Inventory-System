@@ -19,9 +19,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
   const menuItems = [
     { name: 'Inventario', path: '/Dashboard', icon: '📋' },
     { name: 'Reportes', path: '/Dashboard/reportes', icon: '📊' },
-    { name: 'Solicitudes', path: '/Dashboard/solicitudes', icon: '📥' },
-    { name: 'Usuarios', path: '/Dashboard/usuarios', icon: '👥' },
+    { name: 'Solicitudes (usuario)', path: '/Dashboard/solicitudes/usuario', icon: '📨', role: 3 },
+    { name: 'Solicitudes (admin)', path: '/Dashboard/solicitudes/admin', icon: '📨', role: 2 },
+    { name: 'Solicitudes (superadmin)', path: '/Dashboard/solicitudes/superadmin', icon: '📨', role: 1 },
+    { name: 'Usuarios', path: '/Dashboard/usuarios', icon: '👥', role: 1 },
   ];
+  const visibleMenuItems = menuItems.filter((item) => !('role' in item) || item.role === currentUser?.fk_role);
 
   return (
     <>
@@ -50,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
         {/* Menú de Navegación */}
         <nav className={styles.navMenu}>
           <ul className={styles.menuList}>
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item) => {
               const isActive = location.pathname === item.path;
               return (
                 <li key={item.name}>
@@ -82,7 +85,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
             <div className={styles.accountMenu}>
               <strong>{currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Cuenta'}</strong>
               <span>{currentUser?.email}</span>
-              <button type="button" onClick={() => navigate('/Dashboard/usuarios')}>Administrar usuarios</button>
+              {currentUser?.fk_role === 1 && (
+                <button type="button" onClick={() => navigate('/Dashboard/usuarios')}>Administrar usuarios</button>
+              )}
               <button type="button" onClick={() => void logout().then(() => navigate('/login'))}>Cerrar sesión</button>
             </div>
           )}

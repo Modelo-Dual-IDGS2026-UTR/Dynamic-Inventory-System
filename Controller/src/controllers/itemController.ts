@@ -19,7 +19,22 @@ const CreateItem=async (req:Request,res:Response)=>{
         })
     }
 
-        const existingWhere: WhereOptions = {};
+    const [responsibleUser, place] = await Promise.all([
+        User.findByPk(fk_user_responsible),
+        Place.findByPk(fk_place),
+    ]);
+    if (!responsibleUser) {
+        return res.status(404).json({
+            message: `The responsible user ${fk_user_responsible} does not exist`,
+        });
+    }
+    if (!place) {
+        return res.status(404).json({
+            message: `The place ${fk_place} does not exist. Use an existing place ID`,
+        });
+    }
+
+    const existingWhere: WhereOptions = {};
 
         if (codeBar) {
             // Si hay código de barras, esa es la regla principal de duplicado
@@ -58,9 +73,9 @@ const CreateItem=async (req:Request,res:Response)=>{
             message:"item succesfully created"
         })
     } catch (error) {
+        console.error('Error creating item:', error);
         return res.status(500).json({
-            message:"Internal server error, not your fault :D",
-            error:error
+            message:"Internal server error while creating the item"
         })
         
 }

@@ -1,4 +1,4 @@
-import { User } from "@dis/model";
+import { Permission, RolePermission, User } from "@dis/model";
 import type { Response,Request } from "express";
 import { GenerateJWT, type jwtPayloadContent } from "../middleware/jwtUtils.js";
 
@@ -213,6 +213,7 @@ const WhoAmI=(req:Request,res:Response)=>{
             message:"no ID recived"
         })
     }
+
     try {
         ShowUser(userId,res)
     } catch (error) {
@@ -222,6 +223,56 @@ const WhoAmI=(req:Request,res:Response)=>{
         })
     }
 }
+
+const ListUsers = async (_req: Request, res: Response) => {
+    try {
+        const users = await User.findAll({
+            include: [{
+                model: RolePermission,
+                as: 'user_permissions',
+                required: false,
+                include: [{
+                    model: Permission,
+                    as: 'related_permission',
+                    attributes: ['permissionId', 'permissionName', 'permissionDescription'],
+                }],
+            }],
+        });
+        return res.status(200).json(users.map((user) => {
+            const data = user.toJSON() as Record<string, unknown> & {
+                user_permissions?: Array<{ related_permission?: unknown }>;
+            };
+            return {
+                ...data,
+                permissions: (data.user_permissions ?? [])
+                    .map((entry) => entry.related_permission)
+                    .filter(Boolean),
+                user_permissions: undefined,
+            };
+        }));
+    } catch (error) {
+        return res.status(500).json({ message: 'Unable to load users', error });
+    }
+};
+
+const SetUserRole = async (req: Request, res: Response) => {
+    const userId = Number(req.params.userId);
+    const role = Number(req.body?.fk_role);
+    const authUserId = res.locals.jwtPayloadContent?.userId;
+    if (!Number.isInteger(userId) || userId <= 0 || !Number.isInteger(role) || role < 1 || role > 3) {
+        return res.status(400).json({ message: 'A valid user ID and role are required' });
+    }
+    if (userId === authUserId) {
+        return res.status(400).json({ message: 'You cannot change your own role' });
+    }
+    try {
+        const [updatedRows] = await User.update({ fk_role: role }, { where: { userId } });
+        if (!updatedRows) return res.status(404).json({ message: 'User not found' });
+        return res.status(200).json({ message: 'User role updated' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Unable to update user role', error });
+    }
+};
 
 
 function IsUserComplete(user:InstanceType<typeof User>):boolean {
@@ -254,5 +305,7 @@ export const userController={
     UpdateUser,
     WhoAmI,
     SearchUserById,
-    FullfilUser
-}
+    FullfilUser,
+    ListUsers,
+    SetUserRole
+};

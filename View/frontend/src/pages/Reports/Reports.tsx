@@ -117,19 +117,9 @@ export const Reports: React.FC = () => {
         status: 1,
         priority: reportPriority,
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        fk_user: {
-          id: currentUser.userId,
-          firstName: currentUser.firstName,
-          lastName: currentUser.lastName,
-        },
-        fk_item: {
-          id: selectedItem.itemId,
-          itemName: selectedItem.itemName,
-        },
-        fk_place: {
-          id: selectedItem.fk_place.placeId,
-          name: selectedItem.fk_place.placeName,
-        },
+        fk_user: currentUser.userId,
+        fk_item: selectedItem.itemId,
+        fk_place: selectedItem.fk_place.placeId ?? (selectedItem.fk_place as unknown as { id: number }).id,
       });
       await loadReports();
       setIsSubmitting(false);

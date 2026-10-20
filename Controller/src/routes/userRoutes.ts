@@ -16,9 +16,12 @@ userRouter.get('/login',VerifyGoogleToken,userController.LogUser)
 
 userRouter.get('/find-user/:userId',VerifyJWT(),userController.SearchUserById)
 
+userRouter.get('/admin-users',VerifyJWT(1),userController.ListUsers)
+
+userRouter.patch('/set-role/:userId',VerifyJWT(1),userController.SetUserRole)
+
 userRouter.get('/me',VerifyJWT(),userController.WhoAmI)
 
 userRouter.put('/update-user/:userId',VerifyJWT(1),userController.UpdateUser)
 
 userRouter.put('/complete-user',VerifyJWT(),userController.FullfilUser)
-

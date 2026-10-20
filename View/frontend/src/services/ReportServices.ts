@@ -21,7 +21,7 @@ function normalizeReport(data: ApiReport): Report {
     dueDate: data.dueDate ?? '',
     createdAt: data.createdAt ?? '',
     updatedAt: data.updatedAt ?? '',
-    fk_user_creator: data.fk_user_creator ?? null,
+    fk_user_creator: data.fk_user_creator ?? (data as ApiReport & { fk_user?: number }).fk_user ?? null,
     fk_user_assigned: data.fk_user_assigned ?? null,
     xfk_item: data.xfk_item ?? item ?? null,
     fk_place: data.fk_place ?? null,
@@ -35,7 +35,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: 'include',
   });
   if (!response.ok) {
-    throw new Error(`No se pudo completar la operación (${response.status})`);
+    let message = `No se pudo completar la operación (${response.status})`;
+    try {
+      const errorBody = await response.json() as { message?: unknown };
+      if (typeof errorBody.message === 'string' && errorBody.message.trim()) {
+        message = errorBody.message;
+      }
+    } catch {
+      // Keep the status-based message when the server response is not JSON.
+    }
+    throw new Error(message);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -50,7 +59,7 @@ function listFromResponse(data: unknown): ApiReport[] {
 }
 
 export async function createReport(payload: CreateReportPayload): Promise<Report> {
-  const data = await request<ApiReport>('/reports/new-report/', {
+  const data = await request<ApiReport>('/report/new-report', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -58,31 +67,31 @@ export async function createReport(payload: CreateReportPayload): Promise<Report
 }
 
 export async function getUserReports(userId: number): Promise<Report[]> {
-  const data = await request<unknown>(`/reports/user-reports/${userId}`);
+  const data = await request<unknown>(`/report/user-reports/${userId}`);
   return listFromResponse(data).map(normalizeReport);
 }
 
 export async function getAllReports(): Promise<Report[]> {
-  const data = await request<unknown>('/reports/all-reports/');
+  const data = await request<unknown>('/report/all-reports');
   return listFromResponse(data).map(normalizeReport);
 }
 
 export async function updateReportStatus(reportId: number, status: ReportStatus): Promise<void> {
-  await request(`/reports/set-status/${reportId}`, {
+  await request(`/report/set-status/${reportId}`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
 }
 
 export async function updateReportPriority(reportId: number, reportPriority: ReportPriority): Promise<void> {
-  await request(`/reports/set-priority/${reportId}`, {
+  await request(`/report/set-priority/${reportId}`, {
     method: 'PATCH',
     body: JSON.stringify({ reportPriority }),
   });
 }
 
 export async function updateReportDueDate(reportId: number, dueDate: string): Promise<void> {
-  await request(`/reports/set-due/${reportId}`, {
+  await request(`/report/set-due/${reportId}`, {
     method: 'PATCH',
     body: JSON.stringify({ dueDate }),
   });

@@ -48,6 +48,11 @@ export async function getUserRequests(userId: number): Promise<InventoryRequest[
   return listFromResponse(data).map(normalizeRequest);
 }
 
+export async function getAllRequests(): Promise<InventoryRequest[]> {
+  const data = await request<unknown>('/request/all-requests/');
+  return listFromResponse(data).map(normalizeRequest);
+}
+
 export async function getRequest(requestId: number): Promise<InventoryRequest> {
   const data = await request<ApiRequest>(`/request/one-request/${requestId}`);
   return normalizeRequest(data);

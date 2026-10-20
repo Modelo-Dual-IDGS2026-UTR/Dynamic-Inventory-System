@@ -45,6 +45,9 @@ app.use(cors(corsOptions));
 
 app.use('/api/user',routes.userRouter)
 app.use('/api/item',routes.itemRouter)
+app.use('/api/request', routes.requestRouter)
+app.use('/api/post', routes.requestRouter)
+app.use('/api/report', routes.reportRouter)
 
 
 // Endpoint GET de prueba

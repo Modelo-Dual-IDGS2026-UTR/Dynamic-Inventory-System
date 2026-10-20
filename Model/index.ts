@@ -71,12 +71,12 @@ const setupAssociations=()=>{
     User.hasMany(Report,{
         foreignKey: 'fk_user',
         sourceKey: 'userId',
-        as: 'user_reports'
+        as: 'created_reports'
     });
     Report.belongsTo(User,{
         foreignKey: 'fk_user',
         targetKey: 'userId',
-        as: 'related_user'
+        as: 'report_creator'
     });
     Place.hasMany(Report,{
         foreignKey: 'fk_place',
@@ -190,6 +190,11 @@ const setupAssociations=()=>{
         foreignKey: 'fk_notified',
         targetKey: 'userId',
         as: 'notified_user'
+    });
+    User.hasMany(RolePermission, {
+        foreignKey: 'fk_role',
+        sourceKey: 'fk_role',
+        as: 'user_permissions'
     });
 }
 

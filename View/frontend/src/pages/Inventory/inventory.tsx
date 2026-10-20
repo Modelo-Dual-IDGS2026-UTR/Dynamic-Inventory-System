@@ -5,7 +5,7 @@ import styles from './Inventario.module.css';
 import ItemTable from './ItemTable';
 import CardGrid from './CardGrid';
 import type { Item } from '../../types';
-import { getItems } from '../../services/ItemServices';
+import { createItem, getItems } from '../../services/ItemServices';
 import { createReport } from '../../services/ReportServices';
 import { useAuth } from '../../utils/auth';
 import type { ReportPriority } from '../../types';
@@ -29,6 +29,17 @@ export const Inventory: React.FC = () => {
   const [reportDetails, setReportDetails] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [isSubmittingItem, setIsSubmittingItem] = useState(false);
+  const [itemMessage, setItemMessage] = useState('');
+  const [newItem, setNewItem] = useState({
+    itemName: '',
+    itemDescription: '',
+    cost: '',
+    manufacter: '',
+    codeBar: '',
+    fk_place: '',
+  });
 
   useEffect(() => {
     getItems().then(setItems);
@@ -72,7 +83,9 @@ export const Inventory: React.FC = () => {
 
   const submitReport = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedItem || !currentUser || !reportReason || !reportDetails.trim()) {
+    const placeId = selectedItem?.fk_place?.placeId
+      ?? (selectedItem?.fk_place as unknown as { id?: number } | undefined)?.id;
+    if (!selectedItem || !currentUser || !placeId || !reportReason || !reportDetails.trim()) {
       setReportMessage('Selecciona un motivo y describe el problema.');
       return;
     }
@@ -85,19 +98,9 @@ export const Inventory: React.FC = () => {
         status: 1,
         priority: reportPriority,
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        fk_user: {
-          id: currentUser.userId,
-          firstName: currentUser.firstName,
-          lastName: currentUser.lastName,
-        },
-        fk_item: {
-          id: selectedItem.itemId,
-          itemName: selectedItem.itemName,
-        },
-        fk_place: {
-          id: selectedItem.fk_place.placeId,
-          name: selectedItem.fk_place.placeName,
-        },
+        fk_user: currentUser.userId,
+        fk_item: selectedItem.itemId,
+        fk_place: placeId,
       });
       setReportMessage('Reporte enviado correctamente.');
       setReportReason('');
@@ -106,6 +109,64 @@ export const Inventory: React.FC = () => {
       setReportMessage(submitError instanceof Error ? submitError.message : 'No se pudo enviar el reporte.');
     } finally {
       setIsSubmittingReport(false);
+    }
+  };
+
+  const closeItemModal = () => {
+    if (isSubmittingItem) return;
+    setIsItemModalOpen(false);
+    setItemMessage('');
+    setNewItem({
+      itemName: '',
+      itemDescription: '',
+      cost: '',
+      manufacter: '',
+      codeBar: '',
+      fk_place: '',
+    });
+  };
+
+  const submitItem = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!currentUser) {
+      setItemMessage('Necesitas iniciar sesión para crear un artículo.');
+      return;
+    }
+
+    const placeId = Number(newItem.fk_place);
+    const cost = Number(newItem.cost);
+    if (!Number.isInteger(placeId) || placeId <= 0 || !Number.isFinite(cost) || cost <= 0) {
+      setItemMessage('El costo y el ID del lugar deben ser números mayores que cero.');
+      return;
+    }
+
+    setIsSubmittingItem(true);
+    setItemMessage('');
+    try {
+      await createItem({
+        itemName: newItem.itemName.trim(),
+        itemDescription: newItem.itemDescription.trim(),
+        cost,
+        manufacter: newItem.manufacter.trim(),
+        codeBar: newItem.codeBar.trim(),
+        category: 'No Category',
+        fk_user_responsible: currentUser.userId,
+        fk_place: placeId,
+      });
+      setItems(await getItems());
+      setIsItemModalOpen(false);
+      setNewItem({
+        itemName: '',
+        itemDescription: '',
+        cost: '',
+        manufacter: '',
+        codeBar: '',
+        fk_place: '',
+      });
+    } catch (createError) {
+      setItemMessage(createError instanceof Error ? createError.message : 'No se pudo crear el artículo.');
+    } finally {
+      setIsSubmittingItem(false);
     }
   };
 
@@ -132,7 +193,22 @@ export const Inventory: React.FC = () => {
 
       <div className={styles.dataContainer}>
         {viewType === 'tabla' ? (
-          <div className={styles.tablePlaceholderCard}>
+          <div className={styles.tableSection}>
+            <div className={styles.tableToolbar}>
+              <span>Inventario</span>
+              <button
+                className={styles.addItemBtn}
+                type="button"
+                onClick={() => {
+                  setItemMessage('');
+                  setIsItemModalOpen(true);
+                }}
+                aria-label="Agregar artículo de prueba"
+                title="Agregar artículo de prueba"
+              >
+                +
+              </button>
+            </div>
             <ItemTable items={filteredItems} onSelectItem={setSelectedItem} />
           </div>
         ) : (
@@ -160,6 +236,43 @@ export const Inventory: React.FC = () => {
                 <div className={styles.historyCard}><h3>Historial</h3></div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isItemModalOpen && (
+        <div className={styles.modalOverlay} onClick={closeItemModal}>
+          <div className={styles.reportModal} onClick={(event) => event.stopPropagation()}>
+            <button className={styles.closeBtn} type="button" onClick={closeItemModal} aria-label="Cerrar formulario">
+              ✕
+            </button>
+            <h2>Agregar artículo de prueba</h2>
+            <p className={styles.formHint}>El responsable será tu usuario actual. Usa un ID de lugar existente en la BD.</p>
+            <form className={styles.reportForm} onSubmit={submitItem}>
+              <label htmlFor="itemName">Nombre</label>
+              <input id="itemName" required maxLength={30} value={newItem.itemName} onChange={(event) => setNewItem({ ...newItem, itemName: event.target.value })} />
+              <label htmlFor="itemDescription">Descripción</label>
+              <textarea id="itemDescription" required maxLength={255} rows={3} value={newItem.itemDescription} onChange={(event) => setNewItem({ ...newItem, itemDescription: event.target.value })} />
+              <label htmlFor="itemCost">Costo</label>
+              <input id="itemCost" required min="1" step="1" type="number" value={newItem.cost} onChange={(event) => setNewItem({ ...newItem, cost: event.target.value })} />
+              <label htmlFor="itemManufacturer">Fabricante</label>
+              <input id="itemManufacturer" required maxLength={25} value={newItem.manufacter} onChange={(event) => setNewItem({ ...newItem, manufacter: event.target.value })} />
+              <label htmlFor="itemCodeBar">Código de barras</label>
+              <input id="itemCodeBar" maxLength={25} value={newItem.codeBar} onChange={(event) => setNewItem({ ...newItem, codeBar: event.target.value })} />
+              <label htmlFor="itemCategory">Categoría</label>
+              <select id="itemCategory" value="No Category" disabled>
+                <option value="No Category">Sin categoría</option>
+              </select>
+              <label htmlFor="itemPlace">ID del lugar</label>
+              <input id="itemPlace" required min="1" step="1" type="number" value={newItem.fk_place} onChange={(event) => setNewItem({ ...newItem, fk_place: event.target.value })} />
+              {itemMessage && <p className={styles.reportMessage}>{itemMessage}</p>}
+              <div className={styles.reportActions}>
+                <button className={styles.cancelBtn} type="button" onClick={closeItemModal}>Cancelar</button>
+                <button className={styles.submitReportBtn} type="submit" disabled={isSubmittingItem}>
+                  {isSubmittingItem ? 'Guardando...' : 'Guardar artículo'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
