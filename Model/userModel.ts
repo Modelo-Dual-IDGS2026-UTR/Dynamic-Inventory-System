@@ -32,7 +32,10 @@ export const User = mySequelize.define("User",{
     email:{
         type:DataTypes.STRING,
         allowNull:false,
-        unique:true
+        unique:true,
+        validate:{
+            isEmail:true
+        }
     },
     area:{
         type:DataTypes.STRING
