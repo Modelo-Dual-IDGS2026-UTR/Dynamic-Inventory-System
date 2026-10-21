@@ -1,6 +1,8 @@
 import { 
     importEmployees,
-
+    ShowAllEmployees,
+    CreateEmployee,
+    SearchEmployeeById
 } from "../controllers/employeeController.js";
 import  express  from "express";
 export const employeeRouter=express.Router();
@@ -20,8 +22,20 @@ const upload = multer({
     }
 })
 
-employeeRouter.post(
-    '/import',
-    upload.single('file'),
-    importEmployees
+employeeRouter.post('/import-employees', upload.single('file'), importEmployees
 );
+
+employeeRouter.get('/all-employees', ShowAllEmployees);
+
+employeeRouter.get('/find-employee/:employeeId', SearchEmployeeById);
+
+employeeRouter.post('/create-employee', CreateEmployee);
+
+/* employeeRouter.put('/update-user/:userId', );
+
+
+
+employeeRouter.patch('/change-status/:userId',);
+
+employeeRouter.delete('/delete-user/:userId',);
+ */

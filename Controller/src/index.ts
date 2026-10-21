@@ -12,7 +12,8 @@ import {
     categoryRouter,
     placeRouter,
     historyRouter,
-    notificationRouter
+    notificationRouter,
+    employeeRouter
 } from './routes/index.js'
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -65,6 +66,7 @@ app.use('/api/category', categoryRouter);
 app.use('/api/places', placeRouter);
 app.use('/api/history', historyRouter);
 app.use('/api/notification', notificationRouter);
+app.use('/api/employee', employeeRouter);
 // Endpoint GET de prueba
 app.get('/', (req: Request, res: Response) => {
     res.json({ mensaje: '¡Hola, chiquillo! Tu API con TS funciona' });
