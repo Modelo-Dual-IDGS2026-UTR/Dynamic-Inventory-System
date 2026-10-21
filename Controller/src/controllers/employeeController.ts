@@ -305,6 +305,78 @@ const CreateEmployee= async (req:Request,res:Response,)=>{
     }
 };
 
+/* const UpdateEmployee=async (req:Request,res:Response)=>{
+    try {
+        const id=req.params.employeeId
+        const body=req.body||{}
+        const {
+            employeeId,
+            firstName,
+            lastName,
+            employeeType,
+            email,
+            area,
+            status,
+        }=body
+        if(!id){
+            return res.status(400).json({
+            message:"No User ID given"
+        })
+        }
+        const convertedId=Number(id)
+        if(isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0){
+          return res.status(400).json({
+            message:"Invalid User ID"
+        })  
+        }
+        const foundUser = await User.findByPk(convertedId)
+        if (!foundUser) {
+            return res.status(404).json({
+                message: 'User not found'
+            })
+        }
+        const normalizedEmail = email ? String(email).trim().toLowerCase() : foundUser.getDataValue('email')
+        const employee = await Employee.findOne({
+            where: {
+                email: normalizedEmail,
+                status: true
+            }
+        })
+        if (universityId && employee) {
+            return res.status(400).json({
+                message: 'A student account cannot use an employee email'
+            })
+        }
+        if (foundUser.getDataValue('employeeId') && !employee) {
+            return res.status(403).json({
+                message: 'The employee email must belong to an active employee'
+            })
+        }
+
+    const [editedRows]=await User.update({
+        universityId,
+        employeeId: employee?.getDataValue('employeeId') ?? null,
+        firstName,
+        lastName,
+        email: normalizedEmail,
+        area,
+        fk_role
+    },{where:{userId:convertedId}})
+
+    if(editedRows==0){
+        return res.status(204).json({
+            message:"User not found or no changes were made"
+        })
+    }
+    return res.status(200).json({
+        message:"User succefully edited"
+    })
+
+    }catch (error) {
+           throw error;
+    }
+}
+ */
 export {
     importEmployees,
     ShowAllEmployees,

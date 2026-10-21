@@ -31,10 +31,10 @@ employeeRouter.get('/find-employee/:employeeId', SearchEmployeeById);
 
 employeeRouter.post('/create-employee', CreateEmployee);
 
-/* employeeRouter.put('/update-user/:userId', );
+employeeRouter.put('/update-employee/:employeeId', );
 
 
-
+/*
 employeeRouter.patch('/change-status/:userId',);
 
 employeeRouter.delete('/delete-user/:userId',);
