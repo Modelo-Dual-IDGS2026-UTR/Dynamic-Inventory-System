@@ -1,6 +1,7 @@
-employeeId,firstName,lastName,employeeType,email,area,status
-101,Carlos,Mendoza,Tiempo Completo,carlos.mendoza@empresa.com,Desarrollo,true
+IDEmpleado,Nombre/s,Apellidos,Tipo de Empleado,Email,Area,Estado 
+101,Carlos,Mendoza,Tiempo Completo,carlos.mendoza@empresa.com,Desarrollo,ACTIVO
 102,Ana,García,Medio Tiempo,ana.garcia@empresa.com,Recursos Humanos,1
-103,Luis,Hernández,Contratista,luis.hernandez@empresa.com,Sistemas,false
+103,Luis,Hernández,Contratista,luis.hernandez@empresa.com,Sistemas,INACTIVO
 104,María,López,,maria.lopez@empresa.com,Ventas,0
-105,Javier,Torres,Tiempo Completo,javier.torres@empresa.com,,true
+105,Javier,Torres,Tiempo Completo,javier.torres@empresa.com,,ACTIVO
+75511,Emmanuel,Macias Silva,Medio Tiempo,emmanuel.macias@utr.edu.mx,ACTIVO
