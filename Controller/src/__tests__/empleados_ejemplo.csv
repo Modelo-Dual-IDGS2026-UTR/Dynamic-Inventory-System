@@ -1,0 +1,6 @@
+employeeId,firstName,lastName,employeeType,email,area,status
+101,Carlos,Mendoza,Tiempo Completo,carlos.mendoza@empresa.com,Desarrollo,true
+102,Ana,García,Medio Tiempo,ana.garcia@empresa.com,Recursos Humanos,1
+103,Luis,Hernández,Contratista,luis.hernandez@empresa.com,Sistemas,false
+104,María,López,,maria.lopez@empresa.com,Ventas,0
+105,Javier,Torres,Tiempo Completo,javier.torres@empresa.com,,true
