@@ -4,4 +4,4 @@ IDEmpleado,Nombre/s,Apellidos,Tipo de Empleado,Email,Area,Estado
 103,Luis,Hernández,Contratista,luis.hernandez@empresa.com,Sistemas,INACTIVO
 104,María,López,,maria.lopez@empresa.com,Ventas,0
 105,Javier,Torres,Tiempo Completo,javier.torres@empresa.com,,ACTIVO
-75511,Emmanuel,Macias Silva,Medio Tiempo,emmanuel.macias@utr.edu.mx,ACTIVO
+75511,Emmanuel,Macias Silva,Medio Tiempo,emmanuel.macias@utr.edu.mx,Soporte TI,ACTIVO
