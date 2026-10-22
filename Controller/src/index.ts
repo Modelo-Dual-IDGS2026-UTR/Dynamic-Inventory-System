@@ -13,7 +13,8 @@ import {
     placeRouter,
     historyRouter,
     notificationRouter,
-    employeeRouter
+    employeeRouter,
+    requestRouter
 } from './routes/index.js'
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -67,6 +68,7 @@ app.use('/api/places', placeRouter);
 app.use('/api/history', historyRouter);
 app.use('/api/notification', notificationRouter);
 app.use('/api/employee', employeeRouter);
+app.use('/api/request', requestRouter);
 // Endpoint GET de prueba
 app.get('/', (req: Request, res: Response) => {
     res.json({ mensaje: '¡Hola, chiquillo! Tu API con TS funciona' });
@@ -77,6 +79,4 @@ app.use(errorHandler);
 server.listen(PORT, () => {
 
 });
-
-
 

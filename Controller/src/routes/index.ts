@@ -6,6 +6,7 @@ import { placeRouter } from "./placeRoutes.js";
 import { historyRouter } from "./historyRoutes.js";
 import { notificationRouter } from "./notificationRoutes.js";
 import { employeeRouter } from "./employeeRoutes.js";
+import { requestRouter } from "./requestRoutes.js";
 
 export {
     userRouter,
@@ -15,6 +16,6 @@ export {
     placeRouter,
     historyRouter,
     notificationRouter,
-    employeeRouter
+    employeeRouter,
+    requestRouter
 }
-
