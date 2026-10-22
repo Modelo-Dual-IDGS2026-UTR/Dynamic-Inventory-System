@@ -17,15 +17,17 @@ export const Report = mySequelize.define("Report", {
     },
     reportStatus: {
         type: DataTypes.INTEGER,
+        allowNull: false,
         defaultValue: 1
     },
     reportPriority: {
         type: DataTypes.INTEGER,
+        allowNull: false,
         defaultValue: 3
     },
     dueDate: {
         type: DataTypes.DATEONLY,
-        allowNull: true
+        allowNull: false
     },
     fk_user_assigned: {
         type: DataTypes.INTEGER,
