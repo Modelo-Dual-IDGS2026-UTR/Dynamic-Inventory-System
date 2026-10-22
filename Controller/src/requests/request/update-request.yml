@@ -1,0 +1,25 @@
+info:
+  name: update-request
+  type: http
+  seq: 10
+
+http:
+  method: PUT
+  url: http://localhost:3000/api/request/update-request/1
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Solicitud actualizada",
+        "description": "Descripción actualizada",
+        "fk_item": 1,
+        "fk_user": 2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -1,0 +1,26 @@
+info:
+  name: create-request
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/api/request/create-request
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Solicitud de mantenimiento",
+        "description": "Se requiere revisar el equipo",
+        "status": 1,
+        "fk_item": 1,
+        "fk_user": 2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
