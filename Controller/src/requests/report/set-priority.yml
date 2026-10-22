@@ -10,7 +10,7 @@ http:
     type: json
     data: |-
       {
-        "priority": "3"
+        "reportPriority": 3
       }
   auth: inherit
 
