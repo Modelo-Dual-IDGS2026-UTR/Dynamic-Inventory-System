@@ -52,6 +52,20 @@ const formatReport = (reportInstance: any) => {
     };
 };
 
+const parsePositiveId = (value: unknown) => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const isValidDate = (value: unknown) => {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return false;
+    }
+
+    const date = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+};
+
 const CreateReport = async (req: Request, res: Response) => {
     try {
         const {
