@@ -237,6 +237,30 @@ const SearchReportsCreatedUser = async (req: Request, res: Response) => {
     }
 };
 
+const SearchReportsAssignedUser = async (req: Request, res: Response) => {
+    try {
+        const parsedUserId = parsePositiveId(req.params.userId);
+        if (!parsedUserId) {
+            return res.status(400).json({ message: 'A valid User ID is required' });
+        }
+
+        const userExists = await User.findByPk(parsedUserId);
+        if (!userExists) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const foundReports = await Report.findAll({
+            where: { fk_user_assigned: parsedUserId },
+            include: REPORT_INCLUDES,
+            order: [['createdAt', 'DESC']]
+        });
+
+        return res.status(200).json(foundReports.map(formatReport));
+    } catch (error) {
+        throw error;
+    }
+};
+
 const SetReportStatus = async (req: Request, res: Response) => {
     try {
         const {status} = req.body;
@@ -398,6 +422,7 @@ export {
     SearchReportById,
     SearchReports,
     SearchReportsCreatedUser,
+    SearchReportsAssignedUser,
     SetReportStatus,
     SetDueDate,
     setPriority,

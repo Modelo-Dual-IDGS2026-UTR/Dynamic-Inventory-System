@@ -3,6 +3,7 @@ import {
     SearchReportById,
     SearchReports,
     SearchReportsCreatedUser,
+    SearchReportsAssignedUser,
     SetReportStatus,
     SetDueDate,
     setPriority,
@@ -28,7 +29,7 @@ reportRouter.get('/all-reports',  VerifyJWT(2), SearchReports);
 reportRouter.get('/user-reports/:userId',  VerifyJWT(),  SearchReportsCreatedUser);
 
 //Admin & Superadmin
-reportRouter.get('/assigned-reports/:userId',  VerifyJWT(2), SearchReportsCreatedUser);
+reportRouter.get('/assigned-reports/:userId',  VerifyJWT(2), SearchReportsAssignedUser);
 
 //Admin & Superadmin
 reportRouter.patch('/set-status/:reportId',  VerifyJWT(2), SetReportStatus);
