@@ -15,8 +15,6 @@ import { VerifyJWT } from '../middleware/jwtUtils.js';
 import  express  from "express";
 export const reportRouter=express.Router();
 
-//Remember to implement JWT to protect the routes
-
 //Basic, Admin & Superadmin
 reportRouter.post('/new-report', VerifyJWT(), CreateReport);
 
@@ -33,10 +31,10 @@ reportRouter.get('/user-reports/:userId',  VerifyJWT(),  SearchReportsCreatedUse
 reportRouter.get('/assigned-reports/:userId',  VerifyJWT(2), SearchReportsAssignedUser);
 
 //Admin & Superadmin
+reportRouter.patch('/set-status/:reportId',  VerifyJWT(2), SetReportStatus);
 
 //Admin & Superadmin
 reportRouter.patch('/set-assigned/:reportId', VerifyJWT(2), SetAssignedUser);
-reportRouter.patch('/set-status/:reportId',  VerifyJWT(2), SetReportStatus);
 
 //Admin & Superadmin
 reportRouter.patch('/set-due/:reportId',  VerifyJWT(2), SetDueDate);

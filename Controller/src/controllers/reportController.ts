@@ -69,72 +69,90 @@ const isValidDate = (value: unknown) => {
 const CreateReport = async (req: Request, res: Response) => {
     try {
         const {
-            reportName,
-            reportDescription,
-            reportStatus,
-            reportPriority,
+            reportName = req.body.name,
+            reportDescription = req.body.description,
+            reportStatus = req.body.status,
+            reportPriority = req.body.priority,
             dueDate,
             fk_user_assigned,
-            fk_user_creator,
             fk_item,
             fk_place
         } = req.body;
+        const creatorId = res.locals.jwtPayloadContent?.userId;
+        const assignedId = fk_user_assigned == null ? null : parsePositiveId(fk_user_assigned);
+        const itemId = fk_item == null ? null : parsePositiveId(fk_item);
+        const placeId = fk_place == null ? null : parsePositiveId(fk_place);
+        const status = Number(reportStatus);
+        const priority = Number(reportPriority);
 
         if (
-            !reportName ||
-            !reportDescription ||
-            !reportStatus ||
-            !reportPriority ||
-            !dueDate ||
-            !fk_user_assigned ||
-            !fk_user_creator ||
-            !fk_item ||
-            !fk_place
+            typeof reportName !== 'string' ||
+            !reportName.trim() ||
+            typeof reportDescription !== 'string' ||
+            !reportDescription.trim() ||
+            !Number.isInteger(status) ||
+            status < 1 ||
+            status > 3 ||
+            !Number.isInteger(priority) ||
+            priority < 1 ||
+            priority > 3 ||
+            !isValidDate(dueDate) ||
+            !creatorId ||
+            (fk_user_assigned != null && !assignedId) ||
+            (fk_item != null && !itemId) ||
+            (fk_place != null && !placeId)
         ) {
-            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+            return res.status(400).json({ message: 'Invalid or missing report fields' });
         }
 
-        const [item, place] = await Promise.all([
-            Item.findByPk(fk_item),
-            Place.findByPk(fk_place)
+        const [creator, assignedUser, item, place] = await Promise.all([
+            User.findByPk(creatorId),
+            assignedId ? User.findByPk(assignedId) : null,
+            itemId ? Item.findByPk(itemId) : null,
+            placeId ? Place.findByPk(placeId) : null
         ]);
 
-        if (!item) return res.status(404).json({ message: 'Item not found' });
-        if (!place) return res.status(404).json({ message: 'Place not found' });
+        if (!creator) return res.status(404).json({ message: 'Creator user not found' });
+        if (assignedId && !assignedUser) return res.status(404).json({ message: 'Assigned user not found' });
+        if (itemId && !item) return res.status(404).json({ message: 'Item not found' });
+        if (placeId && !place) return res.status(404).json({ message: 'Place not found' });
 
         const newReport = await Report.create({
-            reportName,
-            reportDescription,
-            reportStatus,
-            reportPriority,
+            reportName: reportName.trim(),
+            reportDescription: reportDescription.trim(),
+            reportStatus: status,
+            reportPriority: priority,
             dueDate,
-            fk_user_assigned,
-            fk_user_creator,
-            fk_item,
-            fk_place
+            fk_user_assigned: assignedId,
+            fk_user_creator: creatorId,
+            fk_item: itemId,
+            fk_place: placeId
         });
 
         await createHistoryLog({
             historyDescription: `Se creó el reporte ${reportName}.`,
             actionType: 'REPORT',
-            userId: res.locals.jwtPayloadContent?.userId || Number(fk_user_creator),
-            itemId: fk_item,
-            placeId: fk_place,
+            userId: creatorId,
+            itemId,
+            placeId,
             reportId: (newReport as any).reportId,
         });
 
-        const currentUserId = res.locals.jwtPayloadContent?.userId || Number(fk_user_creator);
-        if (fk_user_assigned && Number(fk_user_assigned) !== Number(currentUserId)) {
+        const currentUserId = creatorId;
+        if (assignedId && assignedId !== currentUserId) {
             await createUserNotification({
                 notificationType: NotificationType.REPORT,
                 requestDescription: `Se te ha asignado el reporte "${reportName}".`,
                 fk_trigger: (newReport as any).reportId,
                 fk_user_trigger: currentUserId || null,
-                fk_notified: Number(fk_user_assigned)
+                fk_notified: assignedId
             });
         }
 
-        return res.status(200).json({ message: 'Item successfully created' });
+        const createdReport = await Report.findByPk((newReport as any).reportId, {
+            include: REPORT_INCLUDES
+        });
+        return res.status(201).json(formatReport(createdReport));
     } catch (error) {
         throw error;
     }
@@ -149,7 +167,7 @@ const SearchReportById = async (req: Request, res: Response) => {
 
         const foundReport = await Report.findByPk(id, { include: REPORT_INCLUDES });
         if (!foundReport) {
-            return res.status(404).json({ message: 'Item not found' });
+            return res.status(404).json({ message: 'Report not found' });
         }
 
         return res.status(200).json(formatReport(foundReport));
@@ -263,17 +281,17 @@ const SearchReportsAssignedUser = async (req: Request, res: Response) => {
 
 const SetReportStatus = async (req: Request, res: Response) => {
     try {
-        const {status} = req.body;
-        const parsedReportId = Number(req.params.reportId);
-        if (!parsedReportId || !status) {
-            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        const status = Number(req.body?.status);
+        const parsedReportId = parsePositiveId(req.params.reportId);
+        if (!parsedReportId || !Number.isInteger(status) || status < 1 || status > 3) {
+            return res.status(400).json({ message: 'Status must be an integer between 1 and 3' });
         }
         const foundReport = await Report.findByPk(parsedReportId);
         if (!foundReport) {
             return res.status(404).json({ message: 'Report not found' });
         }
 
-        if (status === foundReport.getDataValue('reportStatus')) {
+        if (status === Number(foundReport.getDataValue('reportStatus'))) {
             return res.status(400).json({ message: 'The status could not change because is the same status' });
         }
 
@@ -311,7 +329,7 @@ const SetReportStatus = async (req: Request, res: Response) => {
             });
         }
 
-        return res.status(200).json({ message: 'Report status successfully updated' });
+        return res.status(200).json({ status });
     } catch (error) {
         throw error;
     }
@@ -382,11 +400,11 @@ const SetAssignedUser = async (req: Request, res: Response) => {
 
 const SetDueDate = async (req: Request, res: Response) => {
     try {
-        const parsedReportId = Number(req.params.reportId);
-        const dueDate = req.body;
+        const parsedReportId = parsePositiveId(req.params.reportId);
+        const dueDate = req.body?.dueDate;
 
-        if (!parsedReportId || !dueDate) {
-            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        if (!parsedReportId || !isValidDate(dueDate)) {
+            return res.status(400).json({ message: 'dueDate must use the YYYY-MM-DD format' });
         }
 
         const foundReport = await Report.findByPk(parsedReportId);
@@ -395,7 +413,7 @@ const SetDueDate = async (req: Request, res: Response) => {
         }
 
         const currentDueDate = foundReport.getDataValue('dueDate');
-        if (currentDueDate && new Date(dueDate).getTime() === new Date(currentDueDate).getTime()) {
+        if (currentDueDate && String(currentDueDate) === dueDate) {
             return res.status(400).json({ message: 'The due date could not change because is the same date' });
         }
 
@@ -410,7 +428,7 @@ const SetDueDate = async (req: Request, res: Response) => {
             reportId: parsedReportId,
         });
 
-        return res.status(200).json({ message: 'Report Due Date successfully updated' });
+        return res.status(200).json({ dueDate });
     } catch (error) {
         throw error;
     }
@@ -418,11 +436,11 @@ const SetDueDate = async (req: Request, res: Response) => {
 
 const setPriority = async (req: Request, res: Response) => {
     try {
-        const parsedReportId = Number(req.params.reportId);
-        const priority = req.body;
+        const parsedReportId = parsePositiveId(req.params.reportId);
+        const priority = Number(req.body?.reportPriority ?? req.body?.priority);
 
-        if (!parsedReportId || !priority) {
-            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        if (!parsedReportId || !Number.isInteger(priority) || priority < 1 || priority > 3) {
+            return res.status(400).json({ message: 'reportPriority must be an integer between 1 and 3' });
         }
 
         const foundReport = await Report.findByPk(parsedReportId);
@@ -430,7 +448,7 @@ const setPriority = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Report Not Found"});
         }
 
-        if (priority === foundReport.getDataValue('reportPriority')) {
+        if (priority === Number(foundReport.getDataValue('reportPriority'))) {
             return res.status(400).json({ message: 'The priority could not change because is the same priority' });
         }
 
@@ -445,7 +463,7 @@ const setPriority = async (req: Request, res: Response) => {
             reportId: parsedReportId,
         });
 
-        return res.status(200).json({ message: 'Report priority successfully updated' });
+        return res.status(200).json({ reportPriority: priority });
     } catch (error) {
         throw error;
     }
