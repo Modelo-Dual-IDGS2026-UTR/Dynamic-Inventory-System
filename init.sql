@@ -137,8 +137,8 @@ CREATE TABLE History (
 
 CREATE TABLE Request (
     requestId INT AUTO_INCREMENT PRIMARY KEY,
-    requestName varchar(20),
-    requestDescription varchar(255),
+    requestName varchar(100),
+    requestDescription varchar(1000),
     requestStatus INT DEFAULT 1,
     fk_user_reciver INT,
     fk_user_requester INT,

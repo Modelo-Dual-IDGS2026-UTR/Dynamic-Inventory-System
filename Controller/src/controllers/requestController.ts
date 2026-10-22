@@ -52,16 +52,18 @@ const findRequestId = (req: Request) => parsePositiveId(req.params.id ?? req.par
 const CreateRequest = async (req: Request, res: Response) => {
     try {
         const { name, description, status, fk_item, fk_user } = req.body ?? {};
-        const requesterId = res.locals.jwtPayloadContent?.userId;
+        const requesterId = parsePositiveId(res.locals.jwtPayloadContent?.userId);
         const receiverId = parsePositiveId(fk_user);
         const itemId = parsePositiveId(fk_item);
         const requestStatus = Number(status);
+        const requestName = typeof name === 'string' ? name.trim() : '';
+        const requestDescription = typeof description === 'string' ? description.trim() : '';
 
         if (
-            typeof name !== 'string' ||
-            !name.trim() ||
-            typeof description !== 'string' ||
-            !description.trim() ||
+            !requestName ||
+            !requestDescription ||
+            requestName.length > 100 ||
+            requestDescription.length > 1000 ||
             !requesterId ||
             !receiverId ||
             !itemId ||
@@ -69,19 +71,34 @@ const CreateRequest = async (req: Request, res: Response) => {
             requestStatus < 1 ||
             requestStatus > 3
         ) {
-            return res.status(400).json({ message: 'Invalid or missing request fields' });
+            return res.status(400).json({
+                message: 'Invalid or missing request fields',
+                details: {
+                    name: 'required, maximum 100 characters',
+                    description: 'required, maximum 1000 characters',
+                    status: 'must be an integer between 1 and 3',
+                    fk_item: 'must be a positive integer',
+                    fk_user: 'must be a positive integer'
+                }
+            });
         }
 
-        const [receiver, item] = await Promise.all([
+        const [requester, receiver, item] = await Promise.all([
+            User.findByPk(requesterId),
             User.findByPk(receiverId),
             Item.findByPk(itemId)
         ]);
+        if (!requester) {
+            return res.status(401).json({
+                message: 'Authenticated user not found. Please sign in again.'
+            });
+        }
         if (!receiver) return res.status(404).json({ message: 'Receiver user not found' });
         if (!item) return res.status(404).json({ message: 'Item not found' });
 
         const newRequest = await RequestModel.create({
-            requestName: name.trim(),
-            requestDescription: description.trim(),
+            requestName,
+            requestDescription,
             requestStatus,
             fk_user_requester: requesterId,
             fk_user_reciver: receiverId,
@@ -89,7 +106,7 @@ const CreateRequest = async (req: Request, res: Response) => {
         });
 
         await createHistoryLog({
-            historyDescription: `Se creó la solicitud ${name}.`,
+            historyDescription: `Se creó la solicitud ${requestName}.`,
             actionType: 'CREATE',
             userId: requesterId,
             itemId,
@@ -99,7 +116,7 @@ const CreateRequest = async (req: Request, res: Response) => {
         if (receiverId !== Number(requesterId)) {
             await createUserNotification({
                 notificationType: NotificationType.REQUEST,
-                requestDescription: `Se te ha enviado la solicitud "${name}".`,
+                requestDescription: `Se te ha enviado la solicitud "${requestName}".`,
                 fk_trigger: (newRequest as any).requestId,
                 fk_user_trigger: requesterId,
                 fk_notified: receiverId
