@@ -2,7 +2,10 @@ import {
     importEmployees,
     ShowAllEmployees,
     CreateEmployee,
-    SearchEmployeeById
+    SearchEmployeeById,
+    UpdateEmployee,
+    changeEmployeeStatus,
+    deleteEmployee
 } from "../controllers/employeeController.js";
 import  express  from "express";
 export const employeeRouter=express.Router();
@@ -31,11 +34,8 @@ employeeRouter.get('/find-employee/:employeeId', SearchEmployeeById);
 
 employeeRouter.post('/create-employee', CreateEmployee);
 
-employeeRouter.put('/update-employee/:employeeId', );
+employeeRouter.put('/update-employee/:employeeId', UpdateEmployee);
 
+employeeRouter.patch('/change-status/:employeeId', changeEmployeeStatus);
 
-/*
-employeeRouter.patch('/change-status/:userId',);
-
-employeeRouter.delete('/delete-user/:userId',);
- */
+employeeRouter.delete('/delete-employee/:employeeId', deleteEmployee);

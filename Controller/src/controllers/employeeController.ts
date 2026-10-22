@@ -305,12 +305,11 @@ const CreateEmployee= async (req:Request,res:Response,)=>{
     }
 };
 
-/* const UpdateEmployee=async (req:Request,res:Response)=>{
+const UpdateEmployee=async (req:Request,res:Response)=>{
     try {
         const id=req.params.employeeId
         const body=req.body||{}
         const {
-            employeeId,
             firstName,
             lastName,
             employeeType,
@@ -320,19 +319,32 @@ const CreateEmployee= async (req:Request,res:Response,)=>{
         }=body
         if(!id){
             return res.status(400).json({
-            message:"No User ID given"
+            message:"No Employee ID given"
         })
         }
+
+        if (
+            !firstName ||
+            !lastName ||
+            !employeeType ||
+            !email ||
+            !area ||
+            !status
+        ) {
+            return res.status(400).json({ message: 'All parameters must be filled in,'
+                + ' please check documentation' });
+        }
+
         const convertedId=Number(id)
         if(isNaN(convertedId) || !Number.isInteger(convertedId) || convertedId <= 0){
           return res.status(400).json({
-            message:"Invalid User ID"
+            message:"Invalid Employee ID"
         })  
         }
-        const foundUser = await User.findByPk(convertedId)
+        const foundUser = await Employee.findByPk(convertedId)
         if (!foundUser) {
             return res.status(404).json({
-                message: 'User not found'
+                message: 'Employee not found'
             })
         }
         const normalizedEmail = email ? String(email).trim().toLowerCase() : foundUser.getDataValue('email')
@@ -342,26 +354,21 @@ const CreateEmployee= async (req:Request,res:Response,)=>{
                 status: true
             }
         })
-        if (universityId && employee) {
-            return res.status(400).json({
-                message: 'A student account cannot use an employee email'
-            })
-        }
+
         if (foundUser.getDataValue('employeeId') && !employee) {
             return res.status(403).json({
                 message: 'The employee email must belong to an active employee'
             })
         }
 
-    const [editedRows]=await User.update({
-        universityId,
-        employeeId: employee?.getDataValue('employeeId') ?? null,
+    const [editedRows]=await Employee.update({
         firstName,
         lastName,
-        email: normalizedEmail,
+        employeeType,
+        email,
         area,
-        fk_role
-    },{where:{userId:convertedId}})
+        status,
+    },{where:{employeeId:convertedId}})
 
     if(editedRows==0){
         return res.status(204).json({
@@ -376,10 +383,67 @@ const CreateEmployee= async (req:Request,res:Response,)=>{
            throw error;
     }
 }
- */
+
+const changeEmployeeStatus = async (req: Request, res: Response) => {
+    try {
+        const employeeId = Number(req.params.employeeId);
+        const requestedStatus = req.body?.employeeStatus ?? req.body?.status;
+
+        if (!Number.isInteger(employeeId) || employeeId <= 0) {
+            return res.status(400).json({ message: 'Invalid Employee ID' });
+        }
+
+        if (typeof requestedStatus !== 'boolean') {
+            return res.status(400).json({ message: 'A boolean employee status is required' });
+        }
+
+        const employee = await Employee.findByPk(employeeId);
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+
+        if (requestedStatus === employee.getDataValue('status')) {
+            return res.status(400).json({
+                message: 'The status could not change because it is already set to that value'
+            });
+        }
+
+        employee.set('status', requestedStatus);
+        await employee.save();
+
+        return res.status(200).json({ message: 'Employee status successfully updated' });
+    } catch (error) {
+        throw error;
+    }
+};
+
+const deleteEmployee = async (req: Request, res: Response) => {
+    try {
+        const employeeId = Number(req.params.employeeId);
+
+        if (!Number.isInteger(employeeId) || employeeId <= 0) {
+            return res.status(400).json({ message: 'Invalid Employee ID' });
+        }
+
+        const employee = await Employee.findByPk(employeeId);
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
+
+        await employee.destroy();
+
+        return res.status(200).json({ message: 'Employee successfully deleted' });
+    } catch (error) {
+        throw error;
+    }
+};
+
 export {
     importEmployees,
     ShowAllEmployees,
     CreateEmployee,
-    SearchEmployeeById
+    SearchEmployeeById,
+    UpdateEmployee,
+    changeEmployeeStatus,
+    deleteEmployee
 }
