@@ -317,6 +317,69 @@ const SetReportStatus = async (req: Request, res: Response) => {
     }
 }
 
+const SetAssignedUser = async (req: Request, res: Response) => {
+    try {
+        const parsedReportId = parsePositiveId(req.params.reportId);
+        const requestedUserId = req.body?.fk_user_assigned;
+        const assignedUserId = requestedUserId == null ? null : parsePositiveId(requestedUserId);
+
+        if (!parsedReportId || (requestedUserId != null && !assignedUserId)) {
+            return res.status(400).json({
+                message: 'fk_user_assigned must be a positive integer or null'
+            });
+        }
+
+        const foundReport = await Report.findByPk(parsedReportId);
+        if (!foundReport) {
+            return res.status(404).json({ message: 'Report not found' });
+        }
+
+        const currentAssignedId = foundReport.getDataValue('fk_user_assigned');
+        if (Number(currentAssignedId ?? 0) === Number(assignedUserId ?? 0)) {
+            return res.status(400).json({
+                message: 'The assigned user is already set to that value'
+            });
+        }
+
+        const assignedUser = assignedUserId
+            ? await User.findByPk(assignedUserId)
+            : null;
+        if (assignedUserId && !assignedUser) {
+            return res.status(404).json({ message: 'Assigned user not found' });
+        }
+
+        foundReport.set('fk_user_assigned', assignedUserId);
+        await foundReport.save();
+
+        const currentUserId = res.locals.jwtPayloadContent?.userId
+            || Number(foundReport.getDataValue('fk_user_creator'));
+        await createHistoryLog({
+            historyDescription: assignedUserId
+                ? `Se asignó el reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) al usuario ${assignedUserId}.`
+                : `Se retiró la asignación del reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}).`,
+            actionType: 'UPDATE',
+            userId: currentUserId,
+            itemId: foundReport.getDataValue('fk_item'),
+            placeId: foundReport.getDataValue('fk_place'),
+            reportId: parsedReportId,
+        });
+
+        if (assignedUserId && assignedUserId !== Number(currentUserId)) {
+            await createUserNotification({
+                notificationType: NotificationType.REPORT,
+                requestDescription: `Se te ha asignado el reporte "${foundReport.getDataValue('reportName')}".`,
+                fk_trigger: parsedReportId,
+                fk_user_trigger: currentUserId || null,
+                fk_notified: assignedUserId
+            });
+        }
+
+        return res.status(200).json({ fk_user_assigned: assignedUserId });
+    } catch (error) {
+        throw error;
+    }
+};
+
 const SetDueDate = async (req: Request, res: Response) => {
     try {
         const parsedReportId = Number(req.params.reportId);
@@ -424,6 +487,7 @@ export {
     SearchReportsCreatedUser,
     SearchReportsAssignedUser,
     SetReportStatus,
+    SetAssignedUser,
     SetDueDate,
     setPriority,
     deleteReport
