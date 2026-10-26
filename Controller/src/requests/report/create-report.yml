@@ -1,0 +1,33 @@
+info:
+  name: create-report
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/api/report/new-report
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDc5MzgzOSwiZXhwIjoxNzkwNzkzODY5fQ.-UB66HeD6RZ8BiFEOy9IDHK5pSmp7-z7vEHbd_hJ0Nw
+  body:
+    type: json
+    data: |-
+      {
+        "reportName": "REPORTE: OSMAR HOLAAA ",
+        "reportDescription": "Paulo esta viendo cosas indebidas de pokemón en el site",
+        "reportStatus": 1,
+        "reportPriority": 3,
+        "dueDate": "2026-08-06",
+        "fk_user_assigned": 2,
+        "fk_user_creator": 2,
+        "fk_item": 1,
+        "fk_place": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

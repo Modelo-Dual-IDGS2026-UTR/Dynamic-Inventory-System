@@ -1,7 +1,7 @@
 import {mySequelize} from '@dis/db/dbConection.js'
 import { DataTypes } from 'sequelize'
 
-//Im doing this while watching FNAF videos
+//Im doing this while watching FNAF videos - Hi Oanimatronic, im updating this while I hear Music
 export const User = mySequelize.define("User",{
     userId:{
         type: DataTypes.INTEGER,
@@ -10,10 +10,12 @@ export const User = mySequelize.define("User",{
     },
     googleUserId:{
         type:DataTypes.STRING,
-        allowNull:false
+        allowNull:false,
+        unique:true
     },
     universityId:{
-        type:DataTypes.STRING
+        type:DataTypes.STRING,
+        unique:true
     },
     firstName:{
         type: DataTypes.STRING,
@@ -29,20 +31,35 @@ export const User = mySequelize.define("User",{
     },
     email:{
         type:DataTypes.STRING,
-        allowNull:false
+        allowNull:false,
+        unique:true,
+        validate:{
+            isEmail:true
+        }
     },
     area:{
         type:DataTypes.STRING
     },
+    employeeId:{
+        type:DataTypes.INTEGER,
+        allowNull:true,
+        unique:true,
+        references:{
+            model:'Employee',
+            key:'employeeId'
+        },
+        onUpdate:'CASCADE',
+        onDelete:'SET NULL'
+    },
     fk_role:{
         type: DataTypes.INTEGER,
-        allowNull:false,
+        allowNull:true,
         references:{
             model:'UserRole',
             key:'roleId'
         },
         onUpdate:'CASCADE',
-        onDelete:'CASCADE'
+        onDelete:'SET NULL'
     },
     createdAt:{
         type:DataTypes.DATE
@@ -53,5 +70,15 @@ export const User = mySequelize.define("User",{
 
 },{
     tableName:'User',
-    timestamps:false
-});
+timestamps:false,
+validate: {
+    exclusiveInstitutionalIdentity(this: any) {
+        const universityId = this.getDataValue('universityId')
+        const employeeId = this.getDataValue('employeeId')
+
+        if (universityId && employeeId) {
+            throw new Error('A user cannot have both universityId and employeeId')
+        }
+    }
+}
+ });

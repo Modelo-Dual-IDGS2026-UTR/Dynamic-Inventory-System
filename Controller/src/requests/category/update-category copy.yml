@@ -1,0 +1,19 @@
+info:
+  name: update-category copy
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: http://localhost:3000/api/category/delete-category/28
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDY0MzA2MCwiZXhwIjoxNzkwNjQzOTYwfQ.XaK0TpOO1mVYzCdmBmMIUSOmMqDlkdt5UF1iuJFsBa8
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,19 @@
+info:
+  name: search-items
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: http://localhost:3000/api/item/read-items
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTg0OTgzMywiZXhwIjoxNzkxODUwNzMzfQ.nnHloCEsI5f80TSNogDDHfcPZ_mXiPmIU9Ce3n1TZb8
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

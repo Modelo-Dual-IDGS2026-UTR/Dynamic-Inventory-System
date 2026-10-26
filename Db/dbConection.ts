@@ -1,15 +1,16 @@
 import { Sequelize } from "sequelize";
 
-const dbName=process.env.MYSQL_DATABASE||"DISNUTZTEST01";
-const dbUser=process.env.MYSQL_USER||"user_app";
-const dbPassword=process.env.MYSQL_PASSWORD||"secure_password";
-const dbRootPassword=process.env.MYSQL_ROOT_PASSWORD||"root_password_super_secret";
+const dbName=process.env.DB_NAME || process.env.MYSQL_DATABASE || "DISNUTZTEST01";
+const dbUser=process.env.DB_USER || process.env.MYSQL_USER || "user_app";
+const dbPassword=process.env.DB_PASSWORD || process.env.MYSQL_PASSWORD || "secure_password";
+const dbHost=process.env.DB_HOST || "db";
+const dbPort=Number(process.env.DB_PORT || 3306);
 
 export const mySequelize=new Sequelize(dbName,dbUser,dbPassword,{
     
-    host:"db",
+    host:dbHost,
     dialect:"mariadb",
-    port:3306,
+    port:dbPort,
 
     pool:{
         max:5,

@@ -1,0 +1,22 @@
+info:
+  name: change-status
+  type: http
+  seq: 6
+
+http:
+  method: PATCH
+  url: http://localhost:3000/api/employee/change-status/777
+  body:
+    type: json
+    data: |-
+      {
+          "employeeStatus": false
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

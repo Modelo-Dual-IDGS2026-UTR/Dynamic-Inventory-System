@@ -1,0 +1,29 @@
+info:
+  name: create-user
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/api/user/create-user
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDc5MjYwNSwiZXhwIjoxNzkwNzkyNjM1fQ.P1xeXw9UAhUPXqHrT1eerKM0TAR3m8KPwXntN-7zh8o
+  body:
+    type: json
+    data: |-
+      {
+        "firstName": "Ron",
+        "lastName": "Guapo",
+        "email": "ronguapo@gmail.com",
+        "area": "IT",
+        "googleUserId": "papuculon"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -1,0 +1,19 @@
+info:
+  name: user-reports
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: http://localhost:3000/api/report/user-reports/1
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDc5Mzc2OCwiZXhwIjoxNzkwNzkzNzk4fQ.GpQDapeWH-kMGKQAI4lJ-mzqbLBHTsCHx-RtIiCTtMs
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

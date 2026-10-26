@@ -17,45 +17,57 @@ export const Report = mySequelize.define("Report", {
     },
     reportStatus: {
         type: DataTypes.INTEGER,
+        allowNull: false,
         defaultValue: 1
     },
     reportPriority: {
         type: DataTypes.INTEGER,
+        allowNull: false,
         defaultValue: 3
     },
     dueDate: {
         type: DataTypes.DATEONLY,
-        allowNull: true
+        allowNull: false
     },
-    fk_user: {
+    fk_user_assigned: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'User',
             key: 'userId'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+        onDelete: 'SET NULL'
+    },
+    fk_user_creator: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+        model: 'User',
+        key: 'userId'
+    },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL'
     },
     fk_item: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'Item',
             key: 'itemId'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+        onDelete: 'SET NULL'
     },
     fk_place: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'Place',
             key: 'placeId'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+        onDelete: 'SET NULL'
     },
     createdAt: {
         type: DataTypes.DATE

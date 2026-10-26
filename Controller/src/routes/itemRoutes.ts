@@ -1,13 +1,38 @@
-import { itemController } from "../controllers/itemController.js";
+import { 
+    CreateItem,
+    SearchItemById,
+    SearchItems,
+    UpdateItem,
+    DeleteItemByID,
+    SetStatus,
+    SetCategory,
+    ChangeResponsible
+} from "../controllers/itemController.js";
 import  express  from "express";
-export const itemRouter=express.Router()
+export const itemRouter=express.Router();
+import { VerifyJWT } from '../middleware/jwtUtils.js';
+import { publicCatalogLimiter } from '../middleware/publicCatalogLimiter.js';
 
-itemRouter.post('/new-item',itemController.CreateItem)
+//Admin & Superadmin
+itemRouter.post('/new-item', VerifyJWT(2), CreateItem);
 
-itemRouter.get('/read-item/:itemId',itemController.SearchItemById)
+// Public inventory catalog
+itemRouter.get('/read-item/:itemId', VerifyJWT(), publicCatalogLimiter, SearchItemById);
 
-itemRouter.post('/read-items',itemController.SearchItems)
+// Public inventory catalog
+itemRouter.get('/read-items', VerifyJWT(), publicCatalogLimiter, SearchItems);
 
-itemRouter.put('/update-item/:itemId',itemController.UpdateItem)
+//Admin & Superadmin
+itemRouter.put('/update-item/:itemId',  VerifyJWT(2), UpdateItem);
 
-itemRouter.delete('/delete-item/:itemId',itemController.DeleteItemByID)
+//Admin & Superadmin
+itemRouter.patch('/set-status/:itemId', VerifyJWT(2), SetStatus);
+
+//Admin & Superadmin
+itemRouter.patch('/set-category/:itemId', VerifyJWT(2), SetCategory);
+
+//Superadmin
+itemRouter.patch('/assign-responsible/:itemId', VerifyJWT(1), ChangeResponsible);
+
+//Superadmin
+itemRouter.delete('/delete-item/:itemId',  VerifyJWT(1), DeleteItemByID);

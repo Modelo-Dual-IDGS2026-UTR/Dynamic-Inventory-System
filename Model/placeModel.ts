@@ -5,21 +5,19 @@ export const Place=mySequelize.define("Place",{
     placeId:{
         type:DataTypes.INTEGER,
         primaryKey:true,
+        autoIncrement: true,
         allowNull:false
     },
     placeName:{
         type:DataTypes.STRING,
-        allowNull:false
+        allowNull:false,
+        unique: true
     },
     placeDescription:{
         type:DataTypes.STRING,
         allowNull:false
     },
-    class:{
-        type:DataTypes.STRING,
-        allowNull:false
-    },
-    ip_range:{
+    placeClass:{
         type:DataTypes.STRING,
         allowNull:false
     },

@@ -1,0 +1,31 @@
+info:
+  name: create-employee
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:3000/api/employee/create-employee
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MjY4MTMyMiwiZXhwIjoxNzkyNjgyMjIyfQ.E_yoTsI-oFz6Uj2orO1uA7hdQUut8Yb3-ktSljHy3vw
+  body:
+    type: json
+    data: |-
+      {
+          "employeeId": 777,
+          "firstName": "Samuel",
+          "lastName": "De Luque" ,
+          "employeeType": "Tiempo Completo",
+          "email": "vegeta777@gmail.com",
+          "area": "Comunicaciones",
+          "status": true
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

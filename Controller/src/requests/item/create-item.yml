@@ -1,0 +1,34 @@
+info:
+  name: create-item
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/api/item/new-item
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MjY4MTMyMiwiZXhwIjoxNzkyNjgyMjIyfQ.E_yoTsI-oFz6Uj2orO1uA7hdQUut8Yb3-ktSljHy3vw
+  body:
+    type: json
+    data: |-
+      {
+        "itemName": "PC",
+        "itemDescription": "Esto es una PC",
+        "codeBar": "OJDJFODAISJFOS",
+        "itemStatus": "In Stock",
+        "category": "No Category", 
+        "cost": 20,
+        "manufacter": "DELL", 
+        "fk_category": 1,
+        "fk_user_responsible": 101,
+        "fk_place": 1
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -1,0 +1,19 @@
+info:
+  name: all-categories
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: http://localhost:3000/api/category/all-categories
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDY0MzA2MCwiZXhwIjoxNzkwNjQzOTYwfQ.XaK0TpOO1mVYzCdmBmMIUSOmMqDlkdt5UF1iuJFsBa8
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
