@@ -128,7 +128,7 @@ const CreateItem = async (req: Request, res: Response) => {
             historyDescription: `Se creó el item ${itemName} con código de barras: ${codeBar || 'N/A'}`,
             actionType: 'CREATE',
             userId: res.locals.jwtPayloadContent?.userId,
-            itemId: (newItem as any).itemId,
+            itemId: newItem.getDataValue('itemId'),
             placeId: fk_place
         });
 
@@ -140,7 +140,7 @@ const CreateItem = async (req: Request, res: Response) => {
             await createUserNotification({
                 notificationType: NotificationType.ITEM,
                 requestDescription: `Se te ha asignado la responsabilidad del nuevo item "${itemName}".`,
-                fk_trigger: (newItem as any).itemId,
+                fk_trigger: newItem.getDataValue('itemId'),
                 fk_user_trigger: currentUserId || null,
                 fk_notified: Number(responsibleUser.getDataValue('userId'))
             });
@@ -276,7 +276,7 @@ const UpdateItem = async (req: Request, res: Response) => {
         }
         const doesItExist = await Item.findOne({ where: { itemId: convertedId } })
         if (!doesItExist) {
-            res.status(404).json({
+            return res.status(404).json({
                 message: `Item does not exist`
             })
         }
@@ -335,7 +335,7 @@ const UpdateItem = async (req: Request, res: Response) => {
             historyDescription: `Se actualizo la información el item ${itemName} con código de barras: ${codeBar || 'N/A'}`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId,
-            itemId: (doesItExist as any).itemId,
+            itemId: doesItExist.getDataValue('itemId'),
             placeId: fk_place
         });
 
@@ -382,7 +382,7 @@ const SetStatus = async (req: Request, res: Response) => {
             historyDescription: `Se actualizó el estado del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${itemStatus}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId,
-            itemId: (foundItem as any).itemId,
+            itemId: foundItem.getDataValue('itemId'),
             placeId: foundItem.getDataValue('fk_place')
         });
 
@@ -442,7 +442,7 @@ const ChangeResponsible = async(req: Request, res: Response) => {
         historyDescription: `Se actualizó el usuario responsable del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${responsible_user}.`,
         actionType: 'UPDATE',
         userId: res.locals.jwtPayloadContent?.userId,
-        itemId: (foundItem as any).itemId,
+        itemId: foundItem.getDataValue('itemId'),
         placeId: foundItem.getDataValue('fk_place')
     });
 
@@ -490,7 +490,7 @@ const SetCategory = async (req: Request, res: Response) => {
             historyDescription: `Se actualizó la categoría del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${category}.`,
             actionType: 'UPDATE',
             userId: res.locals.jwtPayloadContent?.userId,
-            itemId: (foundItem as any).itemId,
+            itemId: foundItem.getDataValue('itemId'),
             placeId: foundItem.getDataValue('fk_place')
         });
 

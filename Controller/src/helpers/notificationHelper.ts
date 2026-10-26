@@ -73,7 +73,7 @@ export const notifyUsersByRole = async (
             },
             attributes: ['userId']
         });
-        const userIds = users.map(u => (u as any).userId);
+        const userIds = users.map(u => Number(u.getDataValue('userId')));
         
         // 2. Uses createBulkUserNotification to send the notifications with roles
         return await createBulkUserNotifications(userIds, params);

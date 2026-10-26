@@ -27,10 +27,18 @@ const parsePositiveId = (value: unknown) => {
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 
-const formatRequest = (requestInstance: any) => {
-    const request = typeof requestInstance.toJSON === 'function'
-        ? requestInstance.toJSON()
-        : requestInstance;
+interface RequestResponseData {
+    [key: string]: unknown;
+    requester?: { userId: number; firstName: string; lastName: string } | null;
+    receiver?: { userId: number; firstName: string; lastName: string } | null;
+    related_item?: { itemId: number; itemName: string } | null;
+}
+
+const formatRequest = (requestInstance: InstanceType<typeof RequestModel> | null) => {
+    const request = requestInstance?.toJSON() as RequestResponseData | undefined;
+    if (!request) {
+        return null;
+    }
     const { requester, receiver, related_item, ...rest } = request;
 
     return {
@@ -110,20 +118,20 @@ const CreateRequest = async (req: Request, res: Response) => {
             actionType: 'CREATE',
             userId: requesterId,
             itemId,
-            requestId: (newRequest as any).requestId
+            requestId: newRequest.getDataValue('requestId')
         });
 
         if (receiverId !== Number(requesterId)) {
             await createUserNotification({
                 notificationType: NotificationType.REQUEST,
                 requestDescription: `Se te ha enviado la solicitud "${requestName}".`,
-                fk_trigger: (newRequest as any).requestId,
+                fk_trigger: newRequest.getDataValue('requestId'),
                 fk_user_trigger: requesterId,
                 fk_notified: receiverId
             });
         }
 
-        const createdRequest = await RequestModel.findByPk((newRequest as any).requestId, {
+        const createdRequest = await RequestModel.findByPk(newRequest.getDataValue('requestId'), {
             include: REQUEST_INCLUDES
         });
         return res.status(201).json(formatRequest(createdRequest));

@@ -46,7 +46,7 @@ if (userId) {
         historyDescription: `Se creó el lugar ${placeName}.`,
         actionType: 'CREATE',
         userId,
-        placeId: (newPlace as any).placeId,
+        placeId: newPlace.getDataValue('placeId'),
     });
 }
 

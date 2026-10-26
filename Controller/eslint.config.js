@@ -19,8 +19,10 @@ export default [
     //Warnings and punishment manual
     rules: {
       ...eslintPluginTypescript.configs.recommended.rules,
-      "no-console": "warn", // Just a warning for console logs
-      "@typescript-eslint/no-unused-vars": "warn" // Same but for variables
+      "no-console": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        "argsIgnorePattern": "^_"
+      }]
     }
   }
 ];

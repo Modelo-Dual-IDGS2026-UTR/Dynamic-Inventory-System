@@ -24,8 +24,13 @@ const REPORT_INCLUDES = [
     },
 ];
 
-const formatUsers = (userInstance: any) => {
-    const users = typeof userInstance.toJSON === 'function' ? userInstance.toJSON() : userInstance;
+interface UserResponseData {
+    [key: string]: unknown;
+    related_role?: { roleId: number; roleName: string } | null;
+}
+
+const formatUsers = (userInstance: InstanceType<typeof User>) => {
+    const users = userInstance.toJSON() as UserResponseData;
     const {related_role, ...rest} = users;
 
     return {
@@ -74,7 +79,7 @@ const CreateUser= async (req:Request,res:Response,)=>{
         await createHistoryLog({
             historyDescription: `Se creó el usuario ${firstName} ${lastName}.`,
             actionType: 'CREATE',
-            userId: (newUser as any).userId,
+            userId: newUser.getDataValue('userId'),
         });
         return res.status(200).json({
             message: "User created"
@@ -302,7 +307,6 @@ const LogUser= async (req:Request,res:Response)=>{
                 firstName:given_name || employee?.getDataValue('firstName') || 'Pending',
                 lastName:family_name || employee?.getDataValue('lastName') || 'User',
                 googleUserId:sub,
-                employeeId,
                 email:normalizedEmail,
                 area:employee?.getDataValue('area') ?? null,
                 fk_role:1
@@ -312,7 +316,7 @@ const LogUser= async (req:Request,res:Response)=>{
                     ? `Se vinculó la cuenta de Google del empleado ${employeeId}.`
                     : `Se creó una cuenta estudiantil pendiente de matrícula.`,
                 actionType: 'CREATE',
-                userId: (newUser as any).userId,
+                userId: newUser.getDataValue('userId'),
             });
             const payload:JwtPayloadContent={
                 userId:newUser.getDataValue('userId'),
@@ -481,7 +485,7 @@ const RefreshToken = async (req: Request, res: Response) => {
         return res.status(200).json({
             message: 'Token refreshed'
         });
-    } catch (error) {
+    } catch {
         res.clearCookie('refreshToken', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -588,7 +592,6 @@ const ShowAllUsers = async (req: Request, res: Response) => {
             userId,
             googleUserId,
             universityId,
-            employeeId,
             firstName,
             lastName,
             userStatus,

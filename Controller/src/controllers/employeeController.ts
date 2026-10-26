@@ -286,7 +286,7 @@ const CreateEmployee= async (req:Request,res:Response,)=>{
                 message: 'This employee already exists:', normalizedEmail
             })
         }
-        const newEmployee= await Employee.create({
+        await Employee.create({
             employeeId,
             firstName,
             lastName,

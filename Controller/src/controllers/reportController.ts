@@ -1,7 +1,6 @@
 import { Report, User, Item, Place } from '@dis/model';
 import { NotificationType } from '@dis/model/userNotificationModel.js';
 import type { Response, Request } from 'express';
-import { type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { createHistoryLog } from '../helpers/historyHelper.js';
 import { createUserNotification } from '../helpers/notificationHelper.js';
@@ -31,8 +30,19 @@ const REPORT_INCLUDES = [
 ];
 
 // Helper to format report JSON response
-const formatReport = (reportInstance: any) => {
-    const report = typeof reportInstance.toJSON === 'function' ? reportInstance.toJSON() : reportInstance;
+interface ReportResponseData {
+    [key: string]: unknown;
+    related_place?: { placeId: number; placeName: string } | null;
+    related_user_assigned?: { userId: number; firstName: string; lastName: string } | null;
+    related_user_creator?: { userId: number; firstName: string; lastName: string } | null;
+    related_item?: { itemId: number; itemName: string } | null;
+}
+
+const formatReport = (reportInstance: InstanceType<typeof Report> | null) => {
+    const report = reportInstance?.toJSON() as ReportResponseData | undefined;
+    if (!report) {
+        return null;
+    }
     const { related_place, related_user_assigned, related_user_creator, related_item, ...rest } = report;
 
     return {
@@ -135,7 +145,7 @@ const CreateReport = async (req: Request, res: Response) => {
             userId: creatorId,
             itemId,
             placeId,
-            reportId: (newReport as any).reportId,
+            reportId: newReport.getDataValue('reportId'),
         });
 
         const currentUserId = creatorId;
@@ -143,13 +153,13 @@ const CreateReport = async (req: Request, res: Response) => {
             await createUserNotification({
                 notificationType: NotificationType.REPORT,
                 requestDescription: `Se te ha asignado el reporte "${reportName}".`,
-                fk_trigger: (newReport as any).reportId,
+                fk_trigger: newReport.getDataValue('reportId'),
                 fk_user_trigger: currentUserId || null,
                 fk_notified: assignedId
             });
         }
 
-        const createdReport = await Report.findByPk((newReport as any).reportId, {
+        const createdReport = await Report.findByPk(newReport.getDataValue('reportId'), {
             include: REPORT_INCLUDES
         });
         return res.status(201).json(formatReport(createdReport));
