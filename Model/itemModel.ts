@@ -49,8 +49,8 @@ export const Item = mySequelize.define("Item",{
         type:DataTypes.INTEGER,
         allowNull:true,
         references:{
-            model:"User",
-            key:"userId"
+            model:"Employee",
+            key:"employeeId"
         },
         onUpdate:'CASCADE',
         onDelete:'SET NULL'

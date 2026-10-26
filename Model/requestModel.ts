@@ -8,11 +8,11 @@ export const Request = mySequelize.define("Request", {
         primaryKey: true
     },
     requestName: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.STRING(100),
         allowNull: true
     },
     requestDescription: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.STRING(1000),
         allowNull: true
     },
     requestStatus: {

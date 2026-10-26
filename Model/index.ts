@@ -13,6 +13,7 @@ import { Request } from './requestModel.js';
 import { UserNotification } from './userNotificationModel.js';
 import { UserSession } from './userSessionModel.js';
 import { Category } from './categoryModel.js';
+import { Employee } from './employeeModel.js';
 
 const setupAssociations = () => {
     //######User-Role################
@@ -48,15 +49,15 @@ const setupAssociations = () => {
         targetKey: 'placeId',
         as: 'related_place'
     });
-    //######User-Item################
-    User.hasMany(Item, {
+    //######Employee-Item################
+    Employee.hasMany(Item, {
         foreignKey: 'fk_user_responsible',
-        sourceKey: 'userId',
+        sourceKey: 'employeeId',
         as: 'related_item'
     });
-    Item.belongsTo(User, {
+    Item.belongsTo(Employee, {
         foreignKey: 'fk_user_responsible',
-        targetKey: 'userId',
+        targetKey: 'employeeId',
         as: 'responsible_user'
     });
     //######Category-Item################
@@ -70,6 +71,17 @@ const setupAssociations = () => {
         targetKey: 'categoryId',
         as: 'category'
     })
+    //######Employee-User################
+    Employee.hasMany(User, {
+        foreignKey: 'employeeId',
+        sourceKey: 'employeeId',
+        as: 'user_accounts'
+    });
+    User.belongsTo(Employee, {
+        foreignKey: 'employeeId',
+        targetKey: 'employeeId',
+        as: 'employee'
+    });
     //######Role-Permission################
     UserRole.hasMany(RolePermission, {
         foreignKey: 'fk_role',
@@ -252,5 +264,6 @@ export {
     Request,
     UserNotification,
     UserSession,
-    Category
+    Category,
+    Employee
 }

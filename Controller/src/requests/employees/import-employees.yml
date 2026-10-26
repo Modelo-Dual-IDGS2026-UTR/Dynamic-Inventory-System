@@ -1,0 +1,27 @@
+info:
+  name: import-employees
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: http://localhost:3000/api/employee/import-employees
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MjY4MTMyMiwiZXhwIjoxNzkyNjgyMjIyfQ.E_yoTsI-oFz6Uj2orO1uA7hdQUut8Yb3-ktSljHy3vw
+  body:
+    type: multipart-form
+    data:
+      - name: file
+        type: file
+        value:
+          - C:\Users\macia\Documents\Visual_Studio_Code\Node\Dynamic-Inventory-System\Controller\src\__tests__\empleados_ejemplo.csv
+        contentType: text/csv; charset=utf-8
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,4 +1,4 @@
-import { Item, ItemStatus, Place, User, Category } from '@dis/model';
+import { Employee, Item, ItemStatus, Place, User, Category } from '@dis/model';
 import { NotificationType } from '@dis/model/userNotificationModel.js';
 import type { Response, Request } from 'express'
 import { type WhereOptions } from 'sequelize';
@@ -14,9 +14,9 @@ const PUBLIC_ITEM_INCLUDES = [
         attributes: ['categoryId', 'categoryName']
     },
     {
-        model: User,
+        model: Employee,
         as: 'responsible_user',
-        attributes: ['userId', 'firstName', 'lastName']
+        attributes: ['employeeId', 'firstName', 'lastName', 'email', 'area']
     },
     {
         model: Place,
@@ -29,9 +29,11 @@ interface ItemWithRelations {
     cost?: number;
     codeBar?: string;
     responsible_user?: {
-        userId: number;
+        employeeId: number;
         firstName: string;
         lastName: string;
+        email?: string;
+        area?: string;
     } | null;
     related_place?: {
         placeId: string;
@@ -75,6 +77,17 @@ const CreateItem = async (req: Request, res: Response) => {
                 message: "All parameters must be field please check documentation"
             })
         }
+        const responsibleEmployee = await Employee.findOne({
+            where: {
+                employeeId: Number(fk_user_responsible),
+                status: true
+            }
+        })
+        if (!responsibleEmployee) {
+            return res.status(400).json({
+                message: "Responsible employee not found or inactive"
+            })
+        }
 
         const existingWhere: WhereOptions = {};
 
@@ -114,19 +127,22 @@ const CreateItem = async (req: Request, res: Response) => {
         await createHistoryLog({
             historyDescription: `Se creó el item ${itemName} con código de barras: ${codeBar || 'N/A'}`,
             actionType: 'CREATE',
-            userId: res.locals.jwtPayloadContent?.userId || Number(fk_user_responsible),
+            userId: res.locals.jwtPayloadContent?.userId,
             itemId: (newItem as any).itemId,
             placeId: fk_place
         });
 
         const currentUserId = res.locals.jwtPayloadContent?.userId;
-        if (fk_user_responsible && Number(fk_user_responsible) !== Number(currentUserId)) {
+        const responsibleUser = await User.findOne({
+            where: { employeeId: Number(fk_user_responsible) }
+        })
+        if (responsibleUser && Number(responsibleUser.getDataValue('userId')) !== Number(currentUserId)) {
             await createUserNotification({
                 notificationType: NotificationType.ITEM,
                 requestDescription: `Se te ha asignado la responsabilidad del nuevo item "${itemName}".`,
                 fk_trigger: (newItem as any).itemId,
                 fk_user_trigger: currentUserId || null,
-                fk_notified: Number(fk_user_responsible)
+                fk_notified: Number(responsibleUser.getDataValue('userId'))
             });
         }
 
@@ -210,7 +226,8 @@ const SearchItems = async (req: Request, res: Response) => {
                     codeBar: item.getDataValue('codeBar'),
                     responsibleUser: rawItem.responsible_user
                         ? {
-                            id: rawItem.responsible_user.userId,
+                            id: rawItem.responsible_user.employeeId,
+                            employeeId: rawItem.responsible_user.employeeId,
                             firstName: rawItem.responsible_user.firstName,
                             lastName: rawItem.responsible_user.lastName
                         } 
@@ -272,7 +289,7 @@ const UpdateItem = async (req: Request, res: Response) => {
             itemStatus,
             codeBar,
             category,
-            fk_responsible_user,
+            fk_user_responsible,
             fk_place
         } = body
 
@@ -284,11 +301,22 @@ const UpdateItem = async (req: Request, res: Response) => {
             !manufacter ||
             !category ||
             !codeBar ||
-            !fk_responsible_user ||
+            !fk_user_responsible ||
             !fk_place 
         ) {
             return res.status(400).json({ message: 'All parameters must be filled in,'
                 + ' please check documentation' });
+        }
+        const responsibleEmployee = await Employee.findOne({
+            where: {
+                employeeId: Number(fk_user_responsible),
+                status: true
+            }
+        })
+        if (!responsibleEmployee) {
+            return res.status(400).json({
+                message: 'Responsible employee not found or inactive'
+            })
         }
 
         const [modifiedRows] = await Item.update({
@@ -298,7 +326,7 @@ const UpdateItem = async (req: Request, res: Response) => {
             manufacter,
             itemStatus,
             codeBar,
-            fk_responsible_user,
+            fk_user_responsible,
             fk_place
         },
             { where: { itemId: convertedId } }
@@ -306,7 +334,7 @@ const UpdateItem = async (req: Request, res: Response) => {
         await createHistoryLog({
             historyDescription: `Se actualizo la información el item ${itemName} con código de barras: ${codeBar || 'N/A'}`,
             actionType: 'UPDATE',
-            userId: res.locals.jwtPayloadContent?.userId || Number(fk_responsible_user),
+            userId: res.locals.jwtPayloadContent?.userId,
             itemId: (doesItExist as any).itemId,
             placeId: fk_place
         });
@@ -360,13 +388,16 @@ const SetStatus = async (req: Request, res: Response) => {
 
         const responsibleId = foundItem.getDataValue('fk_user_responsible');
         const currentUserId = res.locals.jwtPayloadContent?.userId;
-        if (responsibleId && Number(responsibleId) !== Number(currentUserId)) {
+        const responsibleUser = responsibleId
+            ? await User.findOne({ where: { employeeId: Number(responsibleId) } })
+            : null;
+        if (responsibleUser && Number(responsibleUser.getDataValue('userId')) !== Number(currentUserId)) {
             await createUserNotification({
                 notificationType: NotificationType.ITEM,
                 requestDescription: `El item "${foundItem.getDataValue('itemName')}" a tu cargo cambió de estado a: ${itemStatus}.`,
                 fk_trigger: parsedItemId,
                 fk_user_trigger: currentUserId || null,
-                fk_notified: Number(responsibleId)
+                fk_notified: Number(responsibleUser.getDataValue('userId'))
             });
         }
 
@@ -382,6 +413,15 @@ const ChangeResponsible = async(req: Request, res: Response) => {
 
     if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !responsible_user) {
         return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+    }
+    const responsibleEmployee = await Employee.findOne({
+        where: {
+            employeeId: Number(responsible_user),
+            status: true
+        }
+    })
+    if (!responsibleEmployee) {
+        return res.status(400).json({ message: 'Responsible employee not found or inactive' });
     }
 
     const foundItem = await Item.findByPk(parsedItemId);
@@ -407,13 +447,16 @@ const ChangeResponsible = async(req: Request, res: Response) => {
     });
 
     const currentUserId = res.locals.jwtPayloadContent?.userId;
-    if (Number(responsible_user) !== Number(currentUserId)) {
+    const responsibleUser = await User.findOne({
+        where: { employeeId: Number(responsible_user) }
+    })
+    if (responsibleUser && Number(responsibleUser.getDataValue('userId')) !== Number(currentUserId)) {
         await createUserNotification({
             notificationType: NotificationType.ITEM,
             requestDescription: `Se te ha asignado la responsabilidad del item "${foundItem.getDataValue('itemName')}".`,
             fk_trigger: parsedItemId,
             fk_user_trigger: currentUserId || null,
-            fk_notified: Number(responsible_user)
+            fk_notified: Number(responsibleUser.getDataValue('userId'))
         });
     }
 
@@ -446,7 +489,7 @@ const SetCategory = async (req: Request, res: Response) => {
         await createHistoryLog({
             historyDescription: `Se actualizó la categoría del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${category}.`,
             actionType: 'UPDATE',
-            userId: res.locals.jwtPayloadContent?.userId || Number(foundItem.getDataValue('fk_user_responsible')),
+            userId: res.locals.jwtPayloadContent?.userId,
             itemId: (foundItem as any).itemId,
             placeId: foundItem.getDataValue('fk_place')
         });
@@ -478,7 +521,7 @@ const DeleteItemByID = async (req: Request, res: Response) => {
             await createHistoryLog({
                 historyDescription: `Se eliminó el item ${convertedId}.`,
                 actionType: 'DELETE',
-                userId: res.locals.jwtPayloadContent?.userId || Number(foundItem.getDataValue('fk_user_responsible')),
+                userId: res.locals.jwtPayloadContent?.userId,
                 itemId: convertedId,
                 placeId: foundItem.getDataValue('fk_place'),
                 transaction
@@ -530,7 +573,8 @@ async function ShowItem(id: number, role: number, res: Response) {
                 codeBar: foundItem.getDataValue('codeBar'),
                 responsibleUser: rawItem.responsible_user
                     ? {
-                        id: rawItem.responsible_user.userId,
+                        id: rawItem.responsible_user.employeeId,
+                        employeeId: rawItem.responsible_user.employeeId,
                         firstName: rawItem.responsible_user.firstName,
                         lastName: rawItem.responsible_user.lastName
                     } 
