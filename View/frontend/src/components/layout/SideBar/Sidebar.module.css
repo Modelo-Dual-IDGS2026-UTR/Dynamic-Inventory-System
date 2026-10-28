@@ -1,0 +1,202 @@
+.hamburgerBtn {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 70px;
+  height: 60px;
+  background-color: #8a151b;
+  border: none;
+  cursor: pointer;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hamburgerBtn:hover {
+  background-color: #a82329;
+}
+
+.hamburgerLine {
+  display: block;
+  width: 26px;
+  height: 3px;
+  border-radius: 999px;
+  background-color: #ffffff;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.collapsedHamburger {
+  background-color: #ffffffd3;
+
+}
+
+.collapsedHamburger:hover {
+  background-color: #f8fafc;
+}
+
+.collapsedHamburger .hamburgerLine {
+  background-color: #8a151b;
+}
+
+.sidebarContainer {
+  height: 100vh;
+  background-color: #8a151b;
+  color: #ffffff;
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 99;
+  width: 260px;
+  box-shadow: 4px 0 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Clase modificadora para cuando está colapsado */
+.sidebarContainer.collapsed {
+  width: 0px;
+  box-shadow: none;
+}
+
+.spacer {
+  height: 60px;
+}
+
+.logoContainer {
+  padding: 10px 20px 20px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-Bottom: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 100px;
+}
+
+.logoWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.logoImg {
+  width: 85%;
+  height: auto;
+  object-fit: contain;
+}
+
+.navMenu {
+  flex: 1;
+  padding: 20px 10px;
+}
+
+.menuList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menuBtn {
+  width: 100%;
+  padding: 12px 15px;
+  margin: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  cursor: pointer;
+  border-radius: 6px;
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  border: none;
+  font-size: 0.95rem;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.menuBtn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Estilos para el ítem activo */
+.menuBtn.active {
+  background-color: #b81d24;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.menuIcon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.menuText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.footer {
+  position: relative;
+  padding: 30px 20px;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.avatar {
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  background-color: #f7f7f7;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.8rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  border: 0;
+}
+
+.accountMenu {
+  position: absolute;
+  bottom: 94px;
+  left: 20px;
+  right: 20px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #374151;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .2);
+}
+
+.accountMenu span {
+  overflow: hidden;
+  color: #6b7280;
+  font-size: .75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountMenu button {
+  border: 0;
+  border-radius: 6px;
+  padding: 8px;
+  background: #f3f4f6;
+  color: #374151;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.accountMenu button:hover {
+  background: #fee2e2;
+  color: #991b1b;
+}

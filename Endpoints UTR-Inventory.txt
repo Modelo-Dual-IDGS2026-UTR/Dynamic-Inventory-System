@@ -1,0 +1,720 @@
+﻿Endpoints Dual Inventory System
+Welcome to the Dual Inventory System (DIS). With this guide you will be able to use our REST API.
+Authentication
+OAuth2-JWT
+Dual Inventory System uses JWT for assuring security and implementing a sign-in to see method for every user. As long as a refresh token for avoiding having to sign in every time the web is opened.
+Concepts
+* Client Account: An account dedicated to be used by the objective user.
+* Service Account: An account created to support the management of the web application. 
+* Super Admin Role: Maximum that a service account could have, it has no restrictions and has the ability to create more users with the same privileges or with the role of admin.
+* Admin Role: The middle-level role that a service account could have; it does not have the ability to create more users, and it is restricted. The user that has the admin role cannot change the state of the items without a request that is sent to a user that possesses the super admin role.
+* Basic User Role: The most restricted role that an account could have, it is mainly dedicated to the objective user; the only thing that this role can do is view the objects in the inventory/map and report any issues with any of the devices.
+* API Server: Server that hosts the domain endpoints.
+* JSON Web Token (JWT): is an open standard (RFC 7519). This website creates a pair of RSA key pairs: A key secured by the user (signs a JSON message) and a public key stored in Saeko (verifies the integrity of the JWT token). More information at https://jwt.io. 
+
+
+Requirements
+For the client to access to this website requires:
+1. Create a Super Admin account by seeding or manually adding it.
+2. Create an Admin user by using the Super Admin role.
+3. Register through the login and obtain an account with basic roles
+How to create an Access Token (JWT)
+Request a token from the OAuth2 server.
+* Use the following values to build the JWT payload:
+const payload = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    iat: timestamp_epoch,
+    jti: MD5(`${private_key_id}:${timestamp_epoch}`)
+}
+* user.id: The id the user has in the database.
+* user.email: The email that the user has associated with their account.
+* user.role: The role the user has in the system.
+* private_key_id: From the service account.
+* timestamp_epoch: Server time in epoch format.
+
+
+* Encode the JWT with your private key using RS256.
+
+
+* Build the request and use the encoded JWT in the body with Content-Type: application/json.
+
+
+* The authentication server will validate the JWT and create an access token for the delegated user.
+   * If the user does not belong to the domain, or is an invalid user, then a 401 Unauthorized error code will be returned.
+How to refresh the Access Token
+Just before the token expires or when receiving a 401 Unauthorized response from the API, try refreshing the token.
+* Token expired; most common.
+* The user does not exist any more, or the user has been downgraded.
+* The APU has denied access to the token/user
+HTTP Headers
+Authentication: Bearer - Uses the access token to authenticate the request, this is used in every session, and it will adjust depending on the role of the user (Basic User, Admin, Super Admin)
+Content-Type: application/json; charset=utf-8 - When using POST or PUT the body always must be a JSON object.
+Response codes:
+200 OK - Success.
+204 No Content - A DELETE request successfully deleted the resource.
+400 Bad Request - The request body or the path is malformed or inexistent.
+401 Unauthorized - The access token has expired or is invalid.
+403 Forbidden - The request is not accessible by the current user.
+404 Not Found - The requested resource, or context, does not exist.
+409 Conflict -  Indicates a request conflict with the current state of the target resource.  
+422 Unprocessable Entity - When using POST/PUT and there was an invalid field in the payload. Usually the response body will contain a simple explanation.
+429 Too many requests - Response status code indicates the user has sent too many requests in a given amount of time ("rate limiting"). 
+500 Internal Server Error - Indicates that the server encountered an unexpected condition that prevented it from fulfilling the request. 
+
+
+
+
+
+
+
+
+
+
+</> USER
+Attribute
+	Type
+	Description
+	Notes
+	userId
+	Integer
+	
+
+	read-only
+	firstName
+	String
+	
+
+	required
+	lastName
+	String
+	
+
+	required
+	userStatus
+	Boolean
+	Is the account active or inactive
+	read-only
+	email
+	String
+	
+
+	required
+	careerArea
+	String
+	
+
+	required
+	updatedAt
+	Date
+	
+
+	read-only
+	createdAt
+	Date
+	
+
+	read-only
+	 fk_role
+	Integer
+	1 - Super Admin, 2 - Admin, 3 - User
+	belongs-to
+	
+
+
+
+ENDPOINTS
+
+
+* /api/user/login – POST (through google login API)
+The register we all know: insert email and password. All the accounts that will be created on the register screen will be basic users that have the domain of utr.edu.mx. The only way to create super admin users is by creating a database seeding or by manual modification. The way to create regular admins is by using the users’ screens while having in possession the super admin role.
+Security: No security
+	* /api/user/logout – POST
+This endpoint destroys the refresh token that is stored in the cookie of the browser.
+Security: No security
+	* /api/user/refresh – POST
+This endpoint is responsible for renewing the JWT whenever its lifetime expires. It is important to allow the user to remain with his session open for more time than a JWT (which is usually a short time of 15-60 minutes). It's the renewal of the entry ticket. There must be a code that acts as the interceptor, the object will be ready to intercept an error 401 - Unauthorized because the JWT expired. 
+Backend sends 
+{
+  "refreshToken": "dGVzdF9yZWZyZXNoX3Rva2Vu..."
+}
+
+
+Security: No security
+	
+
+* /api/user/complete-user – PUT
+This endpoint is responsible for completing the user profile once it registers through the Google API, since some of the data is remaining for completion.
+Backend Sends
+{
+  "universityId": "String",
+  "area": "String"
+}
+Security: Basic, Admin & Superadmin
+	* /api/user/me – GET
+It recognizes the user when it opens the app by sending the data from the device. This allows the app to log in to the user without prompting the user to log in again (which could be annoying). It must contain the authorization token in the header.
+Backend sends
+{
+  "token":  "sher…………" }
+}
+Security: Basic, Admin & Superadmin
+	
+
+</> ITEM
+Attribute
+	Type
+	Description
+	Notes
+	itemId
+	Integer
+	
+
+	read-only
+	name
+	String
+	
+
+	required
+	itemDescription
+	String
+	
+
+	required
+	itemStatus
+	Integer
+	1 - In Use, 2 - In Stock, 3 - Faulty
+	required
+	cost
+	Integer
+	
+
+	required
+	manufacturer
+	String
+	
+
+	required
+	codeBar
+	String
+	
+
+	required
+	updatedAt
+	Date
+	
+
+	read-only
+	createdAt
+	Date
+	
+
+	read-only
+	fk_category
+	String
+	For list of categories see next document:
+https://docs.google.com/document/d/1MWhZNHYARnyg_pFfSjgwGM9nANZUBpPxPjgU-hrD8GU/edit?usp=sharing
+	required
+	fk_user_responsible
+	Integer
+	
+
+	belongs-to
+	fk_place
+	Integer
+	
+
+	belongs-to
+	Endpoints
+* /api/items/new-item/ - POST
+Dedicated endpoint for sending an item entity’s information to the database using the correct format.
+          Security: admin, superadmin
+Backend Sends
+{
+  "name": "String",
+  "description": "String",
+  "cost": "Int",
+  "itemStatus": "String",
+  "manufacturer": "String",
+  "codeBar": "String",
+  "fk_user_responsible": "Int",
+  "category": {
+       "type":"String",
+       "enum":["No Category","Computer","Something",...] ,
+       "default":"No Category" 
+   }
+  "fk_place": "Int"
+
+
+}
+	* /api/items/read-item/:itemId - GET
+Dedicated endpoint for sending an item entity’s information to the database using the correct format.
+          Security: No security, security controlled by DB. 
+	* /api/items/all-items/ - GET
+See all the items in the Data Base.
+          Security: No security, security controlled by DB. 
+	* /api/items/update-item/:itemId - PUT
+Dedicated endpoint for updating an item entity’s information to the database using the correct format.
+          Security: Admin & Superadmin
+Backend Sends
+{
+  "name": "String",
+  "description": "String",
+  "cost": "Int",
+  "manufacturer": "String",
+  "codeBar": "String",
+  "fk_user_responsible": "Int",
+  "category": "Int"
+}
+	* /api/items/set-status/:itemId - PATCH
+Dedicated endpoint for changing the status of the item.
+          Security: Admin & Superadmin
+Frontend Sends
+{
+  "itemStatus": "String"
+}
+	* /api/items/set-category/:itemId - PATCH
+Dedicated endpoint for changing the category of the item.
+          Security: Admin & Superadmin
+Frontend Sends
+{
+  "category": "String"
+}
+	* /api/items/delete-item/:id - DELETE
+Endpoint to delete a specific item by ID.
+          Security: Superadmin
+	</> REPORTS
+Attribute
+	Type
+	Description
+	Notes
+	reportId
+	Integer
+	
+
+	read-only
+	reportName
+	String
+	
+
+	required
+	reportDescription
+	String
+	
+
+	required
+	reportStatus
+	Integer
+	1: “Pending”, 2: ”In Progress”, 3: “Done”
+	required
+	reportPriority
+	Integer
+	1: “High”, 2: ”Medium”, 3: ”Low”
+	required
+	dueDate
+	Date
+	
+
+	required
+	updatedAt
+	Date
+	
+
+	read-only
+	createdAt
+	Date
+	
+
+	read-only
+	fk_user_creator
+	Integer
+	
+
+	belongs-to
+	fk_user_assigned
+	Integer
+	
+
+	belongs-to
+	xfk_item
+	Integer
+	
+
+	belongs-to
+	fk_place
+	Integer
+	
+
+	belongs-to
+	
+
+Endpoints
+
+
+* /api/reports/new-report/ - POST 
+Dedicated endpoint for creating a new report.
+          Security: Basic, Admin & Superadmin
+Backend Sends
+{
+  "name": "String",
+  "description": "String",
+  "status": "Int",
+  "priority": "String",
+  "dueDate": "String",
+  "fk_user": {
+      "id": "Int",
+      "firstName": "String",
+      "lastName": "String"
+    },
+  "fk_item": {
+      "id": "Int",
+      "itemName": "String",
+    },
+  "fk_place": {
+      "id": "Int",
+      "name": "String",
+    },
+}
+	* /api/reports/read-report/:id - GET 
+Dedicated endpoint for reading a specific report.
+          Security: Basic, Admin & Superadmin
+	* /api/reports/all-reports/ - GET 
+Dedicated endpoint for getting all report’s information
+          Security: Admin & Superadmin
+	* /api/reports/user-reports/:userId - GET
+Endpoint for getting all the reports created by a specific user 
+          Security: Basic, Admin & Superadmin
+	* /api/reports/assigned-reports/:userId - GET
+Dedicated endpoint for getting all reports assigned to a specific user 
+          Security: Admin & Superadmin
+	* /api/reports/set-status/:reportId - PATCH 
+Dedicated endpoint for changing the status of a report
+          Security: Admin & Superadmin
+{
+   "status": "Integer",
+}
+	* /api/reports/set-due/:reportId - PATCH
+Dedicated endpoint for changing the due date of a report
+Backend Sends
+{
+   "dueDate": "Date"
+}
+
+
+          Security: Admin & Superadmin
+	* /api/reports/set-priority/:reportId - PATCH
+Dedicated endpoint for changing the priority of a report
+          Security: Admin & Superadmin
+Backend Sends
+{
+   "reportPriority": "Integer",
+}
+	
+
+</> HISTORY
+Attribute
+	Type
+	Description
+	Notes
+	historyId
+	Integer
+	
+
+	read-only
+	historyDescription
+	String
+	
+
+	required
+	actionType
+	String
+	
+
+	required
+	createdAt
+	Date
+	
+
+	read-only
+	fk_user
+	Integer
+	
+
+	belongs-to
+	fk_item
+	Integer
+	
+
+	belongs-to
+	fk_place
+	Integer
+	
+
+	belongs-to
+	fk_report
+	Integer
+	
+
+	belongs-to
+	
+
+Endpoints
+* /api/history/item-history/:itemId - GET
+Dedicated endpoint for reading a specific item history.
+          Security: Basic, Admin & Superadmin
+	* /api/history/user-history/:userId - GET
+Dedicated endpoint for reading all history instances related to a user.
+          Security: Basic, Admin & Superadmin
+
+
+	
+
+</> PLACE
+Attribute
+	Type
+	Description
+	Notes
+	placeId
+	Integer
+	
+
+	read-only
+	placeName
+	String
+	
+
+	required
+	placeDescription
+	String
+	
+
+	required
+	placeClass
+	String
+	
+
+	required
+	placeLocation
+	String
+	
+
+	required
+	updatedAt
+	Date
+	
+
+	read-only
+	createdAt
+	Date
+	
+
+	read-only
+	
+
+
+
+* /api/places/read-place/:id - GET
+Dedicated endpoint that is used to obtain the information related to a place.
+Security: Basic, Admin & Superadmin
+	* /api/places/all-places/ - GET
+Dedicated endpoint that is used to obtain the general information related to all places.
+Security: Basic, Admin & Superadmin
+	
+
+
+
+</> PERMISSION
+Attribute
+	Type
+	Description
+	Notes
+	permissionId
+	Integer
+	
+
+	read-only
+	name
+	String
+	
+
+	required
+	description
+	String
+	
+
+	required
+	Endpoints
+* /api/permissions/read-permission/:id - GET
+Dedicated Endpoint used to see the permissions that you have as an user.
+Security: Basic, Admin & Superadmin
+	
+
+</> REQUEST
+Attribute
+	Type
+	Description
+	Notes
+	requestId
+	Integer
+	
+
+	read-only
+	name
+	String
+	
+
+	required
+	requestDescription
+	String
+	
+
+	required
+	requestStatus
+	Integer
+	1: Pending, 2: Accepted, 3: Rejected
+	required
+	updatedAt
+	Date
+	
+
+	read-only
+	createdAt
+	Date
+	
+
+	read-only
+	fk_item
+	Integer
+	
+
+	belongs-to
+	fk_user_receiver
+	Integer
+	
+
+	belongs-to
+	fk_user_requester
+	Integer
+	
+
+	belongs-to
+	Endpoints
+* /api/post/create-request/ - POST
+Dedicated endpoint for creating a request.
+{
+  "name": "String",
+  "description": "String",
+  "status": "Integer",
+  "fk_item": "Int",
+  "fk_user": "Int",
+  "fk_category": "Int"
+}
+         
+         Security: Admin , Superadmin
+	* /api/request/user-requests/:user_id - GET
+Dedicated endpoint for reading all requests in a brief way.
+          Security: Basic, Admin & Superadmin
+	* /api/request/one-request/:id - GET
+Dedicated endpoint for reading all the information regarding one request.
+          Security: Basic, Admin & Superadmin
+	* /api/request/accept-request/ - PATCH
+Dedicated endpoint for changing the status of the request to accepted.
+          Security: Admin, Superadmin
+	* /api/request/reject-request/ - PATCH
+Dedicated endpoint for changing the status of the request to rejected.
+          Security: Admin, Superadmin
+	* /api/request/delete-request/:id - DELETE
+Endpoint used to delete a request by ID
+          Security: Superadmin
+	
+
+</> NOTIFICATION
+Attribute
+	Type
+	Description
+	Notes
+	notificationId
+	Integer
+	
+
+	read-only
+	notificationDescription
+	String
+	
+
+	required
+	type
+	String
+	
+
+	required
+	createdAt
+	Date
+	
+
+	read-only
+	fk_trigger
+	Integer
+	
+
+	belongs-to
+	fk_user_trigger
+	Integer
+	
+
+	belongs-to
+	fk_user_notified
+	Integer
+	
+
+	belongs-to
+	Endpoints
+* /api/notification/send-notification/ - POST
+Dedicated endpoint for creating and sending a new notification.
+{
+  "description": "String",
+  "type": "String",
+  "fk_trigger": "Int",
+  "fk_user_trigger": "Int",
+  "fk_user_notified": "Int"
+}
+         
+         Security: Basic, Admin & Superadmin
+	* /api/notification/get-my-notifications/:user_id - GET
+Dedicated endpoint for getting all notifications assigned to a user specified by ID.
+          Security: Basic, Admin & Superadmin
+	* /api/request/delete-request/:id - DELETE
+Endpoint used to delete a notification by ID (Notifications delete automatically after 2 weeks)
+          Security: Basic, Admin & Superadmin
+	
+
+</> ROLE
+Attribute
+	Type
+	Description
+	Notes
+	roleId
+	Integer
+	
+
+	read-only
+	roleName
+	String
+	
+
+	required
+	roleDescription
+	String
+	
+
+	required
+	Endpoints
+* /api/role/all-roles/ - GET
+Dedicated endpoint for getting all roles available
+          Security: Basic, Admin & Superadmin
+	* /api/role/get-roles/:id - GET
+Dedicated endpoint for getting a role by its ID
+          Security: Basic, Admin & Superadmin
+	* /api/role/get-roles/:user_id - GET
+Dedicated endpoint for seeing the role of an specific user by ID
+          Security: Basic, Admin & Superadmin

@@ -6,6 +6,7 @@ import typescriptParser from "@typescript-eslint/parser";
 export default [
   {
     files: ["src/**/*.ts"], //Where to search files (** each subfolder), (*.ts each file that ends with .ts)
+    ignores: ["src/**/*.d.ts"],
     languageOptions: {
       parser: typescriptParser, // The traductor we imported
       parserOptions: {

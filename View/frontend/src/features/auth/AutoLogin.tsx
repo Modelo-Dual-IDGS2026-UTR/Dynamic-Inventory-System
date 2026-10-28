@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../utils/auth';
 
 export default function AutoLogin(): null {
   const navigate = useNavigate();
+    const { refreshAuth } = useAuth();
   const hasAttemptedLogin = useRef(false);
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function AutoLogin(): null {
                 
             if (response.ok) {
                 const data = await response.json();
-                console.log(data);
+                await refreshAuth();
 
                 if (!data.isUserComplete) {
                     navigate('/select-area', { replace: true });
