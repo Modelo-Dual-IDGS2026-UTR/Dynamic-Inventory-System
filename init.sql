@@ -16,6 +16,18 @@ CREATE TABLE Permission (
     permissionDescription varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE Employee (
+    employeeId INT PRIMARY KEY,
+    firstName varchar(255) NOT NULL,
+    lastName varchar(255) NOT NULL,
+    employeeType varchar(255),
+    email varchar(100) NOT NULL UNIQUE,
+    area varchar(255),
+    status BOOLEAN NOT NULL DEFAULT TRUE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE Role_Permission(
     RPId INT AUTO_INCREMENT PRIMARY KEY,
     fk_role INT NOT NULL,
@@ -24,25 +36,59 @@ CREATE TABLE Role_Permission(
 
 CREATE TABLE User (
     userId INT AUTO_INCREMENT PRIMARY KEY,
-    googleUserId VARCHAR(50) NOT NULL,
-    universityId VARCHAR(50),
-    firstName varchar(50) NOT NULL,
-    lastName varchar(50) NOT NULL,
+    googleUserId VARCHAR(255) NOT NULL UNIQUE,
+    universityId VARCHAR(255) UNIQUE,
+    employeeId INT UNIQUE,
+    firstName varchar(255) NOT NULL,
+    lastName varchar(255) NOT NULL,
     userStatus Boolean DEFAULT TRUE,
-    email varchar(100) NOT NULL,
-    area varchar(10),
-    fk_role INT NOT NULL,
+    email varchar(100) NOT NULL UNIQUE,
+    area varchar(255),
+    fk_role INT,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_employee
+        FOREIGN KEY (employeeId)
+        REFERENCES Employee(employeeId)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE UserSession (
+    sessionId CHAR(36) PRIMARY KEY,
+    userId INT NOT NULL,
+    refreshTokenHash VARCHAR(255) NOT NULL,
+    expiresAt DATETIME NOT NULL,
+    revokedAt DATETIME NULL,
+    createdAt DATETIME NOT NULL,
+    updatedAt DATETIME NOT NULL,
+
+    CONSTRAINT fk_user_session_user
+        FOREIGN KEY (userId)
+        REFERENCES User(userId)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    INDEX idx_user_session_user_id (userId),
+    INDEX idx_user_session_expires_at (expiresAt),
+    INDEX idx_user_session_revoked_at (revokedAt)
+);
+
+CREATE TABLE Place (
+    placeId INT AUTO_INCREMENT PRIMARY KEY,
+    placeName varchar(50) NOT NULL UNIQUE,
+    placeDescription varchar(255) NOT NULL,
+    placeClass varchar(255) NOT NULL,
+    placeLocation varchar(255) NOT NULL,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE Place (
-    placeId INT AUTO_INCREMENT PRIMARY KEY,
-    placeName varchar(50) NOT NULL,
-    placeDescription varchar(255) NOT NULL,
-    class varchar(255) NOT NULL,
-    ip_range varchar(255) NOT NULL,
-    placeLocation varchar(255) NOT NULL,
+CREATE TABLE Category (
+    categoryId INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+    categoryName varchar(255) NOT NULL,
+    categoryDescription varchar(255) NOT NULL,
+    categoryStatus Boolean DEFAULT TRUE,
+    folioNumber varchar(255) NOT NULL,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -51,12 +97,13 @@ CREATE TABLE Item (
     itemId INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
     itemName varchar(30) NOT NULL,
     itemDescription varchar(255) NOT NULL,
+    itemStatus ENUM("In Use", "In Stock", "Damaged") DEFAULT "In Stock",
     cost INT NOT NULL,
     manufacter varchar(25),
     codeBar varchar(25),
-    category ENUM("No Category") DEFAULT "No Category",
-    fk_user_responsible INT NOT NULL,
-    fk_place INT NOT NULL,
+    fk_category INT,
+    fk_user_responsible INT,
+    fk_place INT,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -68,30 +115,34 @@ CREATE TABLE Report (
     reportStatus int DEFAULT 1,
     reportPriority int DEFAULT 3,
     dueDate Date,
-    fk_user INT NOT NULL,
-    fk_item INT NOT NULL,
-    fk_place INT NOT NULL,  
+    fk_user_creator INT,
+    fk_user_assigned INT,
+    fk_item INT,
+    fk_place INT,  
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP  
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE History (
     historyId INT AUTO_INCREMENT PRIMARY KEY,
-    fk_user INT NOT NULL,
-    fk_item INT NOT NULL,
-    fk_place INT NOT NULL,
-    fk_report INT NOT NULL,
+    historyDescription varchar(255) NOT NULL,
+    actionType varchar(255) NOT NULL,
+    fk_user INT,
+    fk_item INT,
+    fk_place INT,
+    fk_report INT,
+    fk_request INT,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE Request (
     requestId INT AUTO_INCREMENT PRIMARY KEY,
-    requestName varchar(20),
-    requestDescription varchar(255),
+    requestName varchar(100),
+    requestDescription varchar(1000),
     requestStatus INT DEFAULT 1,
-    fk_user_reciver INT NOT NULL,
-    fk_user_requester INT NOT NULL,
-    fk_item INT NOT NULL,
+    fk_user_reciver INT,
+    fk_user_requester INT,
+    fk_item INT,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -100,8 +151,9 @@ CREATE TABLE UserNotification (
     requestDescription varchar(255),
     notificationType ENUM("Request","Report","item") DEFAULT "item",
     fk_trigger INT NOT NULL,
-    fk_user_trigger INT NOT NULL,
-    fk_notified INT NOT NULL,
+    fk_user_trigger INT,
+    fk_notified INT,
+    isRead BOOLEAN DEFAULT FALSE,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -113,7 +165,7 @@ ALTER TABLE User
     ADD CONSTRAINT fk_user_role 
         FOREIGN KEY (fk_role)
         REFERENCES UserRole(roleId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 ALTER TABLE Role_Permission
@@ -129,75 +181,90 @@ ALTER TABLE Role_Permission
         ON UPDATE CASCADE;
 
 ALTER TABLE Item
+    ADD CONSTRAINT fk_item_category
+        FOREIGN KEY (fk_category)
+        REFERENCES Category(categoryId)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
     ADD CONSTRAINT fk_item_user
         FOREIGN KEY (fk_user_responsible)
-        REFERENCES User(userId)
-        ON DELETE CASCADE
+        REFERENCES Employee(employeeId)
+        ON DELETE SET NULL
         ON UPDATE CASCADE,
     ADD CONSTRAINT fk_item_place
         FOREIGN KEY (fk_place)
         REFERENCES Place(placeId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 ALTER TABLE History
     ADD CONSTRAINT fk_history_user 
         FOREIGN KEY (fk_user) 
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_history_item
         FOREIGN KEY (fk_item) 
         REFERENCES Item(itemId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_history_place 
         FOREIGN KEY (fk_place) 
         REFERENCES Place(placeId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE,
     ADD CONSTRAINT fk_history_report
         FOREIGN KEY (fk_report) 
         REFERENCES Report(reportId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    ADD CONSTRAINT fk_history_request
+        FOREIGN KEY (fk_request) 
+        REFERENCES Request(requestId)
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 ALTER TABLE Request
     ADD CONSTRAINT fk_request_user
         FOREIGN KEY (fk_user_reciver) 
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_requester_user 
         FOREIGN KEY (fk_user_requester) 
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_request_item
         FOREIGN KEY (fk_item) 
         REFERENCES Item(itemId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 ALTER TABLE Report
-    ADD CONSTRAINT fk_report_user 
-        FOREIGN KEY (fk_user) 
+    ADD CONSTRAINT fk_report_user_creator 
+        FOREIGN KEY (fk_user_creator) 
         REFERENCES User(userId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
+        ON UPDATE CASCADE, 
+    ADD CONSTRAINT fk_report_user_assigned
+        FOREIGN KEY (fk_user_assigned) 
+        REFERENCES User(userId)
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_report_place 
         FOREIGN KEY (fk_place) 
         REFERENCES Place(placeId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE, 
     ADD CONSTRAINT fk_report_item
         FOREIGN KEY (fk_item) 
         REFERENCES Item(itemId)
-        ON DELETE CASCADE
+        ON DELETE SET NULL
         ON UPDATE CASCADE;
 
 /*===============================
-    3. INSERT INITIAL VALUES
+    3. INSERT INITIAL VALUES - DELETE ON DEPLOY
   ===============================*/
 
 INSERT INTO UserRole(roleName, roleDescription)
@@ -216,5 +283,34 @@ VALUES (1, 1);
 INSERT INTO User(googleUserId, firstName, lastName, universityId, userStatus, email, area, fk_role)
 VALUES ("sddasddasds","TEST USER", "01", "1234", TRUE, "st1234@utr.edu.mx", "IDGS", 1);
 
-INSERT INTO Place(placeName, placeDescription, class, ip_range, placeLocation)
-VALUES ("A101", "Le falta un pito", " Salon Normal", "172.0.0.1-172.0.240", "A Building");
+INSERT INTO Place(placeName, placeDescription, placeClass, placeLocation)
+VALUES ("A101", "Primer salón edificio A", " Salón", "Edificio A");
+
+INSERT INTO Category(folioNumber, categoryName, categoryDescription)
+VALUES 
+("1231", "Terrenos", "Terrenos"),
+("1233", "Edificios no Habitacionales", "Edificios no Habitacionales"),
+("1239", "Otros Bienes Inmuebles", "Otros Bienes Inmuebles"),
+("1241-1", "Muebles de Oficina y Estantería", "Muebles de Oficina y Estantería"),
+("1241-2", "Muebles, Excepto de Oficina y Estantería", "Muebles, Excepto de Oficina y Estantería"),
+("1241-3", "Equipo de Cómputo y de Tecnologías de la Información", "Equipo de Cómputo y de Tecnologías de la Información"),
+("1241-9", "Otros Mobiliarios y Equipos de Administración", "Otros Mobiliarios y Equipos de Administración"),
+("1242-1", "Equipos y Aparatos Audiovisuales", "Equipos y Aparatos Audiovisuales"),
+("1242-3", "Cámaras Fotográficas y de Video", "Cámaras Fotográficas y de Video"),
+("1242-9", "Otro Mobiliario y Equipo Educacional y Recreativo", "Otro Mobiliario y Equipo Educacional y Recreativo"),
+("1243-1", "Equipo Médico y de Laboratorio", "Equipo Médico y de Laboratorio"),
+("1243-2", "Instrumental Médico y de Laboratorio", "Instrumental Médico y de Laboratorio"),
+("1244-1", "Vehículos y Equipo Terrestre", "Vehículos y Equipo Terrestre"),
+("1244-2", "Carrocerías y Remolques", "Carrocerías y Remolques"),
+("1245", "Equipo de Defensa y Seguridad", "Equipo de Defensa y Seguridad"),
+("1246-1", "Maquinaria y Equipo Agropecuario", "Maquinaria y Equipo Agropecuario"),
+("1246-2", "Maquinaria y Equipo Industrial", "Maquinaria y Equipo Industrial"),
+("1246-4", "Sistemas de Aire Acondicionado, Calefacción y de Refrigeración Industrial y Comercial", "Sistemas de Aire Acondicionado, Calefacción y de Refrigeración Industrial y Comercial"),
+("1246-5", "Equipo de Comunicación y Telecomunicación", "Equipo de Comunicación y Telecomunicación"),
+("1246-6", "Equipos de Generación Eléctrica, Aparatos y Accesorios Eléctricos", "Equipos de Generación Eléctrica, Aparatos y Accesorios Eléctricos"),
+("1246-7", "Herramientas y Máquinas-Herramienta", "Herramientas y Máquinas-Herramienta"),
+("1246-9", "Otros Equipos", "Otros Equipos"),
+("1251", "Software", "Software"),
+("1252-2", "Marcas", "Marcas"),
+("1254-1", "Licencias Informáticas e Intelectuales", "Licencias Informáticas e Intelectuales"),
+("1259", "Otros Bienes Activos Intangibles", "Otros Bienes Activos Intangibles");

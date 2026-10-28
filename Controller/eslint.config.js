@@ -6,6 +6,7 @@ import typescriptParser from "@typescript-eslint/parser";
 export default [
   {
     files: ["src/**/*.ts"], //Where to search files (** each subfolder), (*.ts each file that ends with .ts)
+    ignores: ["src/**/*.d.ts"],
     languageOptions: {
       parser: typescriptParser, // The traductor we imported
       parserOptions: {
@@ -19,8 +20,10 @@ export default [
     //Warnings and punishment manual
     rules: {
       ...eslintPluginTypescript.configs.recommended.rules,
-      "no-console": "warn", // Just a warning for console logs
-      "@typescript-eslint/no-unused-vars": "warn" // Same but for variables
+      "no-console": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        "argsIgnorePattern": "^_"
+      }]
     }
   }
 ];

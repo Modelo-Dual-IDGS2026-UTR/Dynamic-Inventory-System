@@ -1,0 +1,25 @@
+info:
+  name: set-status
+  type: http
+  seq: 7
+
+http:
+  method: PATCH
+  url: http://localhost:3000/api/item/set-status/5
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTgxOTE1NiwiZXhwIjoxNzkxODIwMDU2fQ.dljg7i8RwhlbI9II0bft2nDtTj8O_H7PihUKIcTFLhQ
+  body:
+    type: json
+    data: |-
+      {
+        "itemStatus": "In Use"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

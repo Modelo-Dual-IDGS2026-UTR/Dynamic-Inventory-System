@@ -1,0 +1,27 @@
+info:
+  name: update-category
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: http://localhost:3000/api/category/update-category/28
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MDY0MzA2MCwiZXhwIjoxNzkwNjQzOTYwfQ.XaK0TpOO1mVYzCdmBmMIUSOmMqDlkdt5UF1iuJFsBa8
+  body:
+    type: json
+    data: |-
+      {
+        "categoryName": "Alimentos Perros",
+        "categoryDescription": "Para comer",
+        "folioNumber": "777"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
