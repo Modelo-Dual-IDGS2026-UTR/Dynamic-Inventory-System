@@ -1,7 +1,11 @@
-export declare const routes: {
-    userRouter: import("express-serve-static-core").Router;
-    itemRouter: import("express-serve-static-core").Router;
-    requestRouter: import("express-serve-static-core").Router;
-    reportRouter: import("express-serve-static-core").Router;
-};
+import { userRouter } from "./userRoutes.js";
+import { itemRouter } from "./itemRoutes.js";
+import { reportRouter } from "./reportRoutes.js";
+import { categoryRouter } from "./categoryRoutes.js";
+import { placeRouter } from "./placeRoutes.js";
+import { historyRouter } from "./historyRoutes.js";
+import { notificationRouter } from "./notificationRoutes.js";
+import { employeeRouter } from "./employeeRoutes.js";
+import { requestRouter } from "./requestRoutes.js";
+export { userRouter, itemRouter, reportRouter, categoryRouter, placeRouter, historyRouter, notificationRouter, employeeRouter, requestRouter };
 //# sourceMappingURL=index.d.ts.map

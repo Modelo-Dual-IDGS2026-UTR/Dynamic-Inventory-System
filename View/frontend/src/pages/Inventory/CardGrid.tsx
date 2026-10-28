@@ -27,7 +27,7 @@ function CardGrid({ items, onSelectItem }: CardGridProps): JSX.Element {
                     <h3>{item.itemName}</h3>
                     <p>{item.itemDescription}</p>
                     <p>Fabricante: {item.manufacter}</p>
-                    <p>Costo: ${item.cost.toFixed(2)}</p>
+                    <p>Costo: {typeof item.cost === 'number' ? `$${item.cost.toFixed(2)}` : 'No disponible'}</p>
                 </div>
             ))}
         </div>

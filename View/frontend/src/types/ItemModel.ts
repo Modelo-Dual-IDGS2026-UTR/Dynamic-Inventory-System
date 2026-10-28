@@ -4,11 +4,11 @@ export interface Item{
   "itemName":string,
   "itemDescription":string,
   "manufacter":string,
-  "cost":number,
-  "category": string,
-  "codeBar": string,
-  "fk_user_responsible":User,
-  "fk_place":Place,
+  "cost":number | null,
+  "category": string | { id: number; name: string } | null,
+  "codeBar": string | null,
+  "fk_user_responsible":User | null,
+  "fk_place":Place | null,
   "createdAt":Date,
   "updatedAt":Date
 }

@@ -309,6 +309,7 @@ const LogUser= async (req:Request,res:Response)=>{
                 googleUserId:sub,
                 email:normalizedEmail,
                 area:employee?.getDataValue('area') ?? null,
+                employeeId:employee?.getDataValue('employeeId') ?? null,
                 fk_role:1
             })
             await createHistoryLog({

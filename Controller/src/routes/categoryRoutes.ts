@@ -10,16 +10,15 @@ import {
 import  express  from "express";
 export const categoryRouter=express.Router();
 
-//////////////////////SUPERADMIN/////////////////////////
+//////////////////////AUTHENTICATED USERS/////////////////////////
 
 categoryRouter.post('/create-category', VerifyJWT(1), CreateCategory);
 
-categoryRouter.get('/all-categories', VerifyJWT(1), AllCategories);
+categoryRouter.get('/all-categories', VerifyJWT(3), AllCategories);
 
 categoryRouter.get('/find-category/:categoryId', VerifyJWT(1), SearchCategoryById);
 
 categoryRouter.put('/update-category/:categoryId', VerifyJWT(1), UpdateCategory);
 
 categoryRouter.delete('/delete-category/:categoryId', VerifyJWT(1), DeleteCategoryByID);
-
 

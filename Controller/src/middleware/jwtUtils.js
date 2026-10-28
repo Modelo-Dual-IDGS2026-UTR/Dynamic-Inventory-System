@@ -1,16 +1,30 @@
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'node:crypto';
 ;
-const JWT_Secret = process.env.JWT_SECRET;
+const accessSecret = process.env.JWT_SECRET;
+const refreshSecret = process.env.JWT_REFRESH_SECRET;
 const algorithm = 'HS256';
-if (!JWT_Secret) {
+if (!accessSecret || !refreshSecret) {
     throw new Error("\n------FATAL ERROR: No jwt secret defined---------\n");
 }
-export const GenerateJWT = (payload, expiresIn = 15000) => {
+export const GenerateJWT = (payload, expiresIn = "15m") => {
     const options = {
         expiresIn,
         algorithm
     };
-    return jwt.sign(payload, JWT_Secret, options);
+    return jwt.sign(payload, accessSecret, options);
+};
+export const generateRefreshToken = (payload) => {
+    return jwt.sign(payload, refreshSecret, {
+        algorithm,
+        expiresIn: '7d',
+        jwtid: randomUUID()
+    });
+};
+export const verifyRefreshToken = (token) => {
+    return jwt.verify(token, refreshSecret, {
+        algorithms: [algorithm]
+    });
 };
 export const VerifyJWT = (requiredRole = 3) => {
     return (req, res, next) => {
@@ -20,13 +34,13 @@ export const VerifyJWT = (requiredRole = 3) => {
         };
         if (!token) {
             return res.status(400).json({
-                message: "no token recived"
+                message: "no token received"
             });
         }
         try {
-            const decoded = jwt.verify(token, JWT_Secret, options);
+            const decoded = jwt.verify(token, accessSecret, options);
             const { role } = decoded;
-            if (requiredRole < role) {
+            if (role > requiredRole) {
                 return res.status(401).json({
                     messegae: "User Role Unauthorized"
                 });
@@ -36,14 +50,18 @@ export const VerifyJWT = (requiredRole = 3) => {
         }
         catch (error) {
             if (error instanceof jwt.TokenExpiredError) {
-                throw new Error("Expired Token");
+                return res.status(401).json({
+                    message: 'Access token expired'
+                });
             }
-            else if (error instanceof jwt.JsonWebTokenError) {
-                throw new Error("Invalid Token");
+            if (error instanceof jwt.JsonWebTokenError) {
+                return res.status(401).json({
+                    message: 'Invalid access token'
+                });
             }
-            else {
-                throw new Error("Someting went wrong authenticating this user");
-            }
+            return res.status(401).json({
+                message: 'Authentication failed'
+            });
         }
     };
 };

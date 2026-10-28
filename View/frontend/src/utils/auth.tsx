@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 export interface AuthUser {
   userId: number;
+  employeeId: number | null;
   firstName: string;
   lastName: string;
   email: string;

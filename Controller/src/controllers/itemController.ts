@@ -89,6 +89,13 @@ const CreateItem = async (req: Request, res: Response) => {
             })
         }
 
+        const place = await Place.findByPk(Number(fk_place));
+        if (!place) {
+            return res.status(400).json({
+                message: `Place ${fk_place} not found`
+            });
+        }
+
         const existingWhere: WhereOptions = {};
 
         if (codeBar) {

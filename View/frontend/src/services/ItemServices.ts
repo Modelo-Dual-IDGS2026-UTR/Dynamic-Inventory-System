@@ -1,6 +1,6 @@
 import type { Item } from "../types"
 
-const api=import.meta.env.API_URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export interface CreateItemPayload {
     itemName: string;
@@ -8,23 +8,31 @@ export interface CreateItemPayload {
     cost: number;
     manufacter: string;
     codeBar: string;
-    category: 'No Category';
+    fk_category: number;
     fk_user_responsible: number;
     fk_place: number;
 }
 
 export async function getItems(parameter:Record<string,unknown>={}):Promise<Item[]>{
     try {
-        const response = await fetch(`http://localhost:3000/api/item/read-items`,{
-            method:'POST',
+        const query = new URLSearchParams(
+            Object.entries(parameter)
+                .filter(([, value]) => value !== undefined && value !== null && value !== '')
+                .map(([key, value]) => [key, String(value)])
+        );
+        const response = await fetch(`${API_URL}/item/read-items${query.toString() ? `?${query}` : ''}`,{
+            method:'GET',
             headers:{
                 'Content-Type': 'application/json'
             },
-            body:JSON.stringify(parameter),
             credentials:'include'
         })
         if(!response.ok){
-            throw new Error('AHHHHHHHHH') 
+            const errorBody = await response.json().catch(() => null) as { message?: unknown } | null;
+            const message = typeof errorBody?.message === 'string'
+                ? errorBody.message
+                : `No se pudieron cargar los artículos (${response.status})`;
+            throw new Error(message);
         }
         const Items=await response.json()
         return Array.isArray(Items) ? Items : Items.data || []
@@ -35,7 +43,7 @@ export async function getItems(parameter:Record<string,unknown>={}):Promise<Item
 }
 
 export async function createItem(payload: CreateItemPayload): Promise<void> {
-    const response = await fetch('http://localhost:3000/api/item/new-item', {
+    const response = await fetch(`${API_URL}/item/new-item`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

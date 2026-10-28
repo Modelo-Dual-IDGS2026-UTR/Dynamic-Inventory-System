@@ -1,25 +1,67 @@
-import { Item, Place, User } from '@dis/model';
+import { Employee, Item, ItemStatus, Place, User, Category } from '@dis/model';
+import { NotificationType } from '@dis/model/userNotificationModel.js';
 import {} from 'sequelize';
+import { FilterOptions } from "../helpers/filterOptions.js";
+import { createHistoryLog } from '../helpers/historyHelper.js';
+import { createUserNotification } from '../helpers/notificationHelper.js';
+import { mySequelize } from '@dis/db/dbConection.js';
+const PUBLIC_ITEM_INCLUDES = [
+    {
+        model: Category,
+        as: 'category',
+        attributes: ['categoryId', 'categoryName']
+    },
+    {
+        model: Employee,
+        as: 'responsible_user',
+        attributes: ['employeeId', 'firstName', 'lastName', 'email', 'area']
+    },
+    {
+        model: Place,
+        as: 'related_place',
+        attributes: ['placeId', 'placeName']
+    }
+];
+const PUBLIC_SORT_FIELDS = ['itemId', 'itemName', 'itemStatus', 'manufacter'];
+const formatPublicItem = (itemInstance) => {
+    const item = typeof itemInstance.toJSON === 'function' ? itemInstance.toJSON() : itemInstance;
+    return {
+        itemId: item.itemId,
+        itemName: item.itemName,
+        itemDescription: item.itemDescription,
+        itemStatus: item.itemStatus,
+        manufacter: item.manufacter,
+        category: item.category
+            ? {
+                id: item.category.categoryId,
+                name: item.category.categoryName
+            }
+            : null,
+    };
+};
 const CreateItem = async (req, res) => {
     try {
-        const { itemName, itemDescription, codeBar, category, cost, manufacter, fk_user_responsible, fk_place } = req.body;
-        if (!itemDescription || !itemName || !fk_user_responsible || !category || !fk_place || !cost || !manufacter) {
+        const { itemName, itemDescription, codeBar, cost, manufacter, fk_category, fk_user_responsible, fk_place } = req.body;
+        if (!itemDescription || !itemName || !fk_user_responsible || !fk_category || !fk_place || !cost || !manufacter) {
             return res.status(400).json({
                 message: "All parameters must be field please check documentation"
             });
         }
-        const [responsibleUser, place] = await Promise.all([
-            User.findByPk(fk_user_responsible),
-            Place.findByPk(fk_place),
-        ]);
-        if (!responsibleUser) {
-            return res.status(404).json({
-                message: `The responsible user ${fk_user_responsible} does not exist`,
+        const responsibleEmployee = await Employee.findOne({
+            where: {
+                employeeId: Number(fk_user_responsible),
+                status: true
+            }
+        });
+        if (!responsibleEmployee) {
+            return res.status(400).json({
+                message: "Responsible employee not found or inactive"
             });
         }
+        const place = await Place.findByPk(Number(fk_place));
         if (!place) {
-            return res.status(404).json({
-                message: `The place ${fk_place} does not exist. Use an existing place ID`,
+            return res.status(400).json({
+                message: `Place ${fk_place} not found`
             });
         }
         const existingWhere = {};
@@ -34,7 +76,7 @@ const CreateItem = async (req, res) => {
             existingWhere.fk_user_responsible = fk_user_responsible;
             existingWhere.codeBar = null;
             existingWhere.fk_place = fk_place;
-            existingWhere.category = category;
+            existingWhere.fk_category = fk_category;
             existingWhere.cost = cost;
             existingWhere.manufacter = manufacter;
         }
@@ -44,33 +86,51 @@ const CreateItem = async (req, res) => {
                 message: "Item already exist"
             });
         }
-        await Item.create({
+        const newItem = await Item.create({
             itemName,
             itemDescription,
             cost,
             manufacter,
             codeBar,
-            category,
+            fk_category,
             fk_user_responsible,
             fk_place
         });
+        await createHistoryLog({
+            historyDescription: `Se creó el item ${itemName} con código de barras: ${codeBar || 'N/A'}`,
+            actionType: 'CREATE',
+            userId: res.locals.jwtPayloadContent?.userId,
+            itemId: newItem.getDataValue('itemId'),
+            placeId: fk_place
+        });
+        const currentUserId = res.locals.jwtPayloadContent?.userId;
+        const responsibleUser = await User.findOne({
+            where: { employeeId: Number(fk_user_responsible) }
+        });
+        if (responsibleUser && Number(responsibleUser.getDataValue('userId')) !== Number(currentUserId)) {
+            await createUserNotification({
+                notificationType: NotificationType.ITEM,
+                requestDescription: `Se te ha asignado la responsabilidad del nuevo item "${itemName}".`,
+                fk_trigger: newItem.getDataValue('itemId'),
+                fk_user_trigger: currentUserId || null,
+                fk_notified: Number(responsibleUser.getDataValue('userId'))
+            });
+        }
         return res.status(200).json({
             message: "item succesfully created"
         });
     }
     catch (error) {
-        console.error('Error creating item:', error);
-        return res.status(500).json({
-            message: "Internal server error while creating the item"
-        });
+        throw error;
     }
 };
 const SearchItemById = async (req, res) => {
     try {
+        const role = res.locals.jwtPayloadContent?.role;
         const id = req.params.itemId;
         if (!id) {
             return res.status(400).json({
-                message: "No ID recived"
+                message: "No ID received"
             });
         }
         const convertedId = Number(id);
@@ -79,72 +139,78 @@ const SearchItemById = async (req, res) => {
                 message: "Invalid User ID"
             });
         }
-        ShowItem(convertedId, res);
+        return await ShowItem(convertedId, role, res);
     }
     catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        });
+        throw error;
     }
 };
 const SearchItems = async (req, res) => {
     try {
-        const body = req.body || {};
-        const { itemId, itemName, itemDescription, cost, manufacter, codeBar, fk_user_responsible, fk_place, sortBy = 'itemId', order = 'ASC' } = body;
+        const role = res.locals.jwtPayloadContent?.role;
+        const body = req.query || {};
+        const { itemId, itemName, itemDescription, manufacter, sortBy = 'itemId', order = 'ASC' } = body;
+        const page = Math.min(10000, Math.max(1, Number(body.page) || 1));
+        const pageSize = Math.min(50, Math.max(1, Number(body.pageSize) || 20));
+        const offset = (page - 1) * pageSize;
+        const requestedSort = String(sortBy);
+        const safeSortBy = PUBLIC_SORT_FIELDS.includes(requestedSort) ? requestedSort : 'itemId';
+        const safeOrder = String(order).toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
         const searchOptions = await FilterOptions({
             itemId,
             itemName,
             itemDescription,
-            cost,
             manufacter,
-            codeBar,
-            fk_user_responsible,
-            fk_place
         });
-        const foundItems = await Item.findAll({
+        const findAttributes = role === 1
+            ? ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'cost', 'codeBar', 'manufacter']
+            : ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'];
+        const { rows: foundItems, count: totalItems } = await Item.findAndCountAll({
             where: searchOptions,
-            include: [
-                {
-                    model: Place,
-                    as: 'related_place',
-                    attributes: ['placeId', 'placeName']
-                },
-                {
-                    model: User,
-                    as: 'responsible_user',
-                    attributes: ['userId', 'firstName', 'lastName']
-                }
-            ],
-            order: [[sortBy, order.toUpperCase()]]
+            attributes: findAttributes,
+            include: PUBLIC_ITEM_INCLUDES,
+            order: [[safeSortBy, safeOrder]],
+            limit: pageSize,
+            offset
         });
-        const formatedItems = foundItems.map((itemInstance) => {
-            const item = itemInstance.toJSON();
-            const userName = item.responsible_user.firstName + " " + item.responsible_user.lastName;
-            const formated = {
-                ...item,
-                fk_place: item.related_place ?
-                    {
-                        id: item.related_place.placeId,
-                        name: item.related_place.placeName
-                    } : item.related_place.placeId,
-                fk_user_responsible: item.responsible_user ?
-                    {
-                        id: item.responsible_user.userId,
-                        userName: userName
-                    } : item.responsible_user.userId
-            };
-            delete formated.related_place;
-            delete formated.responsible_user;
-            return formated;
+        const formatedItems = foundItems.map(item => {
+            const rawItem = (typeof item.toJSON === 'function' ? item.toJSON() : item);
+            const publicData = formatPublicItem(item);
+            if (role === 1) {
+                return {
+                    ...publicData,
+                    cost: item.getDataValue('cost'),
+                    codeBar: item.getDataValue('codeBar'),
+                    responsibleUser: rawItem.responsible_user
+                        ? {
+                            id: rawItem.responsible_user.employeeId,
+                            employeeId: rawItem.responsible_user.employeeId,
+                            firstName: rawItem.responsible_user.firstName,
+                            lastName: rawItem.responsible_user.lastName
+                        }
+                        : null,
+                    relatedPlace: rawItem.related_place
+                        ? {
+                            id: rawItem.related_place.placeId,
+                            placeName: rawItem.related_place.placeName
+                        }
+                        : null,
+                };
+            }
+            return publicData;
         });
-        return res.status(200).json(formatedItems);
+        return res.status(200).json({
+            data: formatedItems,
+            pagination: {
+                page,
+                pageSize,
+                totalItems,
+                totalPages: Math.ceil(totalItems / pageSize)
+            }
+        });
     }
     catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        });
+        throw error;
     }
 };
 const UpdateItem = async (req, res) => {
@@ -163,21 +229,52 @@ const UpdateItem = async (req, res) => {
         }
         const doesItExist = await Item.findOne({ where: { itemId: convertedId } });
         if (!doesItExist) {
-            res.status(404).json({
-                message: `item  do not exist`
+            return res.status(404).json({
+                message: `Item does not exist`
             });
         }
         const body = req.body || {};
-        const { itemName, itemDescription, cost, manufacter, codeBar, fk_responsible_user, fk_place } = body;
+        const { itemName, itemDescription, cost, manufacter, itemStatus, codeBar, category, fk_user_responsible, fk_place } = body;
+        if (!itemName ||
+            !itemDescription ||
+            !cost ||
+            !itemStatus ||
+            !manufacter ||
+            !category ||
+            !codeBar ||
+            !fk_user_responsible ||
+            !fk_place) {
+            return res.status(400).json({ message: 'All parameters must be filled in,'
+                    + ' please check documentation' });
+        }
+        const responsibleEmployee = await Employee.findOne({
+            where: {
+                employeeId: Number(fk_user_responsible),
+                status: true
+            }
+        });
+        if (!responsibleEmployee) {
+            return res.status(400).json({
+                message: 'Responsible employee not found or inactive'
+            });
+        }
         const [modifiedRows] = await Item.update({
             itemName,
             itemDescription,
             cost,
             manufacter,
+            itemStatus,
             codeBar,
-            fk_responsible_user,
+            fk_user_responsible,
             fk_place
         }, { where: { itemId: convertedId } });
+        await createHistoryLog({
+            historyDescription: `Se actualizo la información el item ${itemName} con código de barras: ${codeBar || 'N/A'}`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId,
+            itemId: doesItExist.getDataValue('itemId'),
+            placeId: fk_place
+        });
         if (modifiedRows == 0) {
             res.status(404).json({
                 message: "Item not found or not changes where made"
@@ -185,15 +282,136 @@ const UpdateItem = async (req, res) => {
         }
         else {
             res.status(200).json({
-                message: "item succesfully updated"
+                message: "Item succesfully updated"
             });
         }
     }
     catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
+        throw error;
+    }
+};
+const SetStatus = async (req, res) => {
+    try {
+        const parsedItemId = Number(req.params.itemId);
+        const { itemStatus } = req.body || {};
+        if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !Object.values(ItemStatus).includes(itemStatus)) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+        const foundItem = await Item.findByPk(parsedItemId);
+        if (!foundItem) {
+            return res.status(404).json({ message: "Item Not Found" });
+        }
+        if (foundItem.getDataValue('itemStatus') === itemStatus) {
+            return res.status(400).json({
+                message: "The status could not change because is the same status"
+            });
+        }
+        foundItem.set('itemStatus', itemStatus);
+        await foundItem.save();
+        await createHistoryLog({
+            historyDescription: `Se actualizó el estado del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${itemStatus}.`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId,
+            itemId: foundItem.getDataValue('itemId'),
+            placeId: foundItem.getDataValue('fk_place')
         });
+        const responsibleId = foundItem.getDataValue('fk_user_responsible');
+        const currentUserId = res.locals.jwtPayloadContent?.userId;
+        const responsibleUser = responsibleId
+            ? await User.findOne({ where: { employeeId: Number(responsibleId) } })
+            : null;
+        if (responsibleUser && Number(responsibleUser.getDataValue('userId')) !== Number(currentUserId)) {
+            await createUserNotification({
+                notificationType: NotificationType.ITEM,
+                requestDescription: `El item "${foundItem.getDataValue('itemName')}" a tu cargo cambió de estado a: ${itemStatus}.`,
+                fk_trigger: parsedItemId,
+                fk_user_trigger: currentUserId || null,
+                fk_notified: Number(responsibleUser.getDataValue('userId'))
+            });
+        }
+        return res.status(200).json({ message: 'Item status successfully updated' });
+    }
+    catch (error) {
+        throw error;
+    }
+};
+const ChangeResponsible = async (req, res) => {
+    const parsedItemId = Number(req.params.itemId);
+    const { responsible_user } = req.body || {};
+    if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !responsible_user) {
+        return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+    }
+    const responsibleEmployee = await Employee.findOne({
+        where: {
+            employeeId: Number(responsible_user),
+            status: true
+        }
+    });
+    if (!responsibleEmployee) {
+        return res.status(400).json({ message: 'Responsible employee not found or inactive' });
+    }
+    const foundItem = await Item.findByPk(parsedItemId);
+    if (!foundItem) {
+        return res.status(404).json({ message: "Item Not Found" });
+    }
+    if (Number(responsible_user) === Number(foundItem.getDataValue('fk_user_responsible'))) {
+        return res.status(400).json({
+            message: "The responsible user could not change because is the same user"
+        });
+    }
+    foundItem.set('fk_user_responsible', responsible_user);
+    await foundItem.save();
+    await createHistoryLog({
+        historyDescription: `Se actualizó el usuario responsable del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${responsible_user}.`,
+        actionType: 'UPDATE',
+        userId: res.locals.jwtPayloadContent?.userId,
+        itemId: foundItem.getDataValue('itemId'),
+        placeId: foundItem.getDataValue('fk_place')
+    });
+    const currentUserId = res.locals.jwtPayloadContent?.userId;
+    const responsibleUser = await User.findOne({
+        where: { employeeId: Number(responsible_user) }
+    });
+    if (responsibleUser && Number(responsibleUser.getDataValue('userId')) !== Number(currentUserId)) {
+        await createUserNotification({
+            notificationType: NotificationType.ITEM,
+            requestDescription: `Se te ha asignado la responsabilidad del item "${foundItem.getDataValue('itemName')}".`,
+            fk_trigger: parsedItemId,
+            fk_user_trigger: currentUserId || null,
+            fk_notified: Number(responsibleUser.getDataValue('userId'))
+        });
+    }
+    return res.status(200).json({ message: 'Item responsible successfully updated' });
+};
+const SetCategory = async (req, res) => {
+    try {
+        const parsedItemId = Number(req.params.itemId);
+        const { category } = req.body || {};
+        if (!Number.isInteger(parsedItemId) || parsedItemId <= 0 || !category) {
+            return res.status(400).json({ message: 'All parameters must be filled in, please check documentation' });
+        }
+        const foundItem = await Item.findByPk(parsedItemId);
+        if (!foundItem) {
+            return res.status(404).json({ message: "Item Not Found" });
+        }
+        if (Number(category) === Number(foundItem.getDataValue('fk_category'))) {
+            return res.status(400).json({
+                message: "The category could not change because is the same category"
+            });
+        }
+        foundItem.set('fk_category', category);
+        await foundItem.save();
+        await createHistoryLog({
+            historyDescription: `Se actualizó la categoría del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${category}.`,
+            actionType: 'UPDATE',
+            userId: res.locals.jwtPayloadContent?.userId,
+            itemId: foundItem.getDataValue('itemId'),
+            placeId: foundItem.getDataValue('fk_place')
+        });
+        return res.status(200).json({ message: 'Item category successfully updated' });
+    }
+    catch (error) {
+        throw error;
     }
 };
 const DeleteItemByID = async (req, res) => {
@@ -205,81 +423,79 @@ const DeleteItemByID = async (req, res) => {
             });
         }
         const convertedId = Number(id);
-        const deletedRows = await Item.destroy({
-            where: { itemId: convertedId }
-        });
-        if (deletedRows === 0) {
+        const foundItem = await Item.findByPk(convertedId);
+        if (!foundItem) {
             return res.status(404).json({
                 message: "Item not found or already deleted"
             });
         }
-        res.status(200).json({
+        await mySequelize.transaction(async (transaction) => {
+            await createHistoryLog({
+                historyDescription: `Se eliminó el item ${convertedId}.`,
+                actionType: 'DELETE',
+                userId: res.locals.jwtPayloadContent?.userId,
+                itemId: convertedId,
+                placeId: foundItem.getDataValue('fk_place'),
+                transaction
+            });
+            const deletedRows = await Item.destroy({
+                where: { itemId: convertedId },
+                transaction
+            });
+            if (deletedRows === 0) {
+                throw new Error('Item could not be deleted');
+            }
+        });
+        return res.status(200).json({
             message: `item ${convertedId} succesfully destroyed`
         });
     }
     catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        });
+        throw error;
     }
 };
-//Aprender a usar esta mamada
-function FilterOptions(filter) {
-    const whereClause = {};
-    Object.entries(filter).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-            whereClause[key] = value;
-        }
-    });
-    return whereClause;
-}
-async function ShowItem(id, res) {
+async function ShowItem(id, role, res) {
     try {
+        const findAttributes = role === 1
+            ? ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'cost', 'codeBar', 'manufacter']
+            : ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'];
         const foundItem = await Item.findByPk(id, {
-            include: [{
-                    model: Place,
-                    as: 'related_place',
-                    attributes: ['placeId', 'placeName']
-                },
-                {
-                    model: User,
-                    as: 'responsible_user',
-                    attributes: ['userId', 'firstName', 'lastName']
-                }]
+            attributes: findAttributes,
+            include: PUBLIC_ITEM_INCLUDES
         });
         if (!foundItem) {
             return res.status(404).json({
-                message: "Item not foud"
+                message: "Item not found"
             });
         }
-        const item = foundItem.toJSON();
-        const fullName = item.responsible_user.firstName +
-            item.responsible_user.lastName;
-        item.fk_place = {
-            placeId: item.related_place.placeId,
-            placeName: item.related_place.placeName
-        };
-        item.fk_user_responsible = {
-            userId: item.responsible_user.userId,
-            userName: fullName
-        };
-        delete item.related_place;
-        delete item.responsible_user;
-        res.status(200).json(item);
+        const rawItem = (typeof foundItem.toJSON === 'function' ? foundItem.toJSON() : foundItem);
+        const publicData = formatPublicItem(foundItem);
+        if (role === 1) {
+            return res.status(200).json({
+                ...publicData,
+                cost: foundItem.getDataValue('cost'),
+                codeBar: foundItem.getDataValue('codeBar'),
+                responsibleUser: rawItem.responsible_user
+                    ? {
+                        id: rawItem.responsible_user.employeeId,
+                        employeeId: rawItem.responsible_user.employeeId,
+                        firstName: rawItem.responsible_user.firstName,
+                        lastName: rawItem.responsible_user.lastName
+                    }
+                    : null,
+                relatedPlace: rawItem.related_place
+                    ? {
+                        id: rawItem.related_place.placeId,
+                        placeName: rawItem.related_place.placeName
+                    }
+                    : null,
+            });
+        }
+        return res.status(200).json(publicData);
     }
     catch (error) {
-        res.status(500).json({
-            message: "Internal server error, not your fault :D",
-            error: error
-        });
+        throw error;
     }
 }
-export const itemController = {
-    CreateItem,
-    SearchItemById,
-    SearchItems,
-    UpdateItem,
-    DeleteItemByID
-};
+export { CreateItem, SearchItemById, SearchItems, UpdateItem, DeleteItemByID, SetStatus, SetCategory, ChangeResponsible };
 //# sourceMappingURL=itemController.js.map

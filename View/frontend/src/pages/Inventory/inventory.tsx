@@ -6,6 +6,7 @@ import ItemTable from './ItemTable';
 import CardGrid from './CardGrid';
 import type { Item } from '../../types';
 import { createItem, getItems } from '../../services/ItemServices';
+import { getCategories, type Category } from '../../services/CategoryServices';
 import { createReport } from '../../services/ReportServices';
 import { useAuth } from '../../utils/auth';
 import type { ReportPriority } from '../../types';
@@ -22,6 +23,7 @@ export const Inventory: React.FC = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<Item[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportPriority, setReportPriority] = useState<ReportPriority>(2);
@@ -38,17 +40,23 @@ export const Inventory: React.FC = () => {
     cost: '',
     manufacter: '',
     codeBar: '',
+    categoryId: '',
     fk_place: '',
   });
 
   useEffect(() => {
     getItems().then(setItems);
+    getCategories().then(setCategories).catch((error: unknown) => {
+      setItemMessage(error instanceof Error ? error.message : 'No se pudieron cargar las categorías.');
+    });
   }, []);
 
-  const categories = Array.from(new Set(items.map((item) => item.category).filter(Boolean)));
+  const categoryNames = Array.from(new Set(items
+    .map((item) => typeof item.category === 'string' ? item.category : item.category?.name)
+    .filter((category): category is string => Boolean(category))));
   const places = Array.from(new Set(items.map((item) => item.fk_place?.placeName).filter(Boolean)));
   useEffect(() => {
-    setCategoryOptions(categories);
+    setCategoryOptions(categoryNames);
     setPlaceOptions(places);
   }, [items]);
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
@@ -58,11 +66,12 @@ export const Inventory: React.FC = () => {
       item.itemDescription,
       item.manufacter,
       item.codeBar,
-      item.category,
+      typeof item.category === 'string' ? item.category : item.category?.name,
       item.fk_place?.placeName,
     ].join(' ').toLocaleLowerCase();
     const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
-    const matchesCategory = !categoryFilter || item.category === categoryFilter;
+    const itemCategory = typeof item.category === 'string' ? item.category : item.category?.name;
+    const matchesCategory = !categoryFilter || itemCategory === categoryFilter;
     const matchesPlace = !placeFilter || item.fk_place?.placeName === placeFilter;
     return matchesSearch && matchesCategory && matchesPlace;
   });
@@ -122,6 +131,7 @@ export const Inventory: React.FC = () => {
       cost: '',
       manufacter: '',
       codeBar: '',
+      categoryId: '',
       fk_place: '',
     });
   };
@@ -132,11 +142,17 @@ export const Inventory: React.FC = () => {
       setItemMessage('Necesitas iniciar sesión para crear un artículo.');
       return;
     }
+    if (!currentUser.employeeId) {
+      setItemMessage('Tu cuenta no está vinculada a un empleado activo.');
+      return;
+    }
 
     const placeId = Number(newItem.fk_place);
     const cost = Number(newItem.cost);
-    if (!Number.isInteger(placeId) || placeId <= 0 || !Number.isFinite(cost) || cost <= 0) {
-      setItemMessage('El costo y el ID del lugar deben ser números mayores que cero.');
+    const categoryId = Number(newItem.categoryId);
+    if (!Number.isInteger(placeId) || placeId <= 0 || !Number.isFinite(cost) || cost <= 0
+      || !Number.isInteger(categoryId) || categoryId <= 0) {
+      setItemMessage('El costo, la categoría y el ID del lugar deben ser válidos.');
       return;
     }
 
@@ -149,8 +165,8 @@ export const Inventory: React.FC = () => {
         cost,
         manufacter: newItem.manufacter.trim(),
         codeBar: newItem.codeBar.trim(),
-        category: 'No Category',
-        fk_user_responsible: currentUser.userId,
+        fk_category: categoryId,
+        fk_user_responsible: currentUser.employeeId,
         fk_place: placeId,
       });
       setItems(await getItems());
@@ -161,6 +177,7 @@ export const Inventory: React.FC = () => {
         cost: '',
         manufacter: '',
         codeBar: '',
+        categoryId: '',
         fk_place: '',
       });
     } catch (createError) {
@@ -226,8 +243,8 @@ export const Inventory: React.FC = () => {
                 <div className={styles.infoPill}>ID: {selectedItem.itemId}</div>
                 <div className={styles.infoPill}>Descripción: {selectedItem.itemDescription}</div>
                 <div className={styles.infoPill}>Fabricante: {selectedItem.manufacter}</div>
-                <div className={styles.infoPill}>Costo: ${selectedItem.cost.toFixed(2)}</div>
-                <div className={styles.infoPill}>Categoría: {selectedItem.category}</div>
+                <div className={styles.infoPill}>Costo: {typeof selectedItem.cost === 'number' ? `$${selectedItem.cost.toFixed(2)}` : 'No disponible'}</div>
+                <div className={styles.infoPill}>Categoría: {typeof selectedItem.category === 'string' ? selectedItem.category : selectedItem.category?.name}</div>
                 <div className={styles.infoPill}>Código: {selectedItem.codeBar || 'N/A'}</div>
               </div>
               <div className={styles.modalRightColumn}>
@@ -260,8 +277,13 @@ export const Inventory: React.FC = () => {
               <label htmlFor="itemCodeBar">Código de barras</label>
               <input id="itemCodeBar" maxLength={25} value={newItem.codeBar} onChange={(event) => setNewItem({ ...newItem, codeBar: event.target.value })} />
               <label htmlFor="itemCategory">Categoría</label>
-              <select id="itemCategory" value="No Category" disabled>
-                <option value="No Category">Sin categoría</option>
+              <select id="itemCategory" required value={newItem.categoryId} onChange={(event) => setNewItem({ ...newItem, categoryId: event.target.value })}>
+                <option value="" disabled>Selecciona una categoría</option>
+                {categories.map((category) => (
+                  <option key={category.categoryId} value={category.categoryId}>
+                    {category.categoryName}
+                  </option>
+                ))}
               </select>
               <label htmlFor="itemPlace">ID del lugar</label>
               <input id="itemPlace" required min="1" step="1" type="number" value={newItem.fk_place} onChange={(event) => setNewItem({ ...newItem, fk_place: event.target.value })} />

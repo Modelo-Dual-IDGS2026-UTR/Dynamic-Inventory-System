@@ -47,7 +47,7 @@ function ItemTable({ items, onSelectItem }: ItemTableProps): JSX.Element {
                         <td>{item.itemDescription}</td>
                         <td>{item.manufacter}</td>
                         <td>{item.cost}</td>
-                        <td>{item.category}</td>
+                        <td>{typeof item.category === 'string' ? item.category : item.category?.name}</td>
                         <td>{item.codeBar}</td>
                         <td>{item.fk_user_responsible?.firstName} {item.fk_user_responsible?.lastName}</td>
                         <td>{item.fk_place?.placeName}</td>
