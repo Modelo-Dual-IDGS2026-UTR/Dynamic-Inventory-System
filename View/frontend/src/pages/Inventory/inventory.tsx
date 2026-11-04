@@ -5,8 +5,10 @@ import styles from './Inventario.module.css';
 import ItemTable from './ItemTable';
 import CardGrid from './CardGrid';
 import type { Item } from '../../types';
+import type { Place } from '../../types/PlaceModel';
 import { createItem, getItems } from '../../services/ItemServices';
 import { getCategories, type Category } from '../../services/CategoryServices';
+import { getPlaces } from '../../services/PlaceServices';
 import { createReport } from '../../services/ReportServices';
 import { useAuth } from '../../utils/auth';
 import type { ReportPriority } from '../../types';
@@ -24,6 +26,7 @@ export const Inventory: React.FC = () => {
   const navigate = useNavigate();
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [availablePlaces, setAvailablePlaces] = useState<Place[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportPriority, setReportPriority] = useState<ReportPriority>(2);
@@ -48,6 +51,9 @@ export const Inventory: React.FC = () => {
     getItems().then(setItems);
     getCategories().then(setCategories).catch((error: unknown) => {
       setItemMessage(error instanceof Error ? error.message : 'No se pudieron cargar las categorías.');
+    });
+    getPlaces().then(setAvailablePlaces).catch((error: unknown) => {
+      setItemMessage(error instanceof Error ? error.message : 'No se pudieron cargar los lugares.');
     });
   }, []);
 
@@ -246,6 +252,14 @@ export const Inventory: React.FC = () => {
                 <div className={styles.infoPill}>Costo: {typeof selectedItem.cost === 'number' ? `$${selectedItem.cost.toFixed(2)}` : 'No disponible'}</div>
                 <div className={styles.infoPill}>Categoría: {typeof selectedItem.category === 'string' ? selectedItem.category : selectedItem.category?.name}</div>
                 <div className={styles.infoPill}>Código: {selectedItem.codeBar || 'N/A'}</div>
+                <div className={styles.infoPill}>Estado: {selectedItem.itemStatus || 'No disponible'}</div>
+                <div className={styles.infoPill}>
+                  Responsable:{' '}
+                  {selectedItem.fk_user_responsible
+                    ? `${selectedItem.fk_user_responsible.employeeId ?? selectedItem.fk_user_responsible.id} - ${selectedItem.fk_user_responsible.firstName} ${selectedItem.fk_user_responsible.lastName}`
+                    : 'No asignado'}
+                </div>
+                <div className={styles.infoPill}>Lugar: {selectedItem.fk_place?.placeName || 'No asignado'}</div>
               </div>
               <div className={styles.modalRightColumn}>
                 <button className={styles.reportBtn} type="button" onClick={() => setIsReportOpen(true)}>📈 Reportar</button>
@@ -264,7 +278,7 @@ export const Inventory: React.FC = () => {
               ✕
             </button>
             <h2>Agregar artículo de prueba</h2>
-            <p className={styles.formHint}>El responsable será tu usuario actual. Usa un ID de lugar existente en la BD.</p>
+            <p className={styles.formHint}>El responsable será tu usuario actual. Selecciona el lugar donde se registrará el artículo.</p>
             <form className={styles.reportForm} onSubmit={submitItem}>
               <label htmlFor="itemName">Nombre</label>
               <input id="itemName" required maxLength={30} value={newItem.itemName} onChange={(event) => setNewItem({ ...newItem, itemName: event.target.value })} />
@@ -285,8 +299,15 @@ export const Inventory: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <label htmlFor="itemPlace">ID del lugar</label>
-              <input id="itemPlace" required min="1" step="1" type="number" value={newItem.fk_place} onChange={(event) => setNewItem({ ...newItem, fk_place: event.target.value })} />
+              <label htmlFor="itemPlace">Lugar</label>
+              <select id="itemPlace" required value={newItem.fk_place} onChange={(event) => setNewItem({ ...newItem, fk_place: event.target.value })}>
+                <option value="" disabled>Selecciona un lugar</option>
+                {availablePlaces.map((place) => (
+                  <option key={place.placeId} value={place.placeId}>
+                    {place.placeLocation} - {place.placeName}
+                  </option>
+                ))}
+              </select>
               {itemMessage && <p className={styles.reportMessage}>{itemMessage}</p>}
               <div className={styles.reportActions}>
                 <button className={styles.cancelBtn} type="button" onClick={closeItemModal}>Cancelar</button>

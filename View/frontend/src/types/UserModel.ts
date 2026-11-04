@@ -2,6 +2,7 @@ import type { UserRole } from "./UserRoleModel"
 
 export interface User{
     "id":number,
+    "employeeId"?:number,
     "firstName":string,
     "lastName":string,
     "email":string,
@@ -13,4 +14,3 @@ export interface User{
     
 
 }
-

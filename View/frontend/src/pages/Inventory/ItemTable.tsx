@@ -23,8 +23,9 @@ function ItemTable({ items, onSelectItem }: ItemTableProps): JSX.Element {
                     <th>Cost</th>
                     <th>Category</th>
                     <th>Code Bar</th>
-                    <th>Responsible</th>
+                    <th>Responsible employee</th>
                     <th>Place</th>
+                    <th>In stock</th>
                 </tr>
             </thead>
             <tbody>
@@ -49,8 +50,13 @@ function ItemTable({ items, onSelectItem }: ItemTableProps): JSX.Element {
                         <td>{item.cost}</td>
                         <td>{typeof item.category === 'string' ? item.category : item.category?.name}</td>
                         <td>{item.codeBar}</td>
-                        <td>{item.fk_user_responsible?.firstName} {item.fk_user_responsible?.lastName}</td>
+                        <td>
+                            {item.fk_user_responsible?.employeeId ?? item.fk_user_responsible?.id}
+                            {' - '}
+                            {item.fk_user_responsible?.firstName} {item.fk_user_responsible?.lastName}
+                        </td>
                         <td>{item.fk_place?.placeName}</td>
+                        <td>{item.itemStatus}</td>
                         
                     </tr>
                     

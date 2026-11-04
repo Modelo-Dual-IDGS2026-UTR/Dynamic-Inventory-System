@@ -216,6 +216,10 @@ th {
   white-space: nowrap;
 }
 
+.responsibleCell {
+  text-align: center;
+}
+
 tbody tr {
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -295,6 +299,7 @@ tbody tr:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 100%;
 }
 
 .reportBtn {
@@ -443,7 +448,8 @@ tbody tr:focus-visible {
 .historyCard {
   background-color: #d1d5db;
   border-radius: 12px;
-  min-height: 220px;
+  flex: 1;
+  min-height: 0;
   padding: 16px;
   display: flex;
   flex-direction: column;

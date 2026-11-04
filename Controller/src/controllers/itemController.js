@@ -37,6 +37,22 @@ const formatPublicItem = (itemInstance) => {
                 name: item.category.categoryName
             }
             : null,
+        fk_user_responsible: item.responsible_user
+            ? {
+                id: item.responsible_user.employeeId,
+                employeeId: item.responsible_user.employeeId,
+                firstName: item.responsible_user.firstName,
+                lastName: item.responsible_user.lastName,
+                email: item.responsible_user.email,
+                area: item.responsible_user.area
+            }
+            : null,
+        fk_place: item.related_place
+            ? {
+                placeId: item.related_place.placeId,
+                placeName: item.related_place.placeName
+            }
+            : null,
     };
 };
 const CreateItem = async (req, res) => {
