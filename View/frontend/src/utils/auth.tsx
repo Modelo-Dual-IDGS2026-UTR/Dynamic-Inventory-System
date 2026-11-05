@@ -8,7 +8,7 @@ export interface AuthUser {
   email: string;
   userStatus: boolean;
   area: string | null;
-  fk_role: number;
+  fk_role: number | { id: number; name: string };
 }
 
 interface AuthContextType {
@@ -48,7 +48,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode}) => {
         return false;
       }
 
-      const user: AuthUser = await response.json();
+      const rawUser = await response.json();
+      const roleId = typeof rawUser.fk_role === 'object' && rawUser.fk_role !== null
+        ? Number(rawUser.fk_role.id)
+        : Number(rawUser.fk_role);
+
+      const user: AuthUser = {
+        ...rawUser,
+        fk_role: Number.isFinite(roleId) ? roleId : rawUser.fk_role,
+      };
+
       const savedRole = localStorage.getItem(`demo-role-${user.userId}`);
       if (savedRole) user.fk_role = Number(savedRole);
       setCurrentUser(user);
