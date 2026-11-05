@@ -6,6 +6,9 @@ info:
 http:
   method: GET
   url: http://localhost:3000/api/places/all-places
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUsInJvbGUiOjEsImlhdCI6MTc5MzgwNTIyNiwiZXhwIjoxNzkzODA2MTI2fQ.tABAgb40aD_Rni3yeSjWeik0QOoX6-0x6F7Y2sX3rd0
   auth: inherit
 
 settings:
