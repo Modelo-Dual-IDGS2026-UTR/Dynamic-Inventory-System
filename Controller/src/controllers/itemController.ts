@@ -21,7 +21,7 @@ const PUBLIC_ITEM_INCLUDES = [
     {
         model: Place,
         as: 'related_place',
-        attributes: ['placeId', 'placeName']
+        attributes: ['placeId', 'placeName', 'placeLocation']
     }
 ];
 
@@ -38,6 +38,7 @@ interface ItemWithRelations {
     related_place?: {
         placeId: number;
         placeName: string;
+        placeLocation?: string;
     } | null;
 }
 
@@ -71,7 +72,8 @@ const formatPublicItem = (itemInstance: InstanceType<typeof Item>) => {
         fk_place: item.related_place
             ? {
                 placeId: item.related_place.placeId,
-                placeName: item.related_place.placeName
+                placeName: item.related_place.placeName,
+                placeLocation: item.related_place.placeLocation
             }
             : null,
     };
@@ -605,7 +607,8 @@ async function ShowItem(id: number, role: number, res: Response) {
                 relatedPlace: rawItem.related_place
                 ? {
                     id: rawItem.related_place.placeId,
-                    placeName: rawItem.related_place.placeName
+                    placeName: rawItem.related_place.placeName,
+                    placeLocation: rawItem.related_place.placeLocation
                 }
                 : null,
             });
