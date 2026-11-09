@@ -4,6 +4,8 @@ import type { Place } from "./PlaceModel";
 import type { UserRole } from "./UserRoleModel";
 import type { Report, ReportStatus, ReportPriority, CreateReportPayload } from "./ReportModel";
 import type { InventoryRequest, RequestStatus } from "./RequestModel";
+import type { Employee } from "./EmployeeModel";
+
 export {
     User,
     Item,
@@ -14,5 +16,6 @@ export {
     ReportPriority,
     CreateReportPayload,
     InventoryRequest,
-    RequestStatus
+    RequestStatus,
+    Employee
 }
