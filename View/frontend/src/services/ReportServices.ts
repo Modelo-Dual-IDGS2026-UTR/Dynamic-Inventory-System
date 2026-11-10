@@ -9,8 +9,8 @@ interface ApiReport extends Partial<Report> {
   priority?: number;
   fk_item?: number | { id?: number; itemId?: number; itemName?: string } | null;
   fk_place?: number | { id?: number; placeId?: number; name?: string; placeName?: string } | null;
-  fk_user_assigned?: number | { id?: number; userId?: number; firstName?: string; lastName?: string } | null;
-  fk_user_creator?: number | { id?: number; userId?: number; firstName?: string; lastName?: string } | null;
+  fk_user_assigned?: number | { id?: number; userId?: number; firstName?: string; lastName?: string; universityId?: string | null; employeeId?: number | null } | null;
+  fk_user_creator?: number | { id?: number; userId?: number; firstName?: string; lastName?: string; universityId?: string | null; employeeId?: number | null } | null;
 }
 
 function normalizeReport(data: ApiReport): Report {
@@ -40,6 +40,24 @@ function normalizeReport(data: ApiReport): Report {
     fk_user_assigned: userAssigned ?? null,
     xfk_item: data.xfk_item ?? item ?? null,
     fk_place: place ?? null,
+    assignedUserName: typeof data.fk_user_assigned === 'object' && data.fk_user_assigned !== null
+      ? [data.fk_user_assigned.firstName, data.fk_user_assigned.lastName].filter(Boolean).join(' ') || undefined
+      : undefined,
+    assignedUniversityId: typeof data.fk_user_assigned === 'object' && data.fk_user_assigned !== null
+      ? data.fk_user_assigned.universityId ?? null
+      : null,
+    assignedEmployeeId: typeof data.fk_user_assigned === 'object' && data.fk_user_assigned !== null
+      ? data.fk_user_assigned.employeeId ?? null
+      : null,
+    creatorUserName: typeof data.fk_user_creator === 'object' && data.fk_user_creator !== null
+      ? [data.fk_user_creator.firstName, data.fk_user_creator.lastName].filter(Boolean).join(' ') || undefined
+      : undefined,
+    creatorUniversityId: typeof data.fk_user_creator === 'object' && data.fk_user_creator !== null
+      ? data.fk_user_creator.universityId ?? null
+      : null,
+    creatorEmployeeId: typeof data.fk_user_creator === 'object' && data.fk_user_creator !== null
+      ? data.fk_user_creator.employeeId ?? null
+      : null,
   };
 }
 
