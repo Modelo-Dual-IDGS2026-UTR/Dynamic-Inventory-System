@@ -169,10 +169,13 @@
   font-weight: 700;
 }
 
-.dayCell:disabled {
-  color: #cbd5e1;
-  cursor: not-allowed;
-  background: transparent;
+.dayCell:disabled,
+.dayCell:disabled.todayDay {
+  color: #cbd5e1 !important;
+  cursor: not-allowed !important;
+  background: transparent !important;
+  border: none !important;
+  pointer-events: none;
 }
 
 .dayCell.otherMonth {

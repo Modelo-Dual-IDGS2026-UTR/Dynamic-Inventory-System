@@ -167,9 +167,22 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
   const isDayDisabled = (day: number): boolean => {
     const candidate = `${viewYear}-${padZero(viewMonth + 1)}-${padZero(day)}`;
-    if (min && candidate < min) return true;
-    if (max && candidate > max) return true;
+    const minDate = min ? min.slice(0, 10) : undefined;
+    const maxDate = max ? max.slice(0, 10) : undefined;
+    if (minDate && candidate < minDate) return true;
+    if (maxDate && candidate > maxDate) return true;
     return false;
+  };
+
+  // Deshabilitar botón "mes anterior" si retroceder llevaría a un mes completamente pasado
+  const canGoPrev = (): boolean => {
+    if (!min) return true;
+    const minDate = min.slice(0, 10);
+    const prevMonth = viewMonth === 0 ? 11 : viewMonth - 1;
+    const prevYear = viewMonth === 0 ? viewYear - 1 : viewYear;
+    const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+    const lastDayStr = `${prevYear}-${padZero(prevMonth + 1)}-${padZero(lastDayOfPrevMonth)}`;
+    return lastDayStr >= minDate;
   };
 
   const isSelected = (day: number): boolean => {
@@ -208,6 +221,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             type="button"
             className={styles.navButton}
             onClick={handlePrevMonth}
+            disabled={!canGoPrev()}
             aria-label="Mes anterior"
           >
             ‹
