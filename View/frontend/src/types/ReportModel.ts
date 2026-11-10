@@ -14,6 +14,12 @@ export interface Report {
   fk_user_assigned: number | null;
   xfk_item: number | null;
   fk_place: number | null;
+  assignedUserName?: string;
+  assignedUniversityId?: string | null;
+  assignedEmployeeId?: number | null;
+  creatorUserName?: string;
+  creatorUniversityId?: string | null;
+  creatorEmployeeId?: number | null;
 }
 
 export interface CreateReportPayload {
