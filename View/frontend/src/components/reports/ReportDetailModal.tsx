@@ -92,22 +92,22 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               </div>
               <div className={styles.detailRow}>
                 <strong>Estado:</strong>
-                {isAdmin ? <ColorSelect value={report.reportStatus} options={statusOptions} onChange={(status) => {
+                {isAdmin ? <ColorSelect value={report.reportStatus} options={statusOptions} disableSelectedOption onChange={(status) => {
                   onReportChange({ ...report, reportStatus: status });
                   onStatusChange(status);
                 }} /> : <span className={styles[`status${report.reportStatus}`]}>{statusLabels[report.reportStatus]}</span>}
               </div>
               <div className={styles.detailRow}>
                 <strong>Severidad / Prioridad:</strong>
-                {isSuperAdmin ? <ColorSelect value={report.reportPriority} options={priorityOptions} onChange={(priority) => {
+                {isSuperAdmin ? <ColorSelect value={report.reportPriority} options={priorityOptions} disableSelectedOption onChange={(priority) => {
                   onReportChange({ ...report, reportPriority: priority });
                   onPriorityChange(priority);
                 }} /> : <span className={styles[`priority${report.reportPriority}`]}>{priorityLabels[report.reportPriority]}</span>}
               </div>
               <div className={styles.detailRow}>
                 <strong>Fecha límite:</strong>
-                {isSuperAdmin ? <DatePicker min={getTodayDate()} value={report.dueDate ? report.dueDate.slice(0, 10) : ''} onChange={(date) => {
-                  if (date) {
+                {isSuperAdmin ? <DatePicker min={getTodayDate()} value={report.dueDate ? report.dueDate.slice(0, 10) : ''} disabledValue={report.dueDate} onChange={(date) => {
+                  if (date && date !== report.dueDate.slice(0, 10)) {
                     onReportChange({ ...report, dueDate: date });
                     onDueDateChange(date);
                   }

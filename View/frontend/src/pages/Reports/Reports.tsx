@@ -359,6 +359,7 @@ export const Reports: React.FC = () => {
                       <ColorSelect
                         value={report.reportStatus}
                         options={statusSelectOptions}
+                        disableSelectedOption
                         onChange={(status) => void updateStatus(report.reportId, status)}
                       />
                     ) : <span className={`${styles.badge} ${styles[`status${report.reportStatus}`]}`}>{statusLabels[report.reportStatus]}</span>}
@@ -368,6 +369,7 @@ export const Reports: React.FC = () => {
                       <ColorSelect
                         value={report.reportPriority}
                         options={prioritySelectOptions}
+                        disableSelectedOption
                         onChange={(priority) => void updatePriority(report.reportId, priority)}
                       />
                     ) : <span className={styles[`priority${report.reportPriority}`]}>{priorityLabels[report.reportPriority]}</span>}
@@ -377,8 +379,9 @@ export const Reports: React.FC = () => {
                       <DatePicker
                         min={getTodayDate()}
                         value={report.dueDate ? report.dueDate.slice(0, 10) : ''}
+                        disabledValue={report.dueDate}
                         onChange={(val) => {
-                          if (val) {
+                          if (val && val !== report.dueDate.slice(0, 10)) {
                             void updateDueDate(report.reportId, val);
                           }
                         }}
