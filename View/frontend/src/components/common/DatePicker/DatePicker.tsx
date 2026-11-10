@@ -7,6 +7,7 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   min?: string; // Formato YYYY-MM-DD
   max?: string;
+  disabledValue?: string;
   className?: string;
   disabled?: boolean;
 }
@@ -38,10 +39,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   onChange,
   min,
   max,
+  disabledValue,
   className,
   disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingValue, setPendingValue] = useState(value);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -94,6 +97,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
   const handleToggle = () => {
     if (!isOpen) {
+      setPendingValue(value);
       updatePosition();
     }
     setIsOpen((prev) => !prev);
@@ -152,16 +156,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
   const handleSelectDay = (day: number) => {
     const formatted = `${viewYear}-${padZero(viewMonth + 1)}-${padZero(day)}`;
-    onChange(formatted);
-    setIsOpen(false);
+    setPendingValue(formatted);
   };
 
-  const handleSelectToday = (e: React.MouseEvent) => {
+  const handleConfirmSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (min && todayYMD < min) return;
-    onChange(todayYMD);
-    setViewYear(today.getFullYear());
-    setViewMonth(today.getMonth());
+    if (!pendingValue || pendingValue === value) return;
+    onChange(pendingValue);
     setIsOpen(false);
   };
 
@@ -171,6 +172,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     const maxDate = max ? max.slice(0, 10) : undefined;
     if (minDate && candidate < minDate) return true;
     if (maxDate && candidate > maxDate) return true;
+    if (disabledValue && candidate === disabledValue.slice(0, 10)) return true;
     return false;
   };
 
@@ -186,12 +188,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   };
 
   const isSelected = (day: number): boolean => {
-    if (!parsedValue) return false;
-    return (
-      parsedValue.year === viewYear &&
-      parsedValue.month === viewMonth &&
-      parsedValue.day === day
-    );
+    const pendingDate = parseYMD(pendingValue);
+    if (!pendingDate) return false;
+    return pendingDate.year === viewYear
+      && pendingDate.month === viewMonth
+      && pendingDate.day === day;
   };
 
   const isToday = (day: number): boolean => {
@@ -276,10 +277,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           <button
             type="button"
             className={styles.todayQuickButton}
-            onClick={handleSelectToday}
-            disabled={Boolean(min && todayYMD < min)}
+            onClick={handleConfirmSelection}
+            disabled={!pendingValue || pendingValue === value}
           >
-            Hoy
+            Seleccionar
           </button>
         </div>
       </div>
@@ -313,4 +314,3 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   );
 };
 export default DatePicker;
-

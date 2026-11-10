@@ -178,6 +178,12 @@
   pointer-events: none;
 }
 
+.dayCell.selectedDay:disabled {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  opacity: .7;
+}
+
 .dayCell.otherMonth {
   color: #cbd5e1;
 }
@@ -189,6 +195,7 @@
   display: flex;
   justify-content: flex-end;
 }
+
 
 .todayQuickButton {
   background: transparent;
@@ -204,4 +211,3 @@
 .todayQuickButton:hover {
   text-decoration: underline;
 }
-
