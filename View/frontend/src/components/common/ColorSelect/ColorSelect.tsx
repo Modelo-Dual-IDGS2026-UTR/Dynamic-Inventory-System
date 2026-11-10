@@ -15,6 +15,7 @@ interface ColorSelectProps<T extends number | string> {
   options: ColorSelectOption<T>[];
   onChange: (value: T) => void;
   disabled?: boolean;
+  disableSelectedOption?: boolean;
   className?: string;
 }
 
@@ -23,6 +24,7 @@ export function ColorSelect<T extends number | string>({
   options,
   onChange,
   disabled = false,
+  disableSelectedOption = false,
   className,
 }: ColorSelectProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
@@ -108,6 +110,7 @@ export function ColorSelect<T extends number | string>({
               backgroundColor: option.bgColor,
               color: option.textColor,
             }}
+            disabled={disableSelectedOption && option.value === value}
             onClick={() => {
               onChange(option.value);
               setIsOpen(false);
@@ -150,4 +153,3 @@ export function ColorSelect<T extends number | string>({
 }
 
 export default ColorSelect;
-
