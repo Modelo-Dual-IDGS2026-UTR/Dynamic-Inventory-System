@@ -8,12 +8,12 @@ http:
   url: http://localhost:3000/api/user/promotion/2
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MTg1MDEwNywiZXhwIjoxNzkxODUxMDA3fQ.hh4IxNtMV2ZcGGyzBSNLPnoJm9JHFPAUkfAd-bBFVnU
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUsInJvbGUiOjEsImlhdCI6MTc5NDI1MTE1OSwiZXhwIjoxNzk0MjUyMDU5fQ.B-AS-fC-9IQKgnn_Rn7hlw8LmPfIlR_-IUeTJiszulY
   body:
     type: json
     data: |-
       {
-        "fk_role": 1
+        "fk_role": 2
       }
   auth: inherit
 
