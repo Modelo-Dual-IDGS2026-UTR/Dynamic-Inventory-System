@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../utils/auth';
 import { useView } from '../../context/ViewContext';
 import type { Item, Place, Report, ReportPriority, ReportStatus } from '../../types';
@@ -20,6 +20,8 @@ import { getAllUsers, type UserAccount } from '../../services/UserServices';
 import type { Employee } from '../../types/EmployeeModel';
 import { DatePicker } from '../../components/common/DatePicker';
 import { ColorSelect, type ColorSelectOption } from '../../components/common/ColorSelect';
+import { ReportDetailModal } from '../../components/reports/ReportDetailModal';
+import { ReportMetrics } from '../../components/reports/ReportMetrics';
 import styles from './Reports.module.css';
 
 const statusLabels: Record<ReportStatus, string> = { 1: 'Pendiente', 2: 'En proceso', 3: 'Resuelto' };
@@ -83,7 +85,6 @@ export const Reports: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [assigneeSearch, setAssigneeSearch] = useState('');
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
-  const assigneeDropdownRef = useRef<HTMLDivElement>(null);
 
   const loadReports = useCallback(async () => {
     if (!currentUser) return;
@@ -154,19 +155,6 @@ export const Reports: React.FC = () => {
     }
   }, [isSuperAdmin, isNewReportOpen, selectedReport, users.length, employees.length]);
 
-  useEffect(() => {
-    if (!isAssigneeDropdownOpen) return;
-
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target as Node)) {
-        setIsAssigneeDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [isAssigneeDropdownOpen]);
-
   // Map employee accounts / user accounts associated with employees
   const employeeAccounts = useMemo(() => {
     // Priority: users linked to an employee account
@@ -193,50 +181,6 @@ export const Reports: React.FC = () => {
     });
 
     return Array.from(userEmployeeMap.values());
-  }, [users]);
-
-  const filteredEmployeeAccounts = useMemo(() => {
-    const normalizedSearch = assigneeSearch.trim().toLocaleLowerCase();
-    return [...employeeAccounts]
-      .filter((account) => !normalizedSearch
-        || account.label.toLocaleLowerCase().includes(normalizedSearch)
-        || String(account.userId).includes(normalizedSearch))
-      .sort((first, second) => {
-        if (!normalizedSearch) return first.label.localeCompare(second.label);
-        const firstText = first.label.toLocaleLowerCase();
-        const secondText = second.label.toLocaleLowerCase();
-        const firstStartsWith = firstText.startsWith(normalizedSearch) || String(first.userId).startsWith(normalizedSearch);
-        const secondStartsWith = secondText.startsWith(normalizedSearch) || String(second.userId).startsWith(normalizedSearch);
-        return Number(secondStartsWith) - Number(firstStartsWith) || first.label.localeCompare(second.label);
-      });
-  }, [assigneeSearch, employeeAccounts]);
-
-  // Map user accounts to display names (for creator field)
-  const userAccountsMap = useMemo(() => {
-    const map = new Map<number, { userId: number; firstName: string; lastName: string; employeeId?: number | null; universityId?: string | null }>();
-
-    users.forEach((user) => {
-      if (user.employeeId || user.employee) {
-        const empName = `${user.firstName} ${user.lastName}`.trim();
-        map.set(user.userId, {
-          userId: user.userId,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          employeeId: user.employeeId ?? user.employee?.employeeId,
-          universityId: user.universityId,
-        });
-      } else {
-        // User without employee association - use direct user data (may have universityId)
-        map.set(user.userId, {
-          userId: user.userId,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          universityId: user.universityId,
-        });
-      }
-    });
-
-    return map;
   }, [users]);
 
   const filteredItems = useMemo(() => {
@@ -400,64 +344,7 @@ export const Reports: React.FC = () => {
         </div>
       </header>
       {error && <div className={styles.error}>{error}</div>}
-      {isAdmin && (
-        <div className={styles.statsGrid}>
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.totalIcon}`}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-                <line x1="9" y1="11" x2="15" y2="11" />
-                <line x1="9" y1="15" x2="15" y2="15" />
-              </svg>
-            </div>
-            <div className={styles.statInfo}>
-              <strong className={styles.statValue}>{reports.length}</strong>
-              <span className={styles.statLabel}>Total de reportes</span>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.criticalIcon}`}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-            </div>
-            <div className={styles.statInfo}>
-              <strong className={styles.statValue}>{reports.filter((report) => report.reportStatus === 1).length}</strong>
-              <span className={styles.statLabel}>Pendientes</span>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.supportIcon}`}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </div>
-            <div className={styles.statInfo}>
-              <strong className={styles.statValue}>{reports.filter((report) => report.reportStatus === 2).length}</strong>
-              <span className={styles.statLabel}>En proceso</span>
-            </div>
-          </div>
-
-          <div className={styles.statCard}>
-            <div className={`${styles.statIcon} ${styles.solvedIcon}`}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-            </div>
-            <div className={styles.statInfo}>
-              <strong className={styles.statValue}>{reports.filter((report) => report.reportStatus === 3).length}</strong>
-              <span className={styles.statLabel}>Resueltos</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {isAdmin && <ReportMetrics reports={reports} />}
       <div className={styles.tableCard}>
         {isLoading ? <div className={styles.message}>Cargando reportes...</div> : filteredReports.length === 0 ? <div className={styles.empty}>{reports.length === 0 ? 'No hay reportes para mostrar.' : 'No se encontraron reportes.'}</div> : (
           <table className={styles.table}>
@@ -506,281 +393,40 @@ export const Reports: React.FC = () => {
         )}
       </div>
 
-      {selectedReport && (() => {
-        const relatedItem = items.find((i) => i.itemId === selectedReport.xfk_item);
-        const relatedPlace = places.find((p) => p.placeId === (selectedReport.fk_place ?? relatedItem?.fk_place?.placeId));
-        const assignedAccount = employeeAccounts.find((a) => a.userId === selectedReport.fk_user_assigned);
-
-        return (
-          <div className={styles.modalOverlay} onClick={() => setSelectedReport(null)}>
-            <div className={styles.adminModal} onClick={(event) => event.stopPropagation()}>
-              <button className={styles.closeButton} type="button" onClick={() => setSelectedReport(null)} aria-label="Cerrar detalle">✕</button>
-
-              <div className={styles.adminModalLayout}>
-                {/* Columna Izquierda: Información del reporte */}
-                <div className={styles.leftColumn}>
-                  <div className={styles.modalTitleSection}>
-                    <h2>Gestión de Reporte #RPT-{selectedReport.reportId}</h2>
-                    <span className={`${styles.badge} ${styles[`status${selectedReport.reportStatus}`]}`}>
-                      {statusLabels[selectedReport.reportStatus]}
-                    </span>
-                  </div>
-
-                  <div className={styles.detailsList}>
-                    <div className={styles.detailRow}>
-                      <strong>Reporte:</strong>
-                      <span>{selectedReport.reportName}</span>
-                    </div>
-
-                    <div className={styles.detailRow}>
-                      <strong>Descripción:</strong>
-                      <p className={styles.descriptionText}>{selectedReport.reportDescription}</p>
-                    </div>
-
-                    <div className={styles.detailRow}>
-                      <strong>Artículo:</strong>
-                      <span>
-                        {relatedItem
-                          ? `${relatedItem.itemName} (${relatedItem.codeBar || `#${relatedItem.itemId}`})`
-                          : (selectedReport.xfk_item ? `Artículo #${selectedReport.xfk_item}` : 'Sin artículo')}
-                      </span>
-                    </div>
-
-                    <div className={styles.detailRow}>
-                      <strong>Ubicación:</strong>
-                      <span>
-                        {relatedPlace
-                          ? `${relatedPlace.placeName}${relatedPlace.placeLocation ? ` (${relatedPlace.placeLocation})` : ''}`
-                          : 'Sin ubicación'}
-                      </span>
-                    </div>
-
-                    {/* Estado y Prioridad abajo junto con todo lo demás */}
-                    <div className={styles.detailRow}>
-                      <strong>Estado:</strong>
-                      {isAdmin ? (
-                        <ColorSelect
-                          value={selectedReport.reportStatus}
-                          options={statusSelectOptions}
-                          onChange={(status) => {
-                            setSelectedReport({ ...selectedReport, reportStatus: status });
-                            void updateStatus(selectedReport.reportId, status);
-                          }}
-                        />
-                      ) : (
-                        <span className={styles[`status${selectedReport.reportStatus}`]}>
-                          {statusLabels[selectedReport.reportStatus]}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className={styles.detailRow}>
-                      <strong>Severidad / Prioridad:</strong>
-                      {isSuperAdmin ? (
-                        <ColorSelect
-                          value={selectedReport.reportPriority}
-                          options={prioritySelectOptions}
-                          onChange={(priority) => {
-                            setSelectedReport({ ...selectedReport, reportPriority: priority });
-                            void updatePriority(selectedReport.reportId, priority);
-                          }}
-                        />
-                      ) : (
-                        <span className={styles[`priority${selectedReport.reportPriority}`]}>
-                          {priorityLabels[selectedReport.reportPriority]}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className={styles.detailRow}>
-                      <strong>Fecha límite:</strong>
-                      {isSuperAdmin ? (
-                        <DatePicker
-                          min={getTodayDate()}
-                          value={selectedReport.dueDate ? selectedReport.dueDate.slice(0, 10) : ''}
-                          onChange={(val) => {
-                            if (val) {
-                              setSelectedReport({ ...selectedReport, dueDate: val });
-                              void updateDueDate(selectedReport.reportId, val);
-                            }
-                          }}
-                        />
-                      ) : (
-                        <span>{formatDate(selectedReport.dueDate)}</span>
-                      )}
-                    </div>
-
-                    <div className={styles.detailRow}>
-                      <strong>Asignado a:</strong>
-                      <span>
-                        {selectedReport.fk_user_assigned
-                          ? (() => {
-                              const employeeId = selectedReport.assignedEmployeeId;
-                              const universityId = selectedReport.assignedUniversityId;
-                              const fullName = assignedAccount?.label.split(' (')[0]
-                                || selectedReport.assignedUserName
-                                || `Usuario #${selectedReport.fk_user_assigned}`;
-                              const extraInfo = employeeId !== null && employeeId !== undefined
-                                ? `(ID: #${employeeId}${universityId ? ` · ST-${universityId}` : ''})`
-                                : universityId
-                                  ? `(ST-${universityId})`
-                                  : '';
-
-                              return `${fullName} ${extraInfo}`.trim();
-                            })()
-                          : 'Sin asignar'}
-                      </span>
-                    </div>
-
-                    <div className={styles.detailRow}>
-                      <strong>Reporta:</strong>
-                      <span>
-                        {selectedReport.creatorUserName || userAccountsMap.has(selectedReport.fk_user_creator!)
-                          ? (() => {
-                              const user = userAccountsMap.get(selectedReport.fk_user_creator!);
-                              const fullName = selectedReport.creatorUserName
-                                || `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
-                              let extraInfo = '';
-                              const employeeId = selectedReport.creatorEmployeeId ?? user?.employeeId;
-                              const universityId = selectedReport.creatorUniversityId ?? user?.universityId;
-
-                              if (employeeId !== null && employeeId !== undefined) {
-                                extraInfo = `(ID Empleado: #${employeeId}${universityId ? ` · ST-${universityId}` : ''})`;
-                              } else if (universityId) {
-                                extraInfo = `(ST-${universityId})`;
-                              }
-
-                              return `${fullName} ${extraInfo || ''}`;
-                            })()
-                          : (selectedReport.fk_user_creator ? `Usuario #${selectedReport.fk_user_creator}` : 'Usuario registrado')}
-                      </span>
-                    </div>
-
-                    <div className={styles.detailRow}>
-                      <strong>Fecha de registro:</strong>
-                      <span>{formatDate(selectedReport.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Divisor vertical */}
-                <div className={styles.modalDivider} />
-
-                {/* Columna Derecha: Panel de acciones similar al diseño */}
-                <div className={styles.rightColumn}>
-                  {isSuperAdmin && (
-                    <div className={styles.controlSection}>
-                      <label htmlFor="modalAssignee">Asignado a:</label>
-                      {isLoadingUsers ? (
-                        <select id="modalAssignee" className={styles.formInput} disabled>
-                          <option>Cargando usuarios...</option>
-                        </select>
-                      ) : (
-                        <div ref={assigneeDropdownRef} className={styles.autocomplete}>
-                          <input
-                            id="modalAssigneeSearch"
-                            className={styles.formInput}
-                            type="search"
-                            placeholder="Buscar por nombre o ID..."
-                            value={assigneeSearch}
-                            onFocus={() => setIsAssigneeDropdownOpen(true)}
-                            onChange={(event) => {
-                              setAssigneeSearch(event.target.value);
-                              setIsAssigneeDropdownOpen(true);
-                            }}
-                          />
-                          {isAssigneeDropdownOpen && (
-                            <div className={styles.autocompleteOptions} role="listbox" aria-label="Empleados">
-                              <button
-                                className={styles.autocompleteOption}
-                                type="button"
-                                disabled={selectedReport.fk_user_assigned === null}
-                                onClick={() => {
-                                  setSelectedReport({ ...selectedReport, fk_user_assigned: null });
-                                  setAssigneeSearch('');
-                                  setIsAssigneeDropdownOpen(false);
-                                  void updateAssigned(selectedReport.reportId, null);
-                                }}
-                              >
-                                Sin asignar
-                              </button>
-                              {filteredEmployeeAccounts.map((account) => (
-                                <button
-                                  className={styles.autocompleteOption}
-                                  type="button"
-                                  key={account.userId}
-                                  role="option"
-                                  aria-selected={selectedReport.fk_user_assigned === account.userId}
-                                  disabled={selectedReport.fk_user_assigned === account.userId}
-                                  onClick={() => {
-                                    setSelectedReport({ ...selectedReport, fk_user_assigned: account.userId });
-                                    setAssigneeSearch('');
-                                    setIsAssigneeDropdownOpen(false);
-                                    void updateAssigned(selectedReport.reportId, account.userId);
-                                  }}
-                                >
-                                  {account.label}
-                                </button>
-                              ))}
-                              {filteredEmployeeAccounts.length === 0 && (
-                                <span className={styles.autocompleteEmpty}>No se encontraron empleados.</span>
-                              )}
-                            </div>
-                          )}
-                          <span className={styles.selectedAssignee}>
-                            {selectedReport.fk_user_assigned
-                              ? employeeAccounts.find((account) => account.userId === selectedReport.fk_user_assigned)?.label || 'Empleado seleccionado'
-                              : 'Sin asignar'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Tarjeta de actividad / comentarios inspirada en la imagen */}
-                  <div className={styles.activityCard}>
-                    <h4 className={styles.activityCardHeader}>Comentarios / Actividad</h4>
-                    <div className={styles.activityItem}>
-                      <div className={styles.activityAvatar}>
-                        {selectedReport.fk_user_assigned ? 'E' : 'U'}
-                      </div>
-                      <div className={styles.activityContent}>
-                        <strong>{assignedAccount ? assignedAccount.label.split('(')[0].trim() : 'Asignación'}</strong>
-                        <span>• Estado: {statusLabels[selectedReport.reportStatus]}</span>
-                        <span>• Prioridad: {priorityLabels[selectedReport.reportPriority]}</span>
-                      </div>
-                    </div>
-
-                    <div className={styles.activityItem}>
-                      <div className={`${styles.activityAvatar} ${styles.activityAvatarBlue}`}>
-                        A
-                      </div>
-                      <div className={styles.activityContent}>
-                        <strong>Admin comentarios</strong>
-                        <span>• Reporte registrado el {formatDate(selectedReport.createdAt)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {isSuperAdmin && (
-                    <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end' }}>
-                      <button
-                        className={styles.cancelButton}
-                        style={{ color: '#b91c1c', border: '1px solid #fee2e2' }}
-                        type="button"
-                        onClick={() => void handleDelete(selectedReport.reportId)}
-                      >
-                        Eliminar reporte
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
+      {selectedReport && (
+        <ReportDetailModal
+          report={selectedReport}
+          relatedItem={items.find((item) => item.itemId === selectedReport.xfk_item)}
+          relatedPlace={places.find((place) => place.placeId === (selectedReport.fk_place ?? items.find((item) => item.itemId === selectedReport.xfk_item)?.fk_place?.placeId))}
+          assignedAccount={employeeAccounts.find((account) => account.userId === selectedReport.fk_user_assigned)}
+          employeeAccounts={employeeAccounts}
+          isAdmin={isAdmin}
+          isSuperAdmin={isSuperAdmin}
+          isLoadingUsers={isLoadingUsers}
+          assigneeSearch={assigneeSearch}
+          isAssigneeDropdownOpen={isAssigneeDropdownOpen}
+          statusLabels={statusLabels}
+          priorityLabels={priorityLabels}
+          statusOptions={statusSelectOptions}
+          priorityOptions={prioritySelectOptions}
+          formatDate={formatDate}
+          getTodayDate={getTodayDate}
+          onClose={() => setSelectedReport(null)}
+          onReportChange={setSelectedReport}
+          onAssigneeSearchChange={setAssigneeSearch}
+          onAssigneeDropdownChange={setIsAssigneeDropdownOpen}
+          onStatusChange={(status) => void updateStatus(selectedReport.reportId, status)}
+          onPriorityChange={(priority) => void updatePriority(selectedReport.reportId, priority)}
+          onDueDateChange={(date) => void updateDueDate(selectedReport.reportId, date)}
+          onAssignedChange={(userId) => {
+            setSelectedReport({ ...selectedReport, fk_user_assigned: userId });
+            setAssigneeSearch('');
+            setIsAssigneeDropdownOpen(false);
+            void updateAssigned(selectedReport.reportId, userId);
+          }}
+          onDelete={() => void handleDelete(selectedReport.reportId)}
+        />
+      )}
       {isNewReportOpen && (
         <div className={styles.modalOverlay} onClick={closeNewReport}>
           <div className={styles.reportModal} onClick={(event) => event.stopPropagation()}>
