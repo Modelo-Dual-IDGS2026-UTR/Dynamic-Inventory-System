@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../utils/auth';
+import { useView } from '../../context/ViewContext';
 import type { Item, Place, Report, ReportPriority, ReportStatus } from '../../types';
 import {
   createReport,
@@ -51,6 +52,7 @@ function getTodayDate(): string {
 
 export const Reports: React.FC = () => {
   const { currentUser } = useAuth();
+  const { searchQuery } = useView();
   const isAdmin = currentUser?.fk_role === 1 || currentUser?.fk_role === 2;
   const isSuperAdmin = currentUser?.fk_role === 1;
 
@@ -78,8 +80,10 @@ export const Reports: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState('');
 
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [assigneeSearch, setAssigneeSearch] = useState('');
+  const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
+  const assigneeDropdownRef = useRef<HTMLDivElement>(null);
 
   const loadReports = useCallback(async () => {
     if (!currentUser) return;
@@ -109,32 +113,18 @@ export const Reports: React.FC = () => {
     }
   }, [currentUser, isAdmin, isSuperAdmin]);
 
-  const loadDemoReports = async () => {
-    const demoItems = items.length > 0 ? items : await getItems();
-    if (items.length === 0) setItems(demoItems);
-    const now = new Date().toISOString();
-    const demoReports: Report[] = demoItems.slice(0, 8).map((item, index) => ({
-      reportId: 9000 + index,
-      reportName: index % 2 === 0 ? 'Mobiliario dañado' : 'Equipo pendiente de revisión',
-      reportDescription: index % 2 === 0 ? `El artículo ${item.itemName} requiere atención.` : 'Se solicita verificar el estado del equipo.',
-      reportStatus: ([1, 2, 3] as ReportStatus[])[index % 3],
-      reportPriority: ([1, 2, 3] as ReportPriority[])[index % 3],
-      dueDate: new Date(Date.now() + index * 86400000).toISOString(),
-      createdAt: now,
-      updatedAt: now,
-      fk_user_creator: currentUser?.userId ?? null,
-      fk_user_assigned: index % 2 === 0 ? 2 : null,
-      xfk_item: item.itemId,
-      fk_place: item.fk_place?.placeId ?? null,
-    }));
-    setReports(demoReports);
-    setIsDemoMode(true);
-    setError('');
-  };
-
   useEffect(() => {
     void loadReports();
   }, [loadReports]);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      getItems().then(setItems).catch(() => {});
+    }
+    if (places.length === 0) {
+      getPlaces().then(setPlaces).catch(() => {});
+    }
+  }, [items.length, places.length]);
 
   useEffect(() => {
     if (isNewReportOpen) {
@@ -147,9 +137,9 @@ export const Reports: React.FC = () => {
     }
   }, [isNewReportOpen, items.length, places.length]);
 
-  // Cargar usuarios/empleados cuando hay un modal de gestión abierto o al crear reporte (si es superadmin)
+  // Cargar usuarios para mostrar el asignado y empleados para las acciones del superadmin
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!isSuperAdmin && selectedReport === null) return;
     if (isNewReportOpen || selectedReport !== null) {
       if (users.length === 0) {
         setIsLoadingUsers(true);
@@ -158,11 +148,24 @@ export const Reports: React.FC = () => {
           .catch(() => {})
           .finally(() => setIsLoadingUsers(false));
       }
-      if (employees.length === 0) {
+      if (isSuperAdmin && employees.length === 0) {
         getAllEmployees().then(setEmployees).catch(() => {});
       }
     }
   }, [isSuperAdmin, isNewReportOpen, selectedReport, users.length, employees.length]);
+
+  useEffect(() => {
+    if (!isAssigneeDropdownOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target as Node)) {
+        setIsAssigneeDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isAssigneeDropdownOpen]);
 
   // Map employee accounts / user accounts associated with employees
   const employeeAccounts = useMemo(() => {
@@ -170,27 +173,70 @@ export const Reports: React.FC = () => {
     const userEmployeeMap = new Map<number, { userId: number; label: string }>();
 
     users.forEach((user) => {
-      if (user.employeeId || user.employee) {
+      if ((user.employeeId !== null && user.employeeId !== undefined) || user.employee) {
         const empId = user.employeeId ?? user.employee?.employeeId;
         const empName = `${user.firstName} ${user.lastName}`.trim();
-        const area = user.area || user.employee?.area;
+        
+        let suffixParts: string[] = [];
+        if (empId !== undefined && empId !== null) {
+          suffixParts.push(`ID Empleado: #${empId}`);
+        }
+        if (user.universityId) {
+          suffixParts.push(`ST-${user.universityId}`);
+        }
+
         userEmployeeMap.set(user.userId, {
           userId: user.userId,
-          label: `${empName} (ID Empleado: #${empId}${area ? ` · ${area}` : ''})`,
+          label: `${empName}${suffixParts.length > 0 ? ' (' + suffixParts.join(' · ') + ')' : ''}`,
         });
       }
     });
 
-    // If users list is still loading or user accounts are returned, also check employee accounts
-    if (userEmployeeMap.size > 0) {
-      return Array.from(userEmployeeMap.values());
-    }
+    return Array.from(userEmployeeMap.values());
+  }, [users]);
 
-    // Fallback: If no users have employeeId or users couldn't be loaded, show users with employee details or users
-    return users.map((user) => ({
-      userId: user.userId,
-      label: `${user.firstName} ${user.lastName} (${user.email})`,
-    }));
+  const filteredEmployeeAccounts = useMemo(() => {
+    const normalizedSearch = assigneeSearch.trim().toLocaleLowerCase();
+    return [...employeeAccounts]
+      .filter((account) => !normalizedSearch
+        || account.label.toLocaleLowerCase().includes(normalizedSearch)
+        || String(account.userId).includes(normalizedSearch))
+      .sort((first, second) => {
+        if (!normalizedSearch) return first.label.localeCompare(second.label);
+        const firstText = first.label.toLocaleLowerCase();
+        const secondText = second.label.toLocaleLowerCase();
+        const firstStartsWith = firstText.startsWith(normalizedSearch) || String(first.userId).startsWith(normalizedSearch);
+        const secondStartsWith = secondText.startsWith(normalizedSearch) || String(second.userId).startsWith(normalizedSearch);
+        return Number(secondStartsWith) - Number(firstStartsWith) || first.label.localeCompare(second.label);
+      });
+  }, [assigneeSearch, employeeAccounts]);
+
+  // Map user accounts to display names (for creator field)
+  const userAccountsMap = useMemo(() => {
+    const map = new Map<number, { userId: number; firstName: string; lastName: string; employeeId?: number | null; universityId?: string | null }>();
+
+    users.forEach((user) => {
+      if (user.employeeId || user.employee) {
+        const empName = `${user.firstName} ${user.lastName}`.trim();
+        map.set(user.userId, {
+          userId: user.userId,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          employeeId: user.employeeId ?? user.employee?.employeeId,
+          universityId: user.universityId,
+        });
+      } else {
+        // User without employee association - use direct user data (may have universityId)
+        map.set(user.userId, {
+          userId: user.userId,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          universityId: user.universityId,
+        });
+      }
+    });
+
+    return map;
   }, [users]);
 
   const filteredItems = useMemo(() => {
@@ -204,6 +250,25 @@ export const Reports: React.FC = () => {
       item.fk_place?.placeName,
     ].join(' ').toLocaleLowerCase().includes(query));
   }, [items, itemSearch]);
+
+  const filteredReports = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+    if (!normalizedSearch) return reports;
+
+    return reports.filter((report) => [
+      report.reportId,
+      `RPT-${report.reportId}`,
+      report.reportName,
+      report.reportDescription,
+      statusLabels[report.reportStatus],
+      priorityLabels[report.reportPriority],
+      report.assignedUserName,
+      report.creatorUserName,
+      items.find((item) => item.itemId === report.xfk_item)?.itemName,
+      places.find((place) => place.placeId === report.fk_place)?.placeName,
+      places.find((place) => place.placeId === report.fk_place)?.placeLocation,
+    ].join(' ').toLocaleLowerCase().includes(normalizedSearch));
+  }, [items, places, reports, searchQuery]);
 
   const closeNewReport = () => {
     if (isSubmitting) return;
@@ -271,12 +336,8 @@ export const Reports: React.FC = () => {
     }
 
     try {
-      if (isDemoMode) {
-        setReports((currentReports) => currentReports.map((report) => report.reportId === reportId ? { ...report, reportStatus: status } : report));
-      } else {
-        await updateReportStatus(reportId, status);
-        await loadReports();
-      }
+      await updateReportStatus(reportId, status);
+      await loadReports();
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'No se pudo actualizar el estado.');
     }
@@ -284,12 +345,8 @@ export const Reports: React.FC = () => {
 
   const updatePriority = async (reportId: number, priority: ReportPriority) => {
     try {
-      if (isDemoMode) {
-        setReports((currentReports) => currentReports.map((report) => report.reportId === reportId ? { ...report, reportPriority: priority } : report));
-      } else {
-        await updateReportPriority(reportId, priority);
-        await loadReports();
-      }
+      await updateReportPriority(reportId, priority);
+      await loadReports();
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'No se pudo actualizar la prioridad.');
     }
@@ -297,12 +354,8 @@ export const Reports: React.FC = () => {
 
   const updateDueDate = async (reportId: number, newDueDate: string) => {
     try {
-      if (isDemoMode) {
-        setReports((currentReports) => currentReports.map((report) => report.reportId === reportId ? { ...report, dueDate: newDueDate } : report));
-      } else {
-        await updateReportDueDate(reportId, newDueDate);
-        await loadReports();
-      }
+      await updateReportDueDate(reportId, newDueDate);
+      await loadReports();
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'No se pudo actualizar la fecha.');
     }
@@ -310,12 +363,8 @@ export const Reports: React.FC = () => {
 
   const updateAssigned = async (reportId: number, newAssignedId: number | null) => {
     try {
-      if (isDemoMode) {
-        setReports((currentReports) => currentReports.map((report) => report.reportId === reportId ? { ...report, fk_user_assigned: newAssignedId } : report));
-      } else {
-        await updateReportAssignedUser(reportId, newAssignedId);
-        await loadReports();
-      }
+      await updateReportAssignedUser(reportId, newAssignedId);
+      await loadReports();
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'No se pudo actualizar el usuario asignado.');
     }
@@ -326,14 +375,9 @@ export const Reports: React.FC = () => {
       return;
     }
     try {
-      if (isDemoMode) {
-        setReports((currentReports) => currentReports.filter((r) => r.reportId !== reportId));
-        setSelectedReport(null);
-      } else {
-        await deleteReport(reportId);
-        setSelectedReport(null);
-        await loadReports();
-      }
+      await deleteReport(reportId);
+      setSelectedReport(null);
+      await loadReports();
     } catch (delError) {
       setError(delError instanceof Error ? delError.message : 'No se pudo eliminar el reporte.');
     }
@@ -350,21 +394,12 @@ export const Reports: React.FC = () => {
           <button className={styles.newReportButton} type="button" onClick={() => setIsNewReportOpen(true)}>
             + Reporte nuevo
           </button>
-          <button className={styles.actionButton} type="button" onClick={() => { setIsDemoMode(false); void loadReports(); }}>
+          <button className={styles.actionButton} type="button" onClick={() => void loadReports()}>
             Actualizar
           </button>
         </div>
       </header>
       {error && <div className={styles.error}>{error}</div>}
-      {isAdmin && error && (
-        <div className={styles.demoNotice}>
-          <span>El servidor de reportes aún no está disponible.</span>
-          <button className={styles.demoButton} type="button" onClick={() => void loadDemoReports()}>
-            Cargar datos de demostración
-          </button>
-        </div>
-      )}
-      {isAdmin && isDemoMode && <div className={styles.demoMode}>Modo demostración activo: los cambios no se guardan en el servidor.</div>}
       {isAdmin && (
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
@@ -424,11 +459,11 @@ export const Reports: React.FC = () => {
         </div>
       )}
       <div className={styles.tableCard}>
-        {isLoading ? <div className={styles.message}>Cargando reportes...</div> : reports.length === 0 ? <div className={styles.empty}>No hay reportes para mostrar.</div> : (
+        {isLoading ? <div className={styles.message}>Cargando reportes...</div> : filteredReports.length === 0 ? <div className={styles.empty}>{reports.length === 0 ? 'No hay reportes para mostrar.' : 'No se encontraron reportes.'}</div> : (
           <table className={styles.table}>
-            <thead><tr><th>{isAdmin ? 'ID / Reporte' : 'Reporte'}</th><th>Descripción</th><th>Estado</th><th>Prioridad</th><th>Fecha límite</th>{isAdmin && <th>Acciones</th>}</tr></thead>
+            <thead><tr><th>{isAdmin ? 'ID / Reporte' : 'Reporte'}</th><th>Descripción</th><th>Estado</th><th>Prioridad</th><th>Fecha límite</th><th>{isAdmin ? 'Acciones' : 'Detalle'}</th></tr></thead>
             <tbody>
-              {reports.map((report) => (
+              {filteredReports.map((report) => (
                 <tr key={report.reportId}>
                   <td>{isAdmin ? <><strong>RPT-{report.reportId}</strong><br />{report.reportName}</> : report.reportName}</td>
                   <td>{report.reportDescription}</td>
@@ -442,7 +477,7 @@ export const Reports: React.FC = () => {
                     ) : <span className={`${styles.badge} ${styles[`status${report.reportStatus}`]}`}>{statusLabels[report.reportStatus]}</span>}
                   </td>
                   <td>
-                    {isAdmin ? (
+                    {isSuperAdmin ? (
                       <ColorSelect
                         value={report.reportPriority}
                         options={prioritySelectOptions}
@@ -451,7 +486,7 @@ export const Reports: React.FC = () => {
                     ) : <span className={styles[`priority${report.reportPriority}`]}>{priorityLabels[report.reportPriority]}</span>}
                   </td>
                   <td>
-                    {isAdmin ? (
+                    {isSuperAdmin ? (
                       <DatePicker
                         min={getTodayDate()}
                         value={report.dueDate ? report.dueDate.slice(0, 10) : ''}
@@ -463,7 +498,7 @@ export const Reports: React.FC = () => {
                       />
                     ) : formatDate(report.dueDate)}
                   </td>
-                  {isAdmin && <td><button className={styles.viewButton} type="button" onClick={() => setSelectedReport(report)}>Ver detalle</button></td>}
+                  <td><button className={styles.viewButton} type="button" onClick={() => setSelectedReport(report)}>Ver detalle</button></td>
                 </tr>
               ))}
             </tbody>
@@ -541,7 +576,7 @@ export const Reports: React.FC = () => {
 
                     <div className={styles.detailRow}>
                       <strong>Severidad / Prioridad:</strong>
-                      {isAdmin ? (
+                      {isSuperAdmin ? (
                         <ColorSelect
                           value={selectedReport.reportPriority}
                           options={prioritySelectOptions}
@@ -559,7 +594,7 @@ export const Reports: React.FC = () => {
 
                     <div className={styles.detailRow}>
                       <strong>Fecha límite:</strong>
-                      {isAdmin ? (
+                      {isSuperAdmin ? (
                         <DatePicker
                           min={getTodayDate()}
                           value={selectedReport.dueDate ? selectedReport.dueDate.slice(0, 10) : ''}
@@ -578,18 +613,46 @@ export const Reports: React.FC = () => {
                     <div className={styles.detailRow}>
                       <strong>Asignado a:</strong>
                       <span>
-                        {assignedAccount
-                          ? assignedAccount.label
-                          : (selectedReport.fk_user_assigned ? `Usuario #${selectedReport.fk_user_assigned}` : 'Sin asignar')}
+                        {selectedReport.fk_user_assigned
+                          ? (() => {
+                              const employeeId = selectedReport.assignedEmployeeId;
+                              const universityId = selectedReport.assignedUniversityId;
+                              const fullName = assignedAccount?.label.split(' (')[0]
+                                || selectedReport.assignedUserName
+                                || `Usuario #${selectedReport.fk_user_assigned}`;
+                              const extraInfo = employeeId !== null && employeeId !== undefined
+                                ? `(ID: #${employeeId}${universityId ? ` · ST-${universityId}` : ''})`
+                                : universityId
+                                  ? `(ST-${universityId})`
+                                  : '';
+
+                              return `${fullName} ${extraInfo}`.trim();
+                            })()
+                          : 'Sin asignar'}
                       </span>
                     </div>
 
                     <div className={styles.detailRow}>
                       <strong>Reporta:</strong>
                       <span>
-                        {selectedReport.fk_user_creator
-                          ? `Usuario #${selectedReport.fk_user_creator}`
-                          : 'Usuario registrado'}
+                        {selectedReport.creatorUserName || userAccountsMap.has(selectedReport.fk_user_creator!)
+                          ? (() => {
+                              const user = userAccountsMap.get(selectedReport.fk_user_creator!);
+                              const fullName = selectedReport.creatorUserName
+                                || `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+                              let extraInfo = '';
+                              const employeeId = selectedReport.creatorEmployeeId ?? user?.employeeId;
+                              const universityId = selectedReport.creatorUniversityId ?? user?.universityId;
+
+                              if (employeeId !== null && employeeId !== undefined) {
+                                extraInfo = `(ID Empleado: #${employeeId}${universityId ? ` · ST-${universityId}` : ''})`;
+                              } else if (universityId) {
+                                extraInfo = `(ST-${universityId})`;
+                              }
+
+                              return `${fullName} ${extraInfo || ''}`;
+                            })()
+                          : (selectedReport.fk_user_creator ? `Usuario #${selectedReport.fk_user_creator}` : 'Usuario registrado')}
                       </span>
                     </div>
 
@@ -613,23 +676,63 @@ export const Reports: React.FC = () => {
                           <option>Cargando usuarios...</option>
                         </select>
                       ) : (
-                        <select
-                          id="modalAssignee"
-                          className={styles.formInput}
-                          value={selectedReport.fk_user_assigned ?? ''}
-                          onChange={(event) => {
-                            const newAssigned = event.target.value ? Number(event.target.value) : null;
-                            setSelectedReport({ ...selectedReport, fk_user_assigned: newAssigned });
-                            void updateAssigned(selectedReport.reportId, newAssigned);
-                          }}
-                        >
-                          <option value="">Sin asignar</option>
-                          {employeeAccounts.map((account) => (
-                            <option key={account.userId} value={account.userId}>
-                              {account.label}
-                            </option>
-                          ))}
-                        </select>
+                        <div ref={assigneeDropdownRef} className={styles.autocomplete}>
+                          <input
+                            id="modalAssigneeSearch"
+                            className={styles.formInput}
+                            type="search"
+                            placeholder="Buscar por nombre o ID..."
+                            value={assigneeSearch}
+                            onFocus={() => setIsAssigneeDropdownOpen(true)}
+                            onChange={(event) => {
+                              setAssigneeSearch(event.target.value);
+                              setIsAssigneeDropdownOpen(true);
+                            }}
+                          />
+                          {isAssigneeDropdownOpen && (
+                            <div className={styles.autocompleteOptions} role="listbox" aria-label="Empleados">
+                              <button
+                                className={styles.autocompleteOption}
+                                type="button"
+                                disabled={selectedReport.fk_user_assigned === null}
+                                onClick={() => {
+                                  setSelectedReport({ ...selectedReport, fk_user_assigned: null });
+                                  setAssigneeSearch('');
+                                  setIsAssigneeDropdownOpen(false);
+                                  void updateAssigned(selectedReport.reportId, null);
+                                }}
+                              >
+                                Sin asignar
+                              </button>
+                              {filteredEmployeeAccounts.map((account) => (
+                                <button
+                                  className={styles.autocompleteOption}
+                                  type="button"
+                                  key={account.userId}
+                                  role="option"
+                                  aria-selected={selectedReport.fk_user_assigned === account.userId}
+                                  disabled={selectedReport.fk_user_assigned === account.userId}
+                                  onClick={() => {
+                                    setSelectedReport({ ...selectedReport, fk_user_assigned: account.userId });
+                                    setAssigneeSearch('');
+                                    setIsAssigneeDropdownOpen(false);
+                                    void updateAssigned(selectedReport.reportId, account.userId);
+                                  }}
+                                >
+                                  {account.label}
+                                </button>
+                              ))}
+                              {filteredEmployeeAccounts.length === 0 && (
+                                <span className={styles.autocompleteEmpty}>No se encontraron empleados.</span>
+                              )}
+                            </div>
+                          )}
+                          <span className={styles.selectedAssignee}>
+                            {selectedReport.fk_user_assigned
+                              ? employeeAccounts.find((account) => account.userId === selectedReport.fk_user_assigned)?.label || 'Empleado seleccionado'
+                              : 'Sin asignar'}
+                          </span>
+                        </div>
                       )}
                     </div>
                   )}
