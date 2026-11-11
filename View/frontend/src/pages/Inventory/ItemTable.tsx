@@ -5,9 +5,20 @@ import type { Item } from '../../types';
 interface ItemTableProps {
     items: Item[];
     onSelectItem: (item: Item) => void;
+    canViewCost: boolean;
+    canViewCodeBar: boolean;
+    isDeleteMode: boolean;
+    onDeleteItem: (item: Item) => void;
 }
 
-function ItemTable({ items, onSelectItem }: ItemTableProps): JSX.Element {
+function ItemTable({
+    items,
+    onSelectItem,
+    canViewCost,
+    canViewCodeBar,
+    isDeleteMode,
+    onDeleteItem,
+}: ItemTableProps): JSX.Element {
     const getStatusClass = (status: string) => {
         switch (status) {
             case 'In Use':
@@ -25,13 +36,14 @@ function ItemTable({ items, onSelectItem }: ItemTableProps): JSX.Element {
         <table>
             <thead>
                 <tr>
+                    {isDeleteMode && <th aria-label="Seleccionar para borrar" />}
                     <th>ID</th>
                     <th>Name</th>
                     <th>Description</th>
                     <th>Manufacturer</th>
-                    <th>Cost</th>
+                    {canViewCost && <th>Cost</th>}
                     <th>Category</th>
-                    <th>Code Bar</th>
+                    {canViewCodeBar && <th>Code Bar</th>}
                     <th>Responsible employee</th>
                     <th>Place</th>
                     <th>Status</th>
@@ -48,16 +60,29 @@ function ItemTable({ items, onSelectItem }: ItemTableProps): JSX.Element {
                     return (
                         <tr
                             key={item.itemId}
-                            onClick={() => onSelectItem(item)}
+                            onClick={() => {
+                                if (!isDeleteMode) onSelectItem(item);
+                            }}
                             onKeyDown={(event) => {
                                 if (event.key === 'Enter' || event.key === ' ') {
                                     event.preventDefault();
-                                    onSelectItem(item);
+                                    if (!isDeleteMode) onSelectItem(item);
                                 }
                             }}
                             tabIndex={0}
                             role="button"
                         >
+                            {isDeleteMode && (
+                                <td>
+                                    <input
+                                        type="checkbox"
+                                        aria-label={`Borrar ${item.itemName}`}
+                                        checked={false}
+                                        onClick={(event) => event.stopPropagation()}
+                                        onChange={() => onDeleteItem(item)}
+                                    />
+                                </td>
+                            )}
                             <td>
                                 <span className={styles.gridCardId}>#{item.itemId}</span>
                             </td>
@@ -76,17 +101,19 @@ function ItemTable({ items, onSelectItem }: ItemTableProps): JSX.Element {
                                     {item.manufacter || 'N/A'}
                                 </span>
                             </td>
-                            <td>{formattedCost}</td>
+                            {canViewCost && <td>{formattedCost}</td>}
                             <td>
                                 <span className={styles.tableTruncateSm} title={categoryName}>
                                     {categoryName || 'N/A'}
                                 </span>
                             </td>
-                            <td>
-                                <span className={styles.tableTruncateSm} title={item.codeBar ?? undefined}>
-                                    {item.codeBar || 'N/A'}
-                                </span>
-                            </td>
+                            {canViewCodeBar && (
+                                <td>
+                                    <span className={styles.tableTruncateSm} title={item.codeBar ?? undefined}>
+                                        {item.codeBar || 'N/A'}
+                                    </span>
+                                </td>
+                            )}
                             <td>
                                 <span className={styles.tableTruncate} title={responsibleName}>
                                     {responsibleName}

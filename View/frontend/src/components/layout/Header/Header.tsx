@@ -16,6 +16,8 @@ export const Header: React.FC = () => {
     setCategoryFilter,
     placeFilter,
     setPlaceFilter,
+    ownItemsOnly,
+    setOwnItemsOnly,
     categoryOptions,
     placeOptions,
   } = useView();
@@ -24,8 +26,8 @@ export const Header: React.FC = () => {
 
   const isInventario = location.pathname.toLowerCase() === '/dashboard';
   const filterCount = useMemo(
-    () => Number(Boolean(categoryFilter)) + Number(Boolean(placeFilter)),
-    [categoryFilter, placeFilter],
+    () => Number(Boolean(categoryFilter)) + Number(Boolean(placeFilter)) + Number(ownItemsOnly),
+    [categoryFilter, placeFilter, ownItemsOnly],
   );
 
   return (
@@ -81,12 +83,21 @@ export const Header: React.FC = () => {
                 <option key={place} value={place}>{place}</option>
               ))}
             </select>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={ownItemsOnly}
+                onChange={(event) => setOwnItemsOnly(event.target.checked)}
+              />
+              Solo mis artículos
+            </label>
             <button
               className={styles.clearFilters}
               type="button"
               onClick={() => {
                 setCategoryFilter('');
                 setPlaceFilter('');
+                setOwnItemsOnly(false);
               }}
             >
               Limpiar filtros
