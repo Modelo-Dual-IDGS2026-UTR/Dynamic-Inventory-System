@@ -14,12 +14,15 @@ import { getItemHistory, type HistoryItem } from '../../services/HistoryServices
 import { useAuth } from '../../utils/auth';
 import type { ReportPriority } from '../../types';
 
+type FabAction = 'edit' | 'delete' | 'add';
+
 export const Inventory: React.FC = () => {
   const {
     viewType,
     searchQuery,
     categoryFilter,
     placeFilter,
+    ownItemsOnly,
     setCategoryOptions,
     setPlaceOptions,
   } = useView();
@@ -48,6 +51,9 @@ export const Inventory: React.FC = () => {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isChangingStatusInline, setIsChangingStatusInline] = useState(false);
   const [isFabExpanded, setIsFabExpanded] = useState(false);
+  const [fabBaseAction, setFabBaseAction] = useState<FabAction>('edit');
+  const [isFabClosing, setIsFabClosing] = useState(false);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [editFormData, setEditFormData] = useState({
     itemName: '',
     itemDescription: '',
@@ -110,7 +116,14 @@ export const Inventory: React.FC = () => {
     const itemCategory = typeof item.category === 'string' ? item.category : item.category?.name;
     const matchesCategory = !categoryFilter || itemCategory === categoryFilter;
     const matchesPlace = !placeFilter || item.fk_place?.placeName === placeFilter;
-    return matchesSearch && matchesCategory && matchesPlace;
+    const responsibleId = item.fk_user_responsible?.employeeId ?? item.fk_user_responsible?.id;
+    const currentUserId = currentUser?.employeeId ?? currentUser?.userId;
+    const matchesOwnItems = !ownItemsOnly || (
+      currentUserId !== undefined
+      && responsibleId !== undefined
+      && responsibleId === currentUserId
+    );
+    return matchesSearch && matchesCategory && matchesPlace && matchesOwnItems;
   });
 
   useEffect(() => {
@@ -236,19 +249,26 @@ export const Inventory: React.FC = () => {
     }
   };
 
-  const handleDeleteItem = async () => {
-    if (!selectedItem) return;
-    const confirmDelete = window.confirm(`¿Estás seguro de que deseas dar de baja y eliminar el activo "${selectedItem.itemName}" (#${selectedItem.itemId})? Esta acción no se puede deshacer.`);
-    if (!confirmDelete) return;
+  const resetFab = () => {
+    setFabBaseAction('edit');
+    setIsFabExpanded(false);
+    setIsFabClosing(false);
+    setIsDeleteMode(false);
+  };
+
+  const handleDeleteItem = async (item: Item) => {
+    const confirmDelete = window.confirm(`¿Estás seguro de que deseas dar de baja y eliminar el activo "${item.itemName}" (#${item.itemId})? Esta acción no se puede deshacer.`);
+    if (!confirmDelete) {
+      return;
+    }
 
     setIsDeletingItem(true);
     setAdminActionMessage('');
     setAdminActionError('');
     try {
-      await deleteItem(selectedItem.itemId);
-      setItems((prev) => prev.filter((item) => item.itemId !== selectedItem.itemId));
-      setSelectedItem(null);
-      setIsFabExpanded(false);
+      await deleteItem(item.itemId);
+      setItems((prev) => prev.filter((currentItem) => currentItem.itemId !== item.itemId));
+      setSelectedItem((currentItem) => currentItem?.itemId === item.itemId ? null : currentItem);
     } catch (err) {
       setAdminActionError(err instanceof Error ? err.message : 'Error al eliminar el activo');
     } finally {
@@ -289,6 +309,7 @@ export const Inventory: React.FC = () => {
 
   const closeItemModal = () => {
     if (isSubmittingItem) return;
+    resetFab();
     setIsItemModalOpen(false);
     setItemMessage('');
     setNewItem({
@@ -337,6 +358,7 @@ export const Inventory: React.FC = () => {
       });
       setItems(await getItems());
       setIsItemModalOpen(false);
+      resetFab();
       setNewItem({
         itemName: '',
         itemDescription: '',
@@ -404,20 +426,15 @@ export const Inventory: React.FC = () => {
           <div className={styles.tableSection}>
             <div className={styles.tableToolbar}>
               <span>Inventario</span>
-              <button
-                className={styles.addItemBtn}
-                type="button"
-                onClick={() => {
-                  setItemMessage('');
-                  setIsItemModalOpen(true);
-                }}
-                aria-label="Agregar artículo de prueba"
-                title="Agregar artículo de prueba"
-              >
-                +
-              </button>
             </div>
-            <ItemTable items={filteredItems} onSelectItem={setSelectedItem} />
+            <ItemTable
+              items={filteredItems}
+              onSelectItem={setSelectedItem}
+              canViewCost={isAdminOrSuper}
+              canViewCodeBar={isAdminOrSuper}
+              isDeleteMode={isDeleteMode}
+              onDeleteItem={handleDeleteItem}
+            />
           </div>
         ) : (
           <CardGrid items={filteredItems} onSelectItem={setSelectedItem} />
@@ -446,7 +463,7 @@ export const Inventory: React.FC = () => {
           ) : (
             <>
               {/* Sub-botones desplegados hacia arriba al presionar el Lápiz */}
-              <div className={`${styles.fabItemsWrapper} ${isFabExpanded ? styles.fabItemsWrapperOpen : ''}`}>
+              <div className={`${styles.fabItemsWrapper} ${isFabExpanded ? styles.fabItemsWrapperOpen : ''} ${isFabClosing ? styles.fabItemsWrapperClosing : ''}`}>
                   {/* 3.- Botón Verde: Agregar Activo */}
                   <button
                     className={`${styles.fabBtn} ${styles.fabAdd}`}
@@ -454,9 +471,14 @@ export const Inventory: React.FC = () => {
                     title="Agregar nuevo activo"
                     aria-label="Agregar activo"
                     onClick={() => {
-                      setItemMessage('');
-                      setIsItemModalOpen(true);
-                      setIsFabExpanded(false);
+                      setIsFabClosing(true);
+                      window.setTimeout(() => {
+                        setFabBaseAction('add');
+                        setIsFabExpanded(false);
+                        setIsFabClosing(false);
+                        setItemMessage('');
+                        setIsItemModalOpen(true);
+                      }, 300);
                     }}
                   >
                     <svg viewBox="0 0 24 24" className={styles.fabIcon}>
@@ -469,12 +491,17 @@ export const Inventory: React.FC = () => {
                     <button
                       className={`${styles.fabBtn} ${styles.fabDelete}`}
                       type="button"
-                      title={selectedItem ? `Borrar "${selectedItem.itemName}"` : 'Abre o selecciona un activo para borrar'}
+                      title="Activar modo borrar"
                       aria-label="Borrar activo"
-                      disabled={!selectedItem || isDeletingItem}
+                      disabled={isDeletingItem}
                       onClick={() => {
-                        handleDeleteItem();
-                        setIsFabExpanded(false);
+                        setIsFabClosing(true);
+                        window.setTimeout(() => {
+                          setFabBaseAction('delete');
+                          setIsFabExpanded(false);
+                          setIsFabClosing(false);
+                          setIsDeleteMode(true);
+                        }, 300);
                       }}
                     >
                       <svg viewBox="0 0 24 24" className={styles.fabIcon}>
@@ -486,17 +513,20 @@ export const Inventory: React.FC = () => {
 
               {/* 1.- Botón Inicial Base: Lápiz (Editar / Expandir) */}
               <button
-                className={`${styles.fabBtn} ${styles.fabEdit} ${isFabExpanded ? styles.fabEditActive : ''}`}
+                className={`${styles.fabBtn} ${fabBaseAction === 'add' ? styles.fabAdd : fabBaseAction === 'delete' ? styles.fabDelete : styles.fabEdit} ${isFabExpanded ? styles.fabEditActive : ''}`}
                 type="button"
-                title={
-                  isFabExpanded
-                    ? selectedItem
-                      ? 'Editar activo seleccionado'
-                      : 'Cerrar opciones'
-                    : 'Opciones de gestión / Editar activo'
-                }
+                title="Opciones de gestión / Editar activo"
                 aria-label="Editar o gestionar"
                 onClick={() => {
+                  if (fabBaseAction === 'add') {
+                    setItemMessage('');
+                    setIsItemModalOpen(true);
+                    return;
+                  }
+                  if (fabBaseAction === 'delete') {
+                    resetFab();
+                    return;
+                  }
                   if (!isFabExpanded) {
                     setIsFabExpanded(true);
                   } else {
@@ -509,8 +539,10 @@ export const Inventory: React.FC = () => {
               >
                 <svg
                   viewBox="0 0 24 24"
-                  className={`${styles.fabIcon} ${isFabExpanded ? styles.fabIconRotate : ''}`}
+                  className={`${styles.fabIcon} ${isFabExpanded ? styles.fabIconRotate : ''} ${fabBaseAction !== 'edit' ? styles.fabIconAction : ''}`}
                 >
+                  {fabBaseAction === 'add' && <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />}
+                  {fabBaseAction === 'delete' && <path d="M19 13H5v-2h14v2z" />}
                   <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
                 </svg>
               </button>

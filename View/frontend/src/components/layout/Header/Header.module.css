@@ -108,6 +108,17 @@
   font-weight: 700;
 }
 
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.checkboxLabel input {
+  margin: 0;
+}
+
 .filterPanel select,
 .clearFilters {
   border: 1px solid #d1d5db;

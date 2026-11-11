@@ -631,6 +631,19 @@ tbody tr:focus-visible {
   transform: translateY(0) scale(1);
 }
 
+.fabItemsWrapperClosing {
+  max-height: 130px;
+  opacity: 1;
+  pointer-events: none;
+  transform: translateY(0) scale(1);
+}
+
+.fabItemsWrapperClosing .fabBtn {
+  opacity: 1;
+  transform: translateY(64px) scale(1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .fabItemsWrapperOpen .fabBtn {
   opacity: 1;
   transform: translateY(0) scale(1);
@@ -642,6 +655,12 @@ tbody tr:focus-visible {
 
 .fabItemsWrapperOpen .fabBtn:nth-child(2) {
   transition-delay: 0.1s;
+}
+
+.fabItemsWrapperClosing .fabBtn {
+  opacity: 1;
+  transform: translateY(64px) scale(1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes fabFadeInUp {
@@ -728,6 +747,10 @@ tbody tr:focus-visible {
 
 .fabIconRotate {
   transform: rotate(45deg);
+}
+
+.fabIconAction path:last-child {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
