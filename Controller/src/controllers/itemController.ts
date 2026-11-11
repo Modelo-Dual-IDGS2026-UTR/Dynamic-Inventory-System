@@ -205,6 +205,7 @@ const SearchItemById = async (req: Request, res: Response) => {
 const SearchItems = async (req: Request, res: Response) => {
     try {
         const role = res.locals.jwtPayloadContent?.role
+        const canViewSensitiveItemData = role === 1 || role === 2;
         const body = req.query || {}
         const {         itemId,
         itemName,
@@ -228,7 +229,7 @@ const SearchItems = async (req: Request, res: Response) => {
             manufacter,
         })
 
-        const findAttributes = role === 1
+        const findAttributes = canViewSensitiveItemData
             ? ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'cost', 'codeBar', 'manufacter']
             : ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'];
 
@@ -244,7 +245,7 @@ const SearchItems = async (req: Request, res: Response) => {
         const formatedItems = foundItems.map(item => {
             const rawItem = (typeof item.toJSON === 'function' ? item.toJSON() : item) as ItemWithRelations;
             const publicData = formatPublicItem(item);
-            if (role === 1) {
+            if (canViewSensitiveItemData) {
                 return {
                     ...publicData,
                     cost: item.getDataValue('cost'),
@@ -573,8 +574,9 @@ const DeleteItemByID = async (req: Request, res: Response) => {
 
 async function ShowItem(id: number, role: number, res: Response) {
     try {
+        const canViewSensitiveItemData = role === 1 || role === 2;
 
-        const findAttributes = role === 1
+        const findAttributes = canViewSensitiveItemData
         ? ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'cost', 'codeBar', 'manufacter']
         : ['itemId', 'itemName', 'itemDescription', 'itemStatus', 'manufacter'];
 
@@ -591,7 +593,7 @@ async function ShowItem(id: number, role: number, res: Response) {
         const rawItem = (typeof foundItem.toJSON === 'function' ? foundItem.toJSON() : foundItem) as ItemWithRelations;
         const publicData = formatPublicItem(foundItem);
 
-        if (role === 1) {
+        if (canViewSensitiveItemData) {
             return res.status(200).json({
                 ...publicData,
                 cost: foundItem.getDataValue('cost'),
