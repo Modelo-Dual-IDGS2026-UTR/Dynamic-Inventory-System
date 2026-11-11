@@ -1,0 +1,99 @@
+.reportForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formLabel {
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.formInput {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.reportForm .formDatePicker {
+  display: block;
+  width: 100%;
+}
+
+.itemResults {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.itemOption {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  padding: 9px 12px;
+  text-align: left;
+}
+
+.itemOption:hover,
+.selectedItem {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.itemOption span {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.selectedItemText,
+.noResults {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 4px 0;
+}
+
+.formMessage {
+  color: #b91c1c;
+  margin: 8px 0;
+}
+
+.formActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.cancelButton,
+.submitButton {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 10px 16px;
+}
+
+.cancelButton {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.submitButton {
+  background: #2563eb;
+  color: white;
+}
+
+.submitButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

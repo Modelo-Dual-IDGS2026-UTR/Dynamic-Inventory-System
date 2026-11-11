@@ -5,3 +5,4 @@ IDEmpleado,Nombre/s,Apellidos,Tipo de Empleado,Email,Area,Estado
 104,María,López,,maria.lopez@empresa.com,Ventas,0
 105,Javier,Torres,Tiempo Completo,javier.torres@empresa.com,,ACTIVO
 75511,Emmanuel,Macias Silva,Medio Tiempo,emmanuel.macias@utr.edu.mx,Soporte TI,ACTIVO
+67676,JIRA,UTR,Tiempo Completo,jira.utr@utr.edu.mx,Soporte TI,ACTIVO

@@ -34,13 +34,15 @@ reportRouter.get('/assigned-reports/:userId',  VerifyJWT(2), SearchReportsAssign
 reportRouter.patch('/set-status/:reportId',  VerifyJWT(2), SetReportStatus);
 
 //Admin & Superadmin
-reportRouter.patch('/set-assigned/:reportId', VerifyJWT(2), SetAssignedUser);
+reportRouter.patch('/set-assigned/:reportId', VerifyJWT(1), SetAssignedUser);
 
-//Admin & Superadmin
-reportRouter.patch('/set-due/:reportId',  VerifyJWT(2), SetDueDate);
+//Superadmin
+reportRouter.patch('/set-due/:reportId',  VerifyJWT(1), SetDueDate);
 
-//Admin & Superadmin
-reportRouter.patch('/set-priority/:reportId',  VerifyJWT(2), setPriority);
+//Superadmin
+reportRouter.patch('/set-priority/:reportId',  VerifyJWT(1), setPriority);
 
 //Superadmin   
 reportRouter.delete('/delete-report/:reportId',  VerifyJWT(1), deleteReport)
+
+//FALTA FUNCIÓN COMENTARIOS, PULL REQUEST PARA MARCARLO COMO RESUELTO

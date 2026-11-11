@@ -1,0 +1,99 @@
+QUE.customSelectWrapper {
+  position: relative;
+  display: inline-block;
+  font-family: inherit;
+  user-select: none;
+}
+
+.selectTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  border: 1.5px solid transparent;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.selectTrigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chevronIcon {
+  display: inline-flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1999;
+  background: transparent;
+}
+
+.optionsDropdown {
+  position: fixed;
+  z-index: 2100;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2), 0 4px 6px -2px rgba(15, 23, 42, 0.1);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: dropdownAnim 0.12s ease-out;
+  box-sizing: border-box;
+}
+
+@keyframes dropdownAnim {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.optionItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: filter 0.1s ease, transform 0.08s ease;
+  box-sizing: border-box;
+}
+
+.optionItem:hover {
+  filter: brightness(0.95);
+}
+
+.optionItem:disabled {
+  cursor: not-allowed;
+  filter: grayscale(.35);
+  opacity: .6;
+}
+
+.optionItem:active {
+  transform: scale(0.98);
+}

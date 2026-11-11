@@ -15,12 +15,12 @@ const REPORT_INCLUDES = [
     {
         model: User,
         as: 'related_user_assigned',
-        attributes: ['userId', 'firstName', 'lastName']
+        attributes: ['userId', 'firstName', 'lastName', 'universityId', 'employeeId']
     },
     {
         model: User,
         as: 'related_user_creator',
-        attributes: ['userId', 'firstName', 'lastName']
+        attributes: ['userId', 'firstName', 'lastName', 'universityId', 'employeeId']
     },
     {
         model: Item,
@@ -33,8 +33,8 @@ const REPORT_INCLUDES = [
 interface ReportResponseData {
     [key: string]: unknown;
     related_place?: { placeId: number; placeName: string } | null;
-    related_user_assigned?: { userId: number; firstName: string; lastName: string } | null;
-    related_user_creator?: { userId: number; firstName: string; lastName: string } | null;
+    related_user_assigned?: { userId: number; firstName: string; lastName: string; universityId?: string | null; employeeId?: number | null } | null;
+    related_user_creator?: { userId: number; firstName: string; lastName: string; universityId?: string | null; employeeId?: number | null } | null;
     related_item?: { itemId: number; itemName: string } | null;
 }
 
@@ -51,10 +51,22 @@ const formatReport = (reportInstance: InstanceType<typeof Report> | null) => {
             ? { id: related_place.placeId, name: related_place.placeName }
             : null,
         fk_user_assigned: related_user_assigned
-            ? { id: related_user_assigned.userId, firstName: related_user_assigned.firstName, lastName: related_user_assigned.lastName }
+            ? {
+                id: related_user_assigned.userId,
+                firstName: related_user_assigned.firstName,
+                lastName: related_user_assigned.lastName,
+                universityId: related_user_assigned.universityId ?? null,
+                employeeId: related_user_assigned.employeeId ?? null
+            }
             : null,
         fk_user_creator: related_user_creator
-            ? { id: related_user_creator.userId, firstName: related_user_creator.firstName, lastName: related_user_creator.lastName }
+            ? {
+                id: related_user_creator.userId,
+                firstName: related_user_creator.firstName,
+                lastName: related_user_creator.lastName,
+                universityId: related_user_creator.universityId ?? null,
+                employeeId: related_user_creator.employeeId ?? null
+            }
             : null,
         fk_item: related_item
             ? { id: related_item.itemId, itemName: related_item.itemName }
