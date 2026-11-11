@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Item, Place, ReportPriority, ReportStatus, CreateReportPayload } from '../../types';
 import { DatePicker } from '../common/DatePicker';
+import { EmployeeAutocomplete } from './EmployeeAutocomplete';
 import styles from './ReportForm.module.css';
 
 interface EmployeeAccount {
@@ -54,6 +55,8 @@ export const ReportForm: React.FC<ReportFormProps> = ({
   const [dueDate, setDueDate] = useState(getTodayDate());
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(initialItem?.fk_place?.placeId ?? null);
   const [assignedUserId, setAssignedUserId] = useState<number | null>(null);
+  const [assigneeSearch, setAssigneeSearch] = useState('');
+  const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
   const [reportDetails, setReportDetails] = useState('');
 
   useEffect(() => {
@@ -190,11 +193,20 @@ export const ReportForm: React.FC<ReportFormProps> = ({
 
         {isSuperAdmin && (
           <>
-            <label className={styles.formLabel} htmlFor="reportAssigned">Asignar a (cuenta de empleado)</label>
-            <select id="reportAssigned" className={styles.formInput} value={assignedUserId ?? ''} onChange={(event) => setAssignedUserId(event.target.value ? Number(event.target.value) : null)}>
-              <option value="">Sin asignar</option>
-              {employeeAccounts.map((account) => <option key={account.userId} value={account.userId}>{account.label}</option>)}
-            </select>
+            <label className={styles.formLabel} htmlFor="modalAssigneeSearch">Asignar a (cuenta de empleado)</label>
+            <EmployeeAutocomplete
+              accounts={employeeAccounts}
+              value={assignedUserId}
+              search={assigneeSearch}
+              isOpen={isAssigneeDropdownOpen}
+              onSearchChange={setAssigneeSearch}
+              onOpenChange={setIsAssigneeDropdownOpen}
+              onChange={(userId) => {
+                setAssignedUserId(userId);
+                setAssigneeSearch('');
+                setIsAssigneeDropdownOpen(false);
+              }}
+            />
           </>
         )}
 
@@ -209,12 +221,21 @@ export const ReportForm: React.FC<ReportFormProps> = ({
           </>
         )}
 
-        <label className={styles.formLabel} htmlFor="reportPriority">Prioridad</label>
-        <select id="reportPriority" className={styles.formInput} value={reportPriority} onChange={(event) => setReportPriority(Number(event.target.value) as ReportPriority)}>
-          <option value={1}>Alta</option>
-          <option value={2}>Media</option>
-          <option value={3}>Baja</option>
-        </select>
+        {isSuperAdmin && (
+          <>
+            <label className={styles.formLabel} htmlFor="reportPriority">Prioridad</label>
+            <select
+              id="reportPriority"
+              className={styles.formInput}
+              value={reportPriority}
+              onChange={(event) => setReportPriority(Number(event.target.value) as ReportPriority)}
+            >
+              <option value={1}>Alta</option>
+              <option value={2}>Media</option>
+              <option value={3}>Baja</option>
+            </select>
+          </>
+        )}
 
         <label className={styles.formLabel} htmlFor="reportDetails">Detalles / Descripción *</label>
         <textarea id="reportDetails" className={styles.formInput} rows={4} placeholder="Describe el problema a detalle..." value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} required />

@@ -45,6 +45,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [pendingValue, setPendingValue] = useState(value);
+  const [selectionMessage, setSelectionMessage] = useState('');
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -98,6 +99,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const handleToggle = () => {
     if (!isOpen) {
       setPendingValue(value);
+      setSelectionMessage('');
       updatePosition();
     }
     setIsOpen((prev) => !prev);
@@ -157,11 +159,16 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const handleSelectDay = (day: number) => {
     const formatted = `${viewYear}-${padZero(viewMonth + 1)}-${padZero(day)}`;
     setPendingValue(formatted);
+    setSelectionMessage(formatted === value ? 'La fecha seleccionada ya es la misma.' : '');
   };
 
   const handleConfirmSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!pendingValue || pendingValue === value) return;
+    if (!pendingValue) return;
+    if (pendingValue === value) {
+      setSelectionMessage('La fecha seleccionada ya es la misma.');
+      return;
+    }
     onChange(pendingValue);
     setIsOpen(false);
   };
@@ -212,6 +219,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       <div className={styles.backdrop} onClick={() => setIsOpen(false)} />
       <div
         className={styles.calendarPopover}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
         style={{
           top: `${popoverPos.top}px`,
           left: `${popoverPos.left}px`,
@@ -274,11 +283,16 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         </div>
 
         <div className={styles.calendarFooter}>
+          {selectionMessage && (
+            <p className={styles.calendarMessage} role="status">
+              {selectionMessage}
+            </p>
+          )}
           <button
             type="button"
             className={styles.todayQuickButton}
             onClick={handleConfirmSelection}
-            disabled={!pendingValue || pendingValue === value}
+            disabled={!pendingValue}
           >
             Seleccionar
           </button>
