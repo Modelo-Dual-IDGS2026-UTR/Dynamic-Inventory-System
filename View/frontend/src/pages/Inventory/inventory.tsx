@@ -11,8 +11,9 @@ import { getCategories, type Category } from '../../services/CategoryServices';
 import { getPlaces } from '../../services/PlaceServices';
 import { createReport } from '../../services/ReportServices';
 import { getItemHistory, type HistoryItem } from '../../services/HistoryServices';
+import { getAllUsers, type UserAccount } from '../../services/UserServices';
 import { useAuth } from '../../utils/auth';
-import type { ReportPriority } from '../../types';
+import { ReportForm } from '../../components/reports/ReportForm';
 
 export const Inventory: React.FC = () => {
   const {
@@ -28,13 +29,11 @@ export const Inventory: React.FC = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [availablePlaces, setAvailablePlaces] = useState<Place[]>([]);
+  const [users, setUsers] = useState<UserAccount[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [itemHistory, setItemHistory] = useState<HistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
-  const [reportPriority, setReportPriority] = useState<ReportPriority>(2);
-  const [reportReason, setReportReason] = useState('');
-  const [reportDetails, setReportDetails] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -132,6 +131,28 @@ export const Inventory: React.FC = () => {
     : Number(currentUser?.fk_role);
   const isAdminOrSuper = Number.isFinite(userRole) && userRole <= 2;
   const isSuperAdmin = userRole === 1;
+  const employeeAccounts = Array.from(
+    new Map(
+      users
+        .filter((user) => user.employeeId !== null && user.employeeId !== undefined || user.employee)
+        .map((user) => [
+          user.userId,
+          {
+            userId: user.userId,
+            label: `${user.firstName} ${user.lastName}`.trim(),
+          },
+        ])
+    ).values()
+  );
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    getAllUsers()
+      .then(setUsers)
+      .catch((error: unknown) => {
+        setReportMessage(error instanceof Error ? error.message : 'No se pudieron cargar las cuentas asignables.');
+      });
+  }, [isSuperAdmin]);
 
   const startEditing = () => {
     if (!selectedItem) return;
@@ -256,30 +277,17 @@ export const Inventory: React.FC = () => {
     }
   };
 
-  const submitReport = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const placeId = selectedItem?.fk_place?.placeId
-      ?? (selectedItem?.fk_place as unknown as { id?: number } | undefined)?.id;
-    if (!selectedItem || !currentUser || !placeId || !reportReason || !reportDetails.trim()) {
-      setReportMessage('Selecciona un motivo y describe el problema.');
+  const submitReport = async (payload: Parameters<typeof createReport>[0]) => {
+    if (!selectedItem || !currentUser || !payload.name || !payload.description || !payload.fk_item || !payload.dueDate) {
+      setReportMessage('Selecciona un artículo, escribe un título/motivo, fecha límite y describe el problema.');
       return;
     }
     setIsSubmittingReport(true);
     setReportMessage('');
     try {
-      await createReport({
-        name: reportReason,
-        description: reportDetails.trim(),
-        status: 1,
-        priority: reportPriority,
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        fk_user: currentUser.userId,
-        fk_item: selectedItem.itemId,
-        fk_place: placeId,
-      });
-      setReportMessage('Reporte enviado correctamente.');
-      setReportReason('');
-      setReportDetails('');
+      await createReport(payload);
+      setIsReportOpen(false);
+      setReportMessage('');
     } catch (submitError) {
       setReportMessage(submitError instanceof Error ? submitError.message : 'No se pudo enviar el reporte.');
     } finally {
@@ -883,49 +891,24 @@ export const Inventory: React.FC = () => {
       {isReportOpen && selectedItem && (
         <div className={styles.reportOverlay} onClick={() => setIsReportOpen(false)}>
           <div className={styles.reportModal} onClick={(event) => event.stopPropagation()}>
-            <button
-              className={styles.closeBtn}
-              type="button"
-              onClick={() => setIsReportOpen(false)}
-              aria-label="Cerrar reporte"
-            >
+            <button className={styles.closeBtn} type="button" onClick={() => setIsReportOpen(false)} aria-label="Cerrar reporte">
               ✕
             </button>
             <h2>Reportar mobiliario</h2>
-            <p className={styles.reportItem}>Artículo: {selectedItem.itemName}</p>
-            <form className={styles.reportForm} onSubmit={submitReport}>
-              <label htmlFor="reportReason">Motivo del reporte</label>
-              <select id="reportReason" name="reportReason" value={reportReason} onChange={(event) => setReportReason(event.target.value)}>
-                <option value="" disabled>Selecciona un motivo</option>
-                <option value="damaged">Mobiliario dañado</option>
-                <option value="missing">Mobiliario faltante</option>
-                <option value="incorrect">Información incorrecta</option>
-              </select>
-              <label htmlFor="reportPriority">Prioridad</label>
-              <select id="reportPriority" name="reportPriority" value={reportPriority} onChange={(event) => setReportPriority(Number(event.target.value) as ReportPriority)}>
-                <option value={1}>Alta</option>
-                <option value={2}>Media</option>
-                <option value={3}>Baja</option>
-              </select>
-              <label htmlFor="reportDetails">Detalles</label>
-              <textarea
-                id="reportDetails"
-                name="reportDetails"
-                rows={4}
-                placeholder="Describe el problema"
-                value={reportDetails}
-                onChange={(event) => setReportDetails(event.target.value)}
-              />
-              {reportMessage && <p className={styles.reportMessage}>{reportMessage}</p>}
-              <div className={styles.reportActions}>
-                <button className={styles.cancelBtn} type="button" onClick={() => setIsReportOpen(false)}>
-                  Cancelar
-                </button>
-                <button className={styles.submitReportBtn} type="submit" disabled={isSubmittingReport}>
-                  {isSubmittingReport ? 'Enviando...' : 'Enviar reporte'}
-                </button>
-              </div>
-            </form>
+            <ReportForm
+              items={items}
+              places={availablePlaces}
+              userId={currentUser?.userId ?? 0}
+              initialItem={selectedItem}
+              employeeAccounts={employeeAccounts}
+              isAdmin={isAdminOrSuper}
+              isSuperAdmin={isSuperAdmin}
+              isSubmitting={isSubmittingReport}
+              message={reportMessage}
+              onSubmit={submitReport}
+              onValidationError={setReportMessage}
+              onCancel={() => setIsReportOpen(false)}
+            />
           </div>
         </div>
       )}

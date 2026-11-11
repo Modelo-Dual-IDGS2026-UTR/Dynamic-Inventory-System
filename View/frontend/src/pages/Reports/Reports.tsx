@@ -22,6 +22,7 @@ import { DatePicker } from '../../components/common/DatePicker';
 import { ColorSelect, type ColorSelectOption } from '../../components/common/ColorSelect';
 import { ReportDetailModal } from '../../components/reports/ReportDetailModal';
 import { ReportMetrics } from '../../components/reports/ReportMetrics';
+import { ReportForm } from '../../components/reports/ReportForm';
 import styles from './Reports.module.css';
 
 const statusLabels: Record<ReportStatus, string> = { 1: 'Pendiente', 2: 'En proceso', 3: 'Resuelto' };
@@ -69,16 +70,7 @@ export const Reports: React.FC = () => {
 
   // Form states for creating a new report
   const [isNewReportOpen, setIsNewReportOpen] = useState(false);
-  const [itemSearch, setItemSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [reportReason, setReportReason] = useState('');
-  const [reportTitle, setReportTitle] = useState('');
-  const [reportPriority, setReportPriority] = useState<ReportPriority>(2);
-  const [reportStatus, setReportStatus] = useState<ReportStatus>(1);
-  const [dueDate, setDueDate] = useState<string>(getTodayDate());
-  const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
-  const [assignedUserId, setAssignedUserId] = useState<number | null>(null);
-  const [reportDetails, setReportDetails] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState('');
 
@@ -183,18 +175,6 @@ export const Reports: React.FC = () => {
     return Array.from(userEmployeeMap.values());
   }, [users]);
 
-  const filteredItems = useMemo(() => {
-    const query = itemSearch.trim().toLocaleLowerCase();
-    if (!query) return items;
-    return items.filter((item) => [
-      item.itemName,
-      item.itemDescription,
-      item.codeBar,
-      item.manufacter,
-      item.fk_place?.placeName,
-    ].join(' ').toLocaleLowerCase().includes(query));
-  }, [items, itemSearch]);
-
   const filteredReports = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
     if (!normalizedSearch) return reports;
@@ -217,25 +197,12 @@ export const Reports: React.FC = () => {
   const closeNewReport = () => {
     if (isSubmitting) return;
     setIsNewReportOpen(false);
-    setItemSearch('');
     setSelectedItem(null);
-    setReportReason('');
-    setReportTitle('');
-    setReportPriority(2);
-    setReportStatus(1);
-    setDueDate(getTodayDate());
-    setSelectedPlaceId(null);
-    setAssignedUserId(null);
-    setReportDetails('');
     setFormMessage('');
   };
 
-  const submitNewReport = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const finalReportName = (reportTitle || reportReason).trim();
-    const finalPlaceId = selectedPlaceId ?? selectedItem?.fk_place?.placeId ?? null;
-
-    if (!currentUser || !selectedItem || !finalReportName || !reportDetails.trim() || !dueDate) {
+  const submitNewReport = async (payload: Parameters<typeof createReport>[0]) => {
+    if (!currentUser || !payload.name || !payload.description || !payload.fk_item || !payload.dueDate) {
       setFormMessage('Selecciona un artículo, escribe un título/motivo, fecha límite y describe el problema.');
       return;
     }
@@ -243,21 +210,7 @@ export const Reports: React.FC = () => {
     setIsSubmitting(true);
     setFormMessage('');
     try {
-      await createReport({
-        name: finalReportName,
-        reportName: finalReportName,
-        description: reportDetails.trim(),
-        reportDescription: reportDetails.trim(),
-        status: reportStatus,
-        reportStatus: reportStatus,
-        priority: reportPriority,
-        reportPriority: reportPriority,
-        dueDate,
-        fk_user: currentUser.userId,
-        fk_item: selectedItem.itemId,
-        fk_place: finalPlaceId,
-        fk_user_assigned: assignedUserId,
-      });
+      await createReport(payload);
       await loadReports();
       setIsSubmitting(false);
       closeNewReport();
@@ -439,167 +392,19 @@ export const Reports: React.FC = () => {
             <h2>Crear reporte nuevo</h2>
             <p className={styles.modalSubtitle}>Selecciona el artículo y describe el problema.</p>
 
-            <label className={styles.formLabel} htmlFor="reportItemSearch">Buscar artículo *</label>
-            <input
-              id="reportItemSearch"
-              className={styles.formInput}
-              type="search"
-              placeholder="Nombre, código o ubicación..."
-              value={itemSearch}
-              onChange={(event) => setItemSearch(event.target.value)}
+            <ReportForm
+              items={items}
+              places={places}
+              userId={currentUser?.userId ?? 0}
+              employeeAccounts={employeeAccounts}
+              isAdmin={isAdmin}
+              isSuperAdmin={isSuperAdmin}
+              isSubmitting={isSubmitting}
+              message={formMessage}
+              onSubmit={submitNewReport}
+              onValidationError={setFormMessage}
+              onCancel={closeNewReport}
             />
-
-            <div className={styles.itemResults}>
-              {filteredItems.length === 0 ? (
-                <p className={styles.noResults}>No se encontraron artículos.</p>
-              ) : filteredItems.slice(0, 8).map((item) => (
-                <button
-                  className={`${styles.itemOption} ${selectedItem?.itemId === item.itemId ? styles.selectedItem : ''}`}
-                  type="button"
-                  key={item.itemId}
-                  onClick={() => {
-                    setSelectedItem(item);
-                    if (item.fk_place?.placeId) {
-                      setSelectedPlaceId(item.fk_place.placeId);
-                    }
-                  }}
-                >
-                  <strong>{item.itemName}</strong>
-                  <span>{item.codeBar || 'Sin código'} · {item.fk_place?.placeName || 'Sin ubicación'}</span>
-                </button>
-              ))}
-            </div>
-
-            <form className={styles.newReportForm} onSubmit={submitNewReport}>
-              <p className={styles.selectedItemText}>
-                {selectedItem ? `Artículo seleccionado: ${selectedItem.itemName}` : 'Ningún artículo seleccionado'}
-              </p>
-
-              <label className={styles.formLabel} htmlFor="newReportReason">Motivo del reporte</label>
-              <select
-                id="newReportReason"
-                className={styles.formInput}
-                value={reportReason}
-                onChange={(event) => {
-                  const val = event.target.value;
-                  setReportReason(val);
-                  if (!reportTitle || reportTitle === 'Mobiliario dañado' || reportTitle === 'Mobiliario faltante' || reportTitle === 'Información incorrecta') {
-                    if (val !== 'Otro') {
-                      setReportTitle(val);
-                    }
-                  }
-                }}
-              >
-                <option value="" disabled>Selecciona un motivo</option>
-                <option value="Mobiliario dañado">Mobiliario dañado</option>
-                <option value="Mobiliario faltante">Mobiliario faltante</option>
-                <option value="Información incorrecta">Información incorrecta</option>
-                <option value="Otro">Otro motivo</option>
-              </select>
-
-              <label className={styles.formLabel} htmlFor="newReportTitle">Título / Nombre del reporte *</label>
-              <input
-                id="newReportTitle"
-                className={styles.formInput}
-                type="text"
-                placeholder="Ej. Silla de oficina con soporte roto"
-                value={reportTitle}
-                onChange={(event) => setReportTitle(event.target.value)}
-                required
-              />
-
-              <label className={styles.formLabel} htmlFor="newReportDueDate">Fecha límite *</label>
-              <DatePicker
-                className={styles.formDatePicker}
-                min={getTodayDate()}
-                value={dueDate}
-                onChange={(val) => setDueDate(val)}
-              />
-
-              <label className={styles.formLabel} htmlFor="newReportPlace">Ubicación / Lugar</label>
-              <select
-                id="newReportPlace"
-                className={styles.formInput}
-                value={selectedPlaceId ?? ''}
-                onChange={(event) => setSelectedPlaceId(event.target.value ? Number(event.target.value) : null)}
-              >
-                <option value="">Sin ubicación específica</option>
-                {places.map((place) => (
-                  <option key={place.placeId} value={place.placeId}>
-                    {place.placeName}{place.placeLocation ? ` (${place.placeLocation})` : ''}
-                  </option>
-                ))}
-              </select>
-
-              {isSuperAdmin && (
-                <>
-                  <label className={styles.formLabel} htmlFor="newReportAssigned">Asignar a (cuenta de empleado)</label>
-                  <select
-                    id="newReportAssigned"
-                    className={styles.formInput}
-                    value={assignedUserId ?? ''}
-                    onChange={(event) => setAssignedUserId(event.target.value ? Number(event.target.value) : null)}
-                  >
-                    <option value="">Sin asignar</option>
-                    {employeeAccounts.map((account) => (
-                      <option key={account.userId} value={account.userId}>
-                        {account.label}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
-
-              {isAdmin && (
-                <>
-                  <label className={styles.formLabel} htmlFor="newReportStatus">Estado inicial</label>
-                  <select
-                    id="newReportStatus"
-                    className={styles.formInput}
-                    value={reportStatus}
-                    onChange={(event) => setReportStatus(Number(event.target.value) as ReportStatus)}
-                  >
-                    <option value={1}>Pendiente</option>
-                    <option value={2}>En proceso</option>
-                    <option value={3}>Resuelto</option>
-                  </select>
-                </>
-              )}
-
-              <label className={styles.formLabel} htmlFor="newReportPriority">Prioridad</label>
-              <select
-                id="newReportPriority"
-                className={styles.formInput}
-                value={reportPriority}
-                onChange={(event) => setReportPriority(Number(event.target.value) as ReportPriority)}
-              >
-                <option value={1}>Alta</option>
-                <option value={2}>Media</option>
-                <option value={3}>Baja</option>
-              </select>
-
-              <label className={styles.formLabel} htmlFor="newReportDetails">Detalles / Descripción *</label>
-              <textarea
-                id="newReportDetails"
-                className={styles.formInput}
-                rows={4}
-                placeholder="Describe el problema a detalle..."
-                value={reportDetails}
-                onChange={(event) => setReportDetails(event.target.value)}
-                required
-              />
-
-              {formMessage && <p className={styles.formMessage}>{formMessage}</p>}
-
-              <div className={styles.modalActions}>
-                <button className={styles.cancelButton} type="button" onClick={closeNewReport}>
-                  Cancelar
-                </button>
-                <button className={styles.submitButton} type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Enviando...' : 'Enviar reporte'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

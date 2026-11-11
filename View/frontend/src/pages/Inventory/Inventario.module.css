@@ -935,6 +935,8 @@ tbody tr:focus-visible {
   position: relative;
   width: 520px;
   max-width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
   background-color: #ffffff;
   border-radius: 16px;
   padding: 32px;
