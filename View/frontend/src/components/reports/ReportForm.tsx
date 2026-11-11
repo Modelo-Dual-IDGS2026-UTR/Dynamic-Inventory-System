@@ -216,7 +216,6 @@ export const ReportForm: React.FC<ReportFormProps> = ({
             <select id="reportStatus" className={styles.formInput} value={reportStatus} onChange={(event) => setReportStatus(Number(event.target.value) as ReportStatus)}>
               <option value={1}>Pendiente</option>
               <option value={2}>En proceso</option>
-              <option value={3}>Resuelto</option>
             </select>
           </>
         )}
