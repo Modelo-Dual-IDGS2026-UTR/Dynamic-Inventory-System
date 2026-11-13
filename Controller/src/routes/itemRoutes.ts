@@ -6,15 +6,24 @@ import {
     DeleteItemByID,
     SetStatus,
     SetCategory,
-    ChangeResponsible
+    ChangeResponsible,
+    importItems,
+    downloadItemImportTemplate
 } from "../controllers/itemController.js";
 import  express  from "express";
 export const itemRouter=express.Router();
 import { VerifyJWT } from '../middleware/jwtUtils.js';
 import { publicCatalogLimiter } from '../middleware/publicCatalogLimiter.js';
+import { uploadSpreadsheetSingle } from '../middleware/csvUpload.js';
 
 //Admin & Superadmin
 itemRouter.post('/new-item', VerifyJWT(2), CreateItem);
+
+//Download template
+itemRouter.get('/import-template', VerifyJWT(2), downloadItemImportTemplate);
+
+//Import items
+itemRouter.post('/import-items', VerifyJWT(2), uploadSpreadsheetSingle('file'), importItems);
 
 // Public inventory catalog
 itemRouter.get('/read-item/:itemId', VerifyJWT(), publicCatalogLimiter, SearchItemById);
