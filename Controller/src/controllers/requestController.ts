@@ -1,5 +1,6 @@
-import { Item, Request as RequestModel, User } from '@dis/model';
+import { Employee, Item, Request as RequestModel, User } from '@dis/model';
 import { NotificationType } from '@dis/model/userNotificationModel.js';
+import { mySequelize } from '@dis/db/dbConection.js';
 import type { Request, Response } from 'express';
 import { createHistoryLog } from '../helpers/historyHelper.js';
 import { createUserNotification } from '../helpers/notificationHelper.js';
@@ -61,7 +62,7 @@ const CreateRequest = async (req: Request, res: Response) => {
     try {
         const { name, description, status, fk_item, fk_user } = req.body ?? {};
         const requesterId = parsePositiveId(res.locals.jwtPayloadContent?.userId);
-        const receiverId = parsePositiveId(fk_user);
+        const receiverReference = parsePositiveId(fk_user);
         const itemId = parsePositiveId(fk_item);
         const requestStatus = Number(status);
         const requestName = typeof name === 'string' ? name.trim() : '';
@@ -73,7 +74,7 @@ const CreateRequest = async (req: Request, res: Response) => {
             requestName.length > 100 ||
             requestDescription.length > 1000 ||
             !requesterId ||
-            !receiverId ||
+            !receiverReference ||
             !itemId ||
             !Number.isInteger(requestStatus) ||
             requestStatus < 1 ||
@@ -91,17 +92,19 @@ const CreateRequest = async (req: Request, res: Response) => {
             });
         }
 
-        const [requester, receiver, item] = await Promise.all([
+        const [requester, item] = await Promise.all([
             User.findByPk(requesterId),
-            User.findByPk(receiverId),
             Item.findByPk(itemId)
         ]);
+        const receiver = await User.findByPk(receiverReference)
+            || await User.findOne({ where: { employeeId: receiverReference } });
+        const receiverId = receiver?.getDataValue('userId') ?? null;
         if (!requester) {
             return res.status(401).json({
                 message: 'Authenticated user not found. Please sign in again.'
             });
         }
-        if (!receiver) return res.status(404).json({ message: 'Receiver user not found' });
+        if (!receiver || !receiverId) return res.status(404).json({ message: 'Receiver user not found' });
         if (!item) return res.status(404).json({ message: 'Item not found' });
 
         const newRequest = await RequestModel.create({
@@ -146,8 +149,8 @@ const SearchUserRequests = async (req: Request, res: Response) => {
         const jwtPayload = res.locals.jwtPayloadContent;
         if (!userId) return res.status(400).json({ message: 'A valid User ID is required' });
         if (!jwtPayload) return res.status(401).json({ message: 'Authentication required' });
-        if (jwtPayload.role > 2 && Number(jwtPayload.userId) !== userId) {
-            return res.status(403).json({ message: 'You can only access your own requests' });
+        if (jwtPayload.role > 1 && Number(jwtPayload.userId) !== userId) {
+            return res.status(403).json({ message: 'You can only access your own created requests' });
         }
 
         const user = await User.findByPk(userId);
@@ -155,7 +158,7 @@ const SearchUserRequests = async (req: Request, res: Response) => {
 
         const requests = await RequestModel.findAll({
             where: { fk_user_requester: userId },
-            attributes: ['requestId', 'requestName', 'requestStatus', 'createdAt'],
+            attributes: ['requestId', 'requestName', 'requestDescription', 'requestStatus', 'createdAt'],
             include: REQUEST_INCLUDES,
             order: [['createdAt', 'DESC']]
         });
@@ -171,7 +174,7 @@ const SearchReceivedRequests = async (req: Request, res: Response) => {
         const jwtPayload = res.locals.jwtPayloadContent;
         if (!userId) return res.status(400).json({ message: 'A valid User ID is required' });
         if (!jwtPayload) return res.status(401).json({ message: 'Authentication required' });
-        if (jwtPayload.role > 2 && Number(jwtPayload.userId) !== userId) {
+        if (jwtPayload.role > 1 && Number(jwtPayload.userId) !== userId) {
             return res.status(403).json({ message: 'You can only access your own received requests' });
         }
 
@@ -338,12 +341,10 @@ const SearchRequestById = async (req: Request, res: Response) => {
         const jwtPayload = res.locals.jwtPayloadContent;
         const requesterId = request.getDataValue('fk_user_requester');
         const receiverId = request.getDataValue('fk_user_reciver');
-        if (
-            jwtPayload?.role > 2 &&
+        if (jwtPayload?.role > 1 &&
             Number(jwtPayload.userId) !== Number(requesterId) &&
-            Number(jwtPayload.userId) !== Number(receiverId)
-        ) {
-            return res.status(403).json({ message: 'You cannot access this request' });
+            Number(jwtPayload.userId) !== Number(receiverId)) {
+            return res.status(403).json({ message: 'You can only access your own or received requests' });
         }
 
         return res.status(200).json(formatRequest(request));
@@ -360,17 +361,57 @@ const SetRequestStatus = (status: number, label: string) =>
 
             const request = await RequestModel.findByPk(requestId);
             if (!request) return res.status(404).json({ message: 'Request not found' });
+            const jwtPayload = res.locals.jwtPayloadContent;
+            if (status === 2 &&
+                Number(jwtPayload?.userId) === Number(request.getDataValue('fk_user_requester'))) {
+                return res.status(403).json({ message: 'You cannot accept your own request' });
+            }
+            if (jwtPayload?.role === 2 &&
+                Number(jwtPayload.userId) !== Number(request.getDataValue('fk_user_requester')) &&
+                Number(jwtPayload.userId) !== Number(request.getDataValue('fk_user_reciver'))) {
+                return res.status(403).json({ message: 'You can only resolve your own or received requests' });
+            }
             if (Number(request.getDataValue('requestStatus')) === status) {
                 return res.status(400).json({ message: `Request is already ${label}` });
             }
 
-            request.set('requestStatus', status);
-            await request.save();
+            const itemId = Number(request.getDataValue('fk_item'));
+            let requesterEmployeeId: number | null = null;
+            if (status === 2) {
+                const requester = await User.findByPk(Number(request.getDataValue('fk_user_requester')));
+                const item = Number.isInteger(itemId) && itemId > 0 ? await Item.findByPk(itemId) : null;
+                requesterEmployeeId = requester?.getDataValue('employeeId') ?? null;
+                if (!requester || !requesterEmployeeId) {
+                    return res.status(409).json({
+                        message: 'The requester is not linked to an employee and cannot receive this item'
+                    });
+                }
+                if (!item) return res.status(404).json({ message: 'Item associated with the request not found' });
+            }
+            const previousResponsible = status === 2
+                ? await Employee.findByPk((await Item.findByPk(itemId))?.getDataValue('fk_user_responsible'))
+                : null;
+            const newResponsible = status === 2 && requesterEmployeeId
+                ? await Employee.findByPk(requesterEmployeeId)
+                : null;
+
+            await mySequelize.transaction(async (transaction) => {
+                if (status === 2 && requesterEmployeeId) {
+                    const item = await Item.findByPk(itemId, { transaction });
+                    if (!item) throw new Error('Item associated with the request not found');
+                    item.set('fk_user_responsible', requesterEmployeeId);
+                    await item.save({ transaction });
+                }
+                request.set('requestStatus', status);
+                await request.save({ transaction });
+            });
             await createHistoryLog({
-                historyDescription: `Se marcó la solicitud #${requestId} como ${label}.`,
-                actionType: 'UPDATE',
+                historyDescription: status === 2
+                    ? `Se transfirió el resguardo del item #${itemId} de "${previousResponsible ? `${previousResponsible.getDataValue('firstName')} ${previousResponsible.getDataValue('lastName')}` : 'sin responsable'}" a "${newResponsible ? `${newResponsible.getDataValue('firstName')} ${newResponsible.getDataValue('lastName')}` : 'nuevo responsable'}".`
+                    : `Se marcó la solicitud #${requestId} como ${label}.`,
+                actionType: status === 2 ? 'TRANSFER' : 'UPDATE',
                 userId: res.locals.jwtPayloadContent?.userId || Number(request.getDataValue('fk_user_requester')),
-                itemId: request.getDataValue('fk_item'),
+                itemId,
                 requestId
             });
 

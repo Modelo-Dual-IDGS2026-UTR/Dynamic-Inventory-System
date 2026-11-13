@@ -19,7 +19,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
   const menuItems = [
     { name: 'Inventario', path: '/Dashboard', icon: '📋' },
     { name: 'Reportes', path: '/Dashboard/reportes', icon: '📊' },
-    { name: 'Solicitudes (usuario)', path: '/Dashboard/solicitudes/usuario', icon: '📨', role: 3 },
     { name: 'Solicitudes (admin)', path: '/Dashboard/solicitudes/admin', icon: '📨', role: 2 },
     { name: 'Solicitudes (superadmin)', path: '/Dashboard/solicitudes/superadmin', icon: '📨', role: 1 },
     { name: 'Usuarios', path: '/Dashboard/usuarios', icon: '👥', role: 1 },

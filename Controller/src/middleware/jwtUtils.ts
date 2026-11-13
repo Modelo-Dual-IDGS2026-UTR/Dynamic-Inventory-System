@@ -22,8 +22,8 @@ if(!accessSecret || !refreshSecret){
     throw new Error("\n------FATAL ERROR: No jwt secret defined---------\n");
 }
 
-export const GenerateJWT=(payload:JwtPayloadContent, expiresIn: SignOptions["expiresIn"] = "15m"): string =>{
-    const options: SignOptions = {
+export const GenerateJWT=(payload:JwtPayloadContent, expiresIn: SignOptions["expiresIn"] = "1500m"): string =>{
+    const options: SignOptions = {  
         expiresIn,
         algorithm
 
