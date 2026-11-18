@@ -97,7 +97,7 @@ CREATE TABLE Item (
     itemId INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
     itemName varchar(30) NOT NULL,
     itemDescription varchar(255) NOT NULL,
-    itemStatus ENUM("In Use", "In Stock", "Damaged") DEFAULT "In Stock",
+    itemStatus ENUM("In Use", "In Stock", "Damaged", "Not Assigned") DEFAULT "Not Assigned",
     cost INT NOT NULL,
     manufacter varchar(25),
     codeBar varchar(25),

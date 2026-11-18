@@ -1,10 +1,22 @@
 import { Employee } from "@dis/model";
 import type { Request, Response } from "express";
-import { Readable } from 'stream';
-import * as fastCsv from 'fast-csv';
 import { z } from "zod";
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { mySequelize } from '@dis/db/dbConection.js';
+import {
+    buildCsvContent,
+    buildNormalizedRow,
+    findMissingFields,
+    isBlankCsvRow,
+    parseCsvBuffer,
+    validateCsvHeaders,
+    type CsvRowError,
+} from "../helpers/csvHelper.js";
+import {
+    buildEmployeeTemplateWorkbookBuffer,
+    parseXlsxBuffer,
+} from "../helpers/excelHelper.js";
+import { isXlsxFile } from "../middleware/csvUpload.js";
 
 const EmployeeValidation = z.object({
         employeeId: z.coerce.number().int().positive(),
@@ -31,13 +43,6 @@ const EmployeeValidation = z.object({
         ),
 })
 
-const normalizeHeader = (value: string) =>
-    String(value)
-        .replace(/^\uFEFF/, '')
-        .trim()
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .toLowerCase();
-
 const expectedCsvHeaders = [
     'IDEmpleado',
     'Nombre/s',
@@ -46,12 +51,18 @@ const expectedCsvHeaders = [
     'Email',
     'Area',
     'Estado'
-];
+] as const;
+
+const EMPLOYEE_REQUIRED_FIELD_LABELS: Record<string, string> = {
+    employeeId: 'IDEmpleado',
+    firstName: 'Nombre/s',
+    lastName: 'Apellidos',
+    email: 'Email',
+    status: 'Estado',
+};
 
 const mapExcelRowToEmployee = (row: Record<string, unknown>) => {
-    const normalizedRow = Object.fromEntries(
-        Object.entries(row).map(([key, value]) => [normalizeHeader(key), value])
-    );
+    const normalizedRow = buildNormalizedRow(row);
 
     return {
         employeeId: normalizedRow.idempleado,
@@ -64,70 +75,93 @@ const mapExcelRowToEmployee = (row: Record<string, unknown>) => {
     };
 };
 
+const downloadEmployeeImportTemplate = async (req: Request, res: Response) => {
+    try {
+        const requestedFormat = String(req.query.format ?? 'xlsx').trim().toLowerCase();
+
+        const exampleRow = [
+            1001,
+            'Carlos',
+            'Mendoza',
+            'Tiempo Completo',
+            'carlos.mendoza@utr.edu.mx',
+            'Soporte TI',
+            'ACTIVO',
+        ];
+
+        if (requestedFormat === 'csv') {
+            const csvContent = buildCsvContent(expectedCsvHeaders, [exampleRow]);
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', 'attachment; filename="plantilla_empleados.csv"');
+            return res.status(200).send(csvContent);
+        }
+
+        const workbookBuffer = await buildEmployeeTemplateWorkbookBuffer({
+            headers: expectedCsvHeaders,
+            statuses: ['ACTIVO', 'INACTIVO'],
+            exampleRow,
+        });
+
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader('Content-Disposition', 'attachment; filename="plantilla_empleados.xlsx"');
+        return res.status(200).send(workbookBuffer);
+    } catch (error) {
+        console.error('Error al generar plantilla de empleados:', error);
+        return res.status(500).json({ message: 'Error al generar la plantilla de empleados' });
+    }
+};
+
 const importEmployees = async (req: Request, res: Response) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No se ha subido ningún archivo' });
         }
-        
-        const parsedRows: unknown[] = [];
-        let csvHeaders: string[] = [];
 
-        const stream = Readable.from(req.file.buffer);
+        const { headers: fileHeaders, rows: parsedRows } = isXlsxFile(req.file)
+            ? await parseXlsxBuffer(req.file.buffer, 'Empleados')
+            : await parseCsvBuffer(req.file.buffer);
+        const headerValidation = validateCsvHeaders(fileHeaders, expectedCsvHeaders);
 
-        await new Promise((resolve, reject) => {
-        stream
-            .pipe(fastCsv.parse({
-                headers: (headers) => {
-                    csvHeaders = headers.map((header) =>
-                        String(header).replace(/^\uFEFF/, '').trim()
-                    );
-                    return headers;
-                },
-                trim: true
-            }))
-            .on('data', (row) => parsedRows.push(row))
-            .on('end', resolve)
-            .on('error', reject);
-        });
-
-        const hasExpectedHeaders =
-            csvHeaders.length === expectedCsvHeaders.length &&
-            csvHeaders.every((header, index) => header === expectedCsvHeaders[index]);
-
-        if (!hasExpectedHeaders) {
+        if (!headerValidation.valid) {
             return res.status(400).json({
-                message: 'Los encabezados del CSV no son válidos',
-                expectedHeaders: [
-                    'IDEmpleado',
-                    'Nombre/s',
-                    'Apellidos',
-                    'Tipo de Empleado',
-                    'Email',
-                    'Area',
-                    'Estado'
-                ],
-                receivedHeaders: csvHeaders
+                message: 'Los encabezados del archivo no son válidos',
+                expectedHeaders: [...expectedCsvHeaders],
+                receivedHeaders: fileHeaders,
+                missingHeaders: headerValidation.missingHeaders,
+                extraHeaders: headerValidation.extraHeaders,
+                duplicateHeaders: headerValidation.duplicateHeaders,
             });
         }
 
         const validRows: z.infer<typeof EmployeeValidation>[] = [];
-        const errors: Array<{ fila: number; detalle: string}> = [];
+        const errors: CsvRowError[] = [];
 
         parsedRows.forEach((row, index) => {
-            const rawValues = Object.values(row as Record<string, unknown> ?? {});
-            const hasContent = rawValues.some((value) => String(value ?? '').trim() !== '');
-
-            if (!hasContent) {
+            if (isBlankCsvRow(row)) {
                 return;
             }
 
-            const mappedRow = mapExcelRowToEmployee(row as Record<string, unknown>);
+            const fila = index + 2;
+            const mappedRow = mapExcelRowToEmployee(row);
+            const missingFields = findMissingFields(mappedRow, EMPLOYEE_REQUIRED_FIELD_LABELS);
+
+            if (missingFields.length > 0) {
+                errors.push({
+                    fila,
+                    camposFaltantes: missingFields,
+                    detalle: `Faltan campos obligatorios: ${missingFields.join(', ')}`,
+                });
+                return;
+            }
+
             const result = EmployeeValidation.safeParse(mappedRow);
 
             if (!result.success) {
                 errors.push({
-                    fila: index + 2,
+                    fila,
                     detalle: result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
                 });
                 return;
@@ -151,34 +185,32 @@ const importEmployees = async (req: Request, res: Response) => {
 
         const t = await mySequelize.transaction();
 
-
-
         try {
             // `bulkCreate` realiza la inserción masiva en una sola consulta SQL
             await Employee.bulkCreate(validRows, {
-            transaction: t,
-            validate: true,
-            updateOnDuplicate: [
-                'firstName',
-                'lastName',
-                'employeeType',
-                'email',
-                'area',
-                'status'
-            ]
+                transaction: t,
+                validate: true,
+                updateOnDuplicate: [
+                    'firstName',
+                    'lastName',
+                    'employeeType',
+                    'email',
+                    'area',
+                    'status'
+                ]
             });
 
             // Si todo salió bien, guardamos los cambios de forma definitiva
             await t.commit();
 
             return res.status(200).json({
-            message: 'Importación y actualización completada con éxito'
-     });
-    } catch (error) {
-        await t.rollback();
-    console.error('Error en la transacción:', error);
-    return res.status(500).json({ error: 'Error al escribir en la base de datos' });
-    }
+                message: 'Importación y actualización completada con éxito'
+            });
+        } catch (error) {
+            await t.rollback();
+            console.error('Error en la transacción:', error);
+            return res.status(500).json({ error: 'Error al escribir en la base de datos' });
+        }
     } catch (error) {
         console.error('Error al importar empleados:', error);
         return res.status(500).json({ error: 'Error al procesar la importación' });
@@ -439,6 +471,7 @@ const deleteEmployee = async (req: Request, res: Response) => {
 };
 
 export {
+    downloadEmployeeImportTemplate,
     importEmployees,
     ShowAllEmployees,
     CreateEmployee,

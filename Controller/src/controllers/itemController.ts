@@ -1,11 +1,30 @@
 import { Employee, Item, ItemStatus, Place, User, Category } from '@dis/model';
 import { NotificationType } from '@dis/model/userNotificationModel.js';
 import type { Response, Request } from 'express'
-import { type WhereOptions } from 'sequelize';
+import { Op, type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { createHistoryLog } from '../helpers/historyHelper.js';
 import { createUserNotification } from '../helpers/notificationHelper.js';
 import { mySequelize } from '@dis/db/dbConection.js';
+import {
+    buildCsvContent,
+    parseCsvBuffer,
+    validateCsvHeaders,
+} from '../helpers/csvHelper.js';
+import {
+    buildItemTemplateWorkbookBuffer,
+    parseXlsxBuffer,
+} from '../helpers/excelHelper.js';
+import { isXlsxFile } from '../middleware/csvUpload.js';
+import {
+    buildItemLookupCatalogs,
+    ITEM_CSV_HEADERS,
+    validateAndPrepareItemRows,
+    type CategoryLookupRecord,
+    type EmployeeLookupRecord,
+    type PlaceLookupRecord,
+    type ValidatedItemPayload,
+} from '../helpers/itemCsvHelper.js';
 
 const PUBLIC_ITEM_INCLUDES = [
     {
@@ -624,6 +643,234 @@ async function ShowItem(id: number, role: number, res: Response) {
 
 
 
+const downloadItemImportTemplate = async (req: Request, res: Response) => {
+    try {
+        const requestedFormat = String(req.query.format ?? 'xlsx').trim().toLowerCase();
+
+        const [categories, employees, places] = await Promise.all([
+            Category.findAll({
+                where: { categoryStatus: true },
+                attributes: ['categoryName'],
+                order: [['categoryName', 'ASC']],
+            }),
+            Employee.findAll({
+                where: { status: true },
+                attributes: ['email'],
+                order: [['email', 'ASC']],
+            }),
+            Place.findAll({
+                attributes: ['placeName'],
+                order: [['placeName', 'ASC']],
+            }),
+        ]);
+
+        const categoryNames = Array.from(
+            new Set(
+                categories
+                    .map((c) => String(c.getDataValue('categoryName') ?? '').trim())
+                    .filter(Boolean)
+            )
+        );
+        const employeeEmails = Array.from(
+            new Set(
+                employees
+                    .map((e) => String(e.getDataValue('email') ?? '').trim())
+                    .filter(Boolean)
+            )
+        );
+        const placeNames = Array.from(
+            new Set(
+                places
+                    .map((p) => String(p.getDataValue('placeName') ?? '').trim())
+                    .filter(Boolean)
+            )
+        );
+
+        const exampleRow = [
+            'Laptop Dell Latitude',
+            'Equipo portatil asignado para desarrollo y soporte',
+            ItemStatus.IN_STOCK,
+            18500,
+            'Dell',
+            'CB-DEMO-0001',
+            categoryNames[0] ?? 'Computo',
+            employeeEmails[0] ?? 'responsable@utr.edu.mx',
+            placeNames[0] ?? 'Almacen Central',
+        ];
+
+        if (requestedFormat === 'csv') {
+            const csvContent = buildCsvContent(ITEM_CSV_HEADERS, [exampleRow]);
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', 'attachment; filename="plantilla_items.csv"');
+            return res.status(200).send(csvContent);
+        }
+
+        const workbookBuffer = await buildItemTemplateWorkbookBuffer({
+            statuses: Object.values(ItemStatus),
+            categories: categoryNames,
+            responsibles: employeeEmails,
+            places: placeNames,
+            exampleRow,
+        });
+
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader('Content-Disposition', 'attachment; filename="plantilla_items.xlsx"');
+        return res.status(200).send(workbookBuffer);
+    } catch (error) {
+        console.error('Error al generar plantilla de items:', error);
+        return res.status(500).json({ message: 'Error al generar la plantilla de items' });
+    }
+};
+
+const importItems = async (req: Request, res: Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No se ha subido ningún archivo' });
+        }
+
+        const { headers: fileHeaders, rows: parsedRows } = isXlsxFile(req.file)
+            ? await parseXlsxBuffer(req.file.buffer, 'Items')
+            : await parseCsvBuffer(req.file.buffer);
+
+        const headerValidation = validateCsvHeaders(fileHeaders, ITEM_CSV_HEADERS);
+
+        if (!headerValidation.valid) {
+            return res.status(400).json({
+                message: 'Los encabezados del archivo no son válidos',
+                expectedHeaders: [...ITEM_CSV_HEADERS],
+                receivedHeaders: fileHeaders,
+                missingHeaders: headerValidation.missingHeaders,
+                extraHeaders: headerValidation.extraHeaders,
+                duplicateHeaders: headerValidation.duplicateHeaders,
+            });
+        }
+
+        const [rawCategories, rawEmployees, rawPlaces] = await Promise.all([
+            Category.findAll({
+                attributes: ['categoryId', 'categoryName', 'folioNumber', 'categoryStatus'],
+            }),
+            Employee.findAll({
+                attributes: ['employeeId', 'email', 'status'],
+            }),
+            Place.findAll({
+                attributes: ['placeId', 'placeName'],
+            }),
+        ]);
+
+        const catalogs = buildItemLookupCatalogs(
+            rawCategories.map((c) => c.toJSON() as CategoryLookupRecord),
+            rawEmployees.map((e) => e.toJSON() as EmployeeLookupRecord),
+            rawPlaces.map((p) => p.toJSON() as PlaceLookupRecord)
+        );
+
+        const { validItems, errors } = validateAndPrepareItemRows(parsedRows, catalogs);
+
+        if (errors.length > 0) {
+            return res.status(400).json({
+                message: 'Se encontraron errores de validación en el archivo CSV. No se creó ni modificó ningún item.',
+                errors,
+            });
+        }
+
+        if (validItems.length === 0) {
+            return res.status(400).json({
+                message: 'El archivo CSV no contiene filas válidas para importar',
+            });
+        }
+
+        const t = await mySequelize.transaction();
+
+        try {
+            const existingItems = await Item.findAll({
+                where: {
+                    codeBar: {
+                        [Op.in]: validItems.map((item) => item.codeBar),
+                    },
+                },
+                transaction: t,
+            });
+
+            const existingByCodeBar = new Map<string, InstanceType<typeof Item>[]>();
+            for (const existingItem of existingItems) {
+                const key = String(existingItem.getDataValue('codeBar') ?? '').trim().toLowerCase();
+                if (!key) continue;
+                const list = existingByCodeBar.get(key);
+                if (list) {
+                    list.push(existingItem);
+                } else {
+                    existingByCodeBar.set(key, [existingItem]);
+                }
+            }
+
+            const ambiguousCodeBars: string[] = [];
+            const itemsToCreate: ValidatedItemPayload[] = [];
+            const itemsToUpdate: Array<{
+                instance: InstanceType<typeof Item>;
+                payload: ValidatedItemPayload;
+            }> = [];
+
+            for (const itemPayload of validItems) {
+                const key = itemPayload.codeBar.trim().toLowerCase();
+                const matches = existingByCodeBar.get(key) ?? [];
+
+                if (matches.length > 1) {
+                    ambiguousCodeBars.push(itemPayload.codeBar);
+                    continue;
+                }
+
+                const existingMatch = matches[0];
+                if (existingMatch) {
+                    itemsToUpdate.push({ instance: existingMatch, payload: itemPayload });
+                } else {
+                    itemsToCreate.push(itemPayload);
+                }
+            }
+
+            if (ambiguousCodeBars.length > 0) {
+                await t.rollback();
+                return res.status(409).json({
+                    message:
+                        'Existen múltiples items en la base de datos con el mismo código de barras; no se puede determinar cuál actualizar',
+                    duplicatedCodeBars: ambiguousCodeBars,
+                });
+            }
+
+            if (itemsToCreate.length > 0) {
+                await Item.bulkCreate(
+                    itemsToCreate.map((item) => ({ ...item })),
+                    {
+                        transaction: t,
+                        validate: true,
+                    }
+                );
+            }
+
+            for (const { instance, payload } of itemsToUpdate) {
+                await instance.update({ ...payload }, { transaction: t });
+            }
+
+            await t.commit();
+
+            return res.status(200).json({
+                message: 'Importación y actualización de items completada con éxito',
+                totalProcesados: validItems.length,
+                creados: itemsToCreate.length,
+                actualizados: itemsToUpdate.length,
+            });
+        } catch (error) {
+            await t.rollback();
+            console.error('Error en la transacción de importación de items:', error);
+            return res.status(500).json({ message: 'Error al escribir los items en la base de datos' });
+        }
+    } catch (error) {
+        console.error('Error al importar items:', error);
+        return res.status(500).json({ message: 'Error al procesar la importación de items' });
+    }
+};
+
 export {
     CreateItem,
     SearchItemById,
@@ -632,5 +879,7 @@ export {
     DeleteItemByID,
     SetStatus,
     SetCategory,
-    ChangeResponsible
+    ChangeResponsible,
+    importItems,
+    downloadItemImportTemplate
 }
