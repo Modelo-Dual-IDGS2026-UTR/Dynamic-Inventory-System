@@ -7,6 +7,8 @@ yarn-error.log*
 lerna-debug.log*
 
 skills 
+.agents
+AGENTS.md
 postman
 .postman
 
