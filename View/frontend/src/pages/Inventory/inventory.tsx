@@ -775,7 +775,8 @@ export const Inventory: React.FC = () => {
               <div className={styles.modalRightColumn}>
                 {/* Bloque de Acciones Superior */}
                 <div className={styles.actionsBlock}>
-                  {isAdminOrSuper && (
+                  {currentUser?.employeeId &&
+                    selectedItem.fk_user_responsible?.id !== currentUser.employeeId && (
                     <button
                       className={styles.requestPrimaryBtn}
                       type="button"

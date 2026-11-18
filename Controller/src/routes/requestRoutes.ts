@@ -35,4 +35,4 @@ requestRouter.patch('/reject-request/:requestId', VerifyJWT(2), RejectRequest);
 requestRouter.patch('/set-receiver/:requestId', VerifyJWT(2), SetRequestReceiver);
 
 requestRouter.put('/update-request/:requestId', VerifyJWT(2), UpdatePendingRequest);
-requestRouter.delete('/delete-request/:id', VerifyJWT(1), DeleteRequest);
+requestRouter.delete('/delete-request/:id', VerifyJWT(), DeleteRequest);

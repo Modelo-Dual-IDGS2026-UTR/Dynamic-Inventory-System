@@ -6,7 +6,9 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-skills 
+skills
+!/.github/skills/
+!/.github/skills/**
 postman
 .postman
 

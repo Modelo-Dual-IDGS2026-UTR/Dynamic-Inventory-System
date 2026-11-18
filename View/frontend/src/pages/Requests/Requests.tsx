@@ -74,15 +74,23 @@ export const Requests: React.FC<RequestsProps> = ({ view }) => {
 
   useEffect(() => {
     const itemId = (location.state as { itemId?: number } | null)?.itemId;
-    if (itemId && items.some((item) => item.itemId === itemId)) {
+    const canRequestItem = items.some((item) =>
+      item.itemId === itemId
+      && item.fk_user_responsible?.id !== currentUser?.employeeId
+    );
+    if (itemId && canRequestItem) {
       setSelectedItemId(itemId);
       setIsFormOpen(true);
     }
-  }, [items, location.state]);
+  }, [currentUser?.employeeId, items, location.state]);
 
+  const requestableItems = useMemo(
+    () => items.filter((item) => item.fk_user_responsible?.id !== currentUser?.employeeId),
+    [currentUser?.employeeId, items],
+  );
   const selectedItem = useMemo(
-    () => items.find((item) => item.itemId === selectedItemId) ?? null,
-    [items, selectedItemId],
+    () => requestableItems.find((item) => item.itemId === selectedItemId) ?? null,
+    [requestableItems, selectedItemId],
   );
   const ownCustodyRequests = useMemo(
     () => requests.filter((request) => request.requestStatus === 2 && request.fk_user_requester === currentUser?.userId),
@@ -116,6 +124,10 @@ export const Requests: React.FC<RequestsProps> = ({ view }) => {
     }
     if (!receiverId) {
       setFormMessage('El artículo seleccionado no tiene un responsable al cual enviar la solicitud.');
+      return;
+    }
+    if (selectedItem.fk_user_responsible?.id === currentUser.employeeId) {
+      setFormMessage('No puedes solicitar un artículo que ya tienes asignado como resguardo.');
       return;
     }
 
@@ -256,7 +268,7 @@ export const Requests: React.FC<RequestsProps> = ({ view }) => {
               <label htmlFor="requestItem">Artículo *</label>
               <select id="requestItem" value={selectedItemId} onChange={(event) => setSelectedItemId(event.target.value ? Number(event.target.value) : '')} required>
                 <option value="">Selecciona un artículo</option>
-                {items.map((item) => <option key={item.itemId} value={item.itemId}>{item.itemName}{item.fk_user_responsible ? ` - ${item.fk_user_responsible.firstName} ${item.fk_user_responsible.lastName}` : ' - Sin responsable'}</option>)}
+                {requestableItems.map((item) => <option key={item.itemId} value={item.itemId}>{item.itemName}{item.fk_user_responsible ? ` - ${item.fk_user_responsible.firstName} ${item.fk_user_responsible.lastName}` : ' - Sin responsable'}</option>)}
               </select>
               <label htmlFor="requestName">Motivo *</label>
               <input id="requestName" value={requestName} onChange={(event) => setRequestName(event.target.value)} maxLength={100} placeholder="Ej. Solicitud de resguardo de equipo" required />
