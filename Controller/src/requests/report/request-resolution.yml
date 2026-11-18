@@ -1,0 +1,23 @@
+info:
+  name: request-resolution
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: http://localhost:3000/api/report/resolution-requests/1
+  body:
+    type: json
+    data: |-
+      {
+        "requestNote": "Equipo reparado y probado en laboratorio"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
+
