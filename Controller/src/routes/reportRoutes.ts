@@ -5,6 +5,12 @@ import {
     SearchReportsCreatedUser,
     SearchReportsAssignedUser,
     SetReportStatus,
+    RequestReportResolution,
+    GetReportResolutionReviews,
+    ReviewReportResolution,
+    GetReportComments,
+    CreateReportComment,
+    EditReportComment,
     SetAssignedUser,
     SetDueDate,
     setPriority,
@@ -34,6 +40,15 @@ reportRouter.get('/assigned-reports/:userId',  VerifyJWT(2), SearchReportsAssign
 reportRouter.patch('/set-status/:reportId',  VerifyJWT(2), SetReportStatus);
 
 //Admin & Superadmin
+reportRouter.post('/resolution-requests/:reportId', VerifyJWT(2), RequestReportResolution);
+
+//Admin & Superadmin
+reportRouter.get('/resolution-requests/:reportId', VerifyJWT(2), GetReportResolutionReviews);
+
+//Superadmin
+reportRouter.patch('/resolution-reviews/:reviewId', VerifyJWT(1), ReviewReportResolution);
+
+//Admin & Superadmin
 reportRouter.patch('/set-assigned/:reportId', VerifyJWT(1), SetAssignedUser);
 
 //Superadmin
@@ -43,6 +58,9 @@ reportRouter.patch('/set-due/:reportId',  VerifyJWT(1), SetDueDate);
 reportRouter.patch('/set-priority/:reportId',  VerifyJWT(1), setPriority);
 
 //Superadmin   
-reportRouter.delete('/delete-report/:reportId',  VerifyJWT(1), deleteReport)
+reportRouter.delete('/delete-report/:reportId',  VerifyJWT(1), deleteReport);
 
-//FALTA FUNCIÓN COMENTARIOS, PULL REQUEST PARA MARCARLO COMO RESUELTO
+//Report creator, assigned employee (with employeeId), & Superadmin
+reportRouter.get('/comments/:reportId', VerifyJWT(), GetReportComments);
+reportRouter.post('/comments/:reportId', VerifyJWT(), CreateReportComment);
+reportRouter.patch('/comments/:commentId', VerifyJWT(), EditReportComment);
