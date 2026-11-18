@@ -13,6 +13,13 @@ export interface ItemTemplateWorkbookOptions {
     maxDropdownRows?: number;
 }
 
+export interface EmployeeTemplateWorkbookOptions {
+    headers: readonly string[];
+    statuses: readonly string[];
+    exampleRow: ReadonlyArray<string | number>;
+    maxDropdownRows?: number;
+}
+
 /**
  * Extrae el valor legible de una celda de ExcelJS (incluyendo hipervínculos de correo,
  * texto enriquecido y resultados de fórmulas).
@@ -132,28 +139,34 @@ export const parseXlsxBuffer = async (
     return { headers, rows };
 };
 
+interface DropdownValidationConfig {
+    columnLetter: string;
+    maxRows: number;
+    formula: string;
+    promptTitle: string;
+    prompt: string;
+    errorTitle: string;
+    error: string;
+    allowBlank?: boolean;
+    errorStyle?: 'stop' | 'warning' | 'information';
+}
+
 const applyDropdownValidation = (
     worksheet: ExcelJS.Worksheet,
-    columnLetter: string,
-    maxRows: number,
-    formula: string,
-    promptTitle: string,
-    prompt: string,
-    errorTitle: string,
-    error: string
+    config: DropdownValidationConfig
 ): void => {
-    for (let row = 2; row <= maxRows; row += 1) {
-        worksheet.getCell(`${columnLetter}${row}`).dataValidation = {
+    for (let row = 2; row <= config.maxRows; row += 1) {
+        worksheet.getCell(`${config.columnLetter}${row}`).dataValidation = {
             type: 'list',
-            allowBlank: false,
-            formulae: [formula],
+            allowBlank: config.allowBlank ?? false,
+            formulae: [config.formula],
             showInputMessage: true,
-            promptTitle,
-            prompt,
+            promptTitle: config.promptTitle,
+            prompt: config.prompt,
             showErrorMessage: true,
-            errorStyle: 'warning',
-            errorTitle,
-            error,
+            errorStyle: config.errorStyle ?? 'warning',
+            errorTitle: config.errorTitle,
+            error: config.error,
         };
     }
 };
@@ -163,12 +176,13 @@ const applyInputHint = (
     columnLetter: string,
     maxRows: number,
     promptTitle: string,
-    prompt: string
+    prompt: string,
+    allowBlank = false
 ): void => {
     for (let row = 2; row <= maxRows; row += 1) {
         worksheet.getCell(`${columnLetter}${row}`).dataValidation = {
             type: 'custom',
-            allowBlank: false,
+            allowBlank,
             formulae: ['TRUE'],
             showInputMessage: true,
             promptTitle,
@@ -177,35 +191,19 @@ const applyInputHint = (
     }
 };
 
-/**
- * Genera una plantilla Excel (.xlsx) para Items con hoja oculta de catálogos,
- * dropdowns en Estado/Categoria/Responsable/Lugar y una fila de ejemplo.
- */
-export const buildItemTemplateWorkbookBuffer = async (
-    options: ItemTemplateWorkbookOptions
-): Promise<Buffer> => {
-    const maxRows = options.maxDropdownRows ?? DEFAULT_MAX_DROPDOWN_ROWS;
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Dynamic Inventory System';
-    workbook.created = new Date();
-
-    const itemsSheet = workbook.addWorksheet('Items', {
+const createStyledMainSheet = (
+    workbook: ExcelJS.Workbook,
+    sheetName: string,
+    columns: Array<{ header: string; key: string; width: number }>,
+    exampleRow: ReadonlyArray<string | number>
+): ExcelJS.Worksheet => {
+    const sheet = workbook.addWorksheet(sheetName, {
         views: [{ state: 'frozen', ySplit: 1 }],
     });
 
-    itemsSheet.columns = [
-        { header: ITEM_CSV_HEADERS[0], key: 'nombre', width: 26 },
-        { header: ITEM_CSV_HEADERS[1], key: 'descripcion', width: 40 },
-        { header: ITEM_CSV_HEADERS[2], key: 'estado', width: 18 },
-        { header: ITEM_CSV_HEADERS[3], key: 'costo', width: 14 },
-        { header: ITEM_CSV_HEADERS[4], key: 'fabricante', width: 20 },
-        { header: ITEM_CSV_HEADERS[5], key: 'codigoBarras', width: 24 },
-        { header: ITEM_CSV_HEADERS[6], key: 'categoria', width: 24 },
-        { header: ITEM_CSV_HEADERS[7], key: 'responsable', width: 32 },
-        { header: ITEM_CSV_HEADERS[8], key: 'lugar', width: 24 },
-    ];
+    sheet.columns = columns;
 
-    const headerRow = itemsSheet.getRow(1);
+    const headerRow = sheet.getRow(1);
     headerRow.height = 24;
     headerRow.eachCell((cell) => {
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
@@ -223,33 +221,61 @@ export const buildItemTemplateWorkbookBuffer = async (
         };
     });
 
-    itemsSheet.addRow([...options.exampleRow]);
+    sheet.addRow([...exampleRow]);
+    return sheet;
+};
 
+const populateHiddenCatalogsSheet = (
+    workbook: ExcelJS.Workbook,
+    columns: Array<{ header: string; key: string; width: number; values: readonly string[] }>
+): void => {
     const catalogsSheet = workbook.addWorksheet('Catalogos', {
         state: 'hidden',
     });
 
-    catalogsSheet.columns = [
-        { header: 'Categorias', key: 'categorias', width: 28 },
-        { header: 'Responsables', key: 'responsables', width: 36 },
-        { header: 'Lugares', key: 'lugares', width: 28 },
-    ];
+    catalogsSheet.columns = columns.map(({ header, key, width }) => ({ header, key, width }));
 
-    const maxCatalogLength = Math.max(
-        options.categories.length,
-        options.responsibles.length,
-        options.places.length
+    const maxLength = columns.reduce((max, col) => Math.max(max, col.values.length), 0);
+    for (let i = 0; i < maxLength; i += 1) {
+        catalogsSheet.addRow(columns.map((col) => col.values[i] ?? ''));
+    }
+};
+
+/**
+ * Genera una plantilla Excel (.xlsx) para Items con hoja oculta de catálogos,
+ * dropdowns en Estado/Categoria/Responsable/Lugar y una fila de ejemplo.
+ */
+export const buildItemTemplateWorkbookBuffer = async (
+    options: ItemTemplateWorkbookOptions
+): Promise<Buffer> => {
+    const maxRows = options.maxDropdownRows ?? DEFAULT_MAX_DROPDOWN_ROWS;
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Dynamic Inventory System';
+    workbook.created = new Date();
+
+    const itemsSheet = createStyledMainSheet(
+        workbook,
+        'Items',
+        [
+            { header: ITEM_CSV_HEADERS[0], key: 'nombre', width: 26 },
+            { header: ITEM_CSV_HEADERS[1], key: 'descripcion', width: 40 },
+            { header: ITEM_CSV_HEADERS[2], key: 'estado', width: 18 },
+            { header: ITEM_CSV_HEADERS[3], key: 'costo', width: 14 },
+            { header: ITEM_CSV_HEADERS[4], key: 'fabricante', width: 20 },
+            { header: ITEM_CSV_HEADERS[5], key: 'codigoBarras', width: 24 },
+            { header: ITEM_CSV_HEADERS[6], key: 'categoria', width: 24 },
+            { header: ITEM_CSV_HEADERS[7], key: 'responsable', width: 32 },
+            { header: ITEM_CSV_HEADERS[8], key: 'lugar', width: 24 },
+        ],
+        options.exampleRow
     );
 
-    for (let i = 0; i < maxCatalogLength; i += 1) {
-        catalogsSheet.addRow([
-            options.categories[i] ?? '',
-            options.responsibles[i] ?? '',
-            options.places[i] ?? '',
-        ]);
-    }
+    populateHiddenCatalogsSheet(workbook, [
+        { header: 'Categorias', key: 'categorias', width: 28, values: options.categories },
+        { header: 'Responsables', key: 'responsables', width: 36, values: options.responsibles },
+        { header: 'Lugares', key: 'lugares', width: 28, values: options.places },
+    ]);
 
-    // Hints en columnas de texto/número
     applyInputHint(itemsSheet, 'A', maxRows, 'Nombre', 'Obligatorio (máximo 30 caracteres).');
     applyInputHint(itemsSheet, 'B', maxRows, 'Descripción', 'Obligatorio (máximo 255 caracteres).');
     applyInputHint(itemsSheet, 'D', maxRows, 'Costo', 'Número entero mayor a 0 (ej. 18500).');
@@ -262,56 +288,125 @@ export const buildItemTemplateWorkbookBuffer = async (
         'Obligatorio y único por item (máximo 25 caracteres). Si ya existe en BD, se actualizará.'
     );
 
-    // Dropdown para Estado (lista inline)
-    applyDropdownValidation(
-        itemsSheet,
-        'C',
+    applyDropdownValidation(itemsSheet, {
+        columnLetter: 'C',
         maxRows,
-        `"${options.statuses.join(',')}"`,
-        'Estado del item',
-        'Selecciona un estado válido de la lista.',
-        'Estado no está en la lista',
-        'Se recomienda elegir una opción de la lista desplegable.'
-    );
+        formula: `"${options.statuses.join(',')}"`,
+        promptTitle: 'Estado del item',
+        prompt: 'Selecciona un estado válido de la lista.',
+        errorTitle: 'Estado no está en la lista',
+        error: 'Se recomienda elegir una opción de la lista desplegable.',
+    });
 
     if (options.categories.length > 0) {
-        applyDropdownValidation(
-            itemsSheet,
-            'G',
+        applyDropdownValidation(itemsSheet, {
+            columnLetter: 'G',
             maxRows,
-            `Catalogos!$A$2:$A$${options.categories.length + 1}`,
-            'Categoría',
-            'Selecciona una categoría activa de la lista.',
-            'Categoría no encontrada en la lista',
-            'Elige una categoría válida del catálogo o ingresa su ID.'
-        );
+            formula: `Catalogos!$A$2:$A$${options.categories.length + 1}`,
+            promptTitle: 'Categoría',
+            prompt: 'Selecciona una categoría activa de la lista.',
+            errorTitle: 'Categoría no encontrada en la lista',
+            error: 'Elige una categoría válida del catálogo o ingresa su ID.',
+        });
     }
 
     if (options.responsibles.length > 0) {
-        applyDropdownValidation(
-            itemsSheet,
-            'H',
+        applyDropdownValidation(itemsSheet, {
+            columnLetter: 'H',
             maxRows,
-            `Catalogos!$B$2:$B$${options.responsibles.length + 1}`,
-            'Empleado responsable',
-            'Selecciona el correo de un empleado activo.',
-            'Responsable no encontrado en la lista',
-            'Elige un correo de la lista o ingresa el ID del empleado.'
-        );
+            formula: `Catalogos!$B$2:$B$${options.responsibles.length + 1}`,
+            promptTitle: 'Empleado responsable',
+            prompt: 'Selecciona el correo de un empleado activo.',
+            errorTitle: 'Responsable no encontrado en la lista',
+            error: 'Elige un correo de la lista o ingresa el ID del empleado.',
+        });
     }
 
     if (options.places.length > 0) {
-        applyDropdownValidation(
-            itemsSheet,
-            'I',
+        applyDropdownValidation(itemsSheet, {
+            columnLetter: 'I',
             maxRows,
-            `Catalogos!$C$2:$C$${options.places.length + 1}`,
-            'Lugar',
-            'Selecciona un lugar registrado en el sistema.',
-            'Lugar no encontrado en la lista',
-            'Elige un lugar de la lista o ingresa su ID.'
-        );
+            formula: `Catalogos!$C$2:$C$${options.places.length + 1}`,
+            promptTitle: 'Lugar',
+            prompt: 'Selecciona un lugar registrado en el sistema.',
+            errorTitle: 'Lugar no encontrado en la lista',
+            error: 'Elige un lugar de la lista o ingresa su ID.',
+        });
     }
+
+    const arrayBuffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(arrayBuffer);
+};
+
+/**
+ * Genera una plantilla Excel (.xlsx) para Empleados con dropdown en Estado,
+ * campos personalizados libres para Tipo de Empleado y Area, y una fila de ejemplo.
+ */
+export const buildEmployeeTemplateWorkbookBuffer = async (
+    options: EmployeeTemplateWorkbookOptions
+): Promise<Buffer> => {
+    const maxRows = options.maxDropdownRows ?? DEFAULT_MAX_DROPDOWN_ROWS;
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Dynamic Inventory System';
+    workbook.created = new Date();
+
+    const employeesSheet = createStyledMainSheet(
+        workbook,
+        'Empleados',
+        [
+            { header: options.headers[0] ?? 'IDEmpleado', key: 'idEmpleado', width: 16 },
+            { header: options.headers[1] ?? 'Nombre/s', key: 'nombres', width: 22 },
+            { header: options.headers[2] ?? 'Apellidos', key: 'apellidos', width: 24 },
+            { header: options.headers[3] ?? 'Tipo de Empleado', key: 'tipo', width: 22 },
+            { header: options.headers[4] ?? 'Email', key: 'email', width: 32 },
+            { header: options.headers[5] ?? 'Area', key: 'area', width: 22 },
+            { header: options.headers[6] ?? 'Estado', key: 'estado', width: 16 },
+        ],
+        options.exampleRow
+    );
+
+    applyInputHint(
+        employeesSheet,
+        'A',
+        maxRows,
+        'IDEmpleado',
+        'Obligatorio. Número de empleado entero positivo (si ya existe, se actualizará).'
+    );
+    applyInputHint(employeesSheet, 'B', maxRows, 'Nombre/s', 'Obligatorio. Nombre(s) del empleado.');
+    applyInputHint(employeesSheet, 'C', maxRows, 'Apellidos', 'Obligatorio. Apellidos del empleado.');
+    applyInputHint(
+        employeesSheet,
+        'D',
+        maxRows,
+        'Tipo de Empleado',
+        'Opcional. Texto libre (ej. Tiempo Completo, Medio Tiempo, Contratista).',
+        true
+    );
+    applyInputHint(
+        employeesSheet,
+        'E',
+        maxRows,
+        'Email',
+        'Obligatorio y único. Correo electrónico válido (ej. nombre@utr.edu.mx).'
+    );
+    applyInputHint(
+        employeesSheet,
+        'F',
+        maxRows,
+        'Área',
+        'Opcional. Texto libre (ej. Soporte TI, Desarrollo, Sistemas).',
+        true
+    );
+
+    applyDropdownValidation(employeesSheet, {
+        columnLetter: 'G',
+        maxRows,
+        formula: `"${options.statuses.join(',')}"`,
+        promptTitle: 'Estado del empleado',
+        prompt: 'Obligatorio. Selecciona ACTIVO o INACTIVO.',
+        errorTitle: 'Estado inválido',
+        error: 'Elige ACTIVO o INACTIVO de la lista desplegable.',
+    });
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(arrayBuffer);

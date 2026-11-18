@@ -8,6 +8,7 @@ import {
     validateCsvHeaders,
 } from '../helpers/csvHelper.js';
 import {
+    buildEmployeeTemplateWorkbookBuffer,
     buildItemTemplateWorkbookBuffer,
     extractExcelCellValue,
     parseXlsxBuffer,
@@ -282,5 +283,33 @@ describe('excelHelper', () => {
                 result: 300,
             })
         ).toBe(300);
+    });
+
+    it('generates an employee .xlsx template with dropdown only on Estado and parses it back', async () => {
+        const headers = ['IDEmpleado', 'Nombre/s', 'Apellidos', 'Tipo de Empleado', 'Email', 'Area', 'Estado'];
+        const buffer = await buildEmployeeTemplateWorkbookBuffer({
+            headers,
+            statuses: ['ACTIVO', 'INACTIVO'],
+            exampleRow: [1001, 'Carlos', 'Mendoza', 'Tiempo Completo', 'carlos.mendoza@utr.edu.mx', 'Soporte TI', 'ACTIVO'],
+            maxDropdownRows: 10,
+        });
+
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+
+        const employeesSheet = workbook.getWorksheet('Empleados');
+        const catalogsSheet = workbook.getWorksheet('Catalogos');
+
+        expect(employeesSheet).toBeDefined();
+        expect(catalogsSheet).toBeUndefined();
+        expect(employeesSheet?.getCell('D2').dataValidation?.type).toBe('custom');
+        expect(employeesSheet?.getCell('F2').dataValidation?.type).toBe('custom');
+        expect(employeesSheet?.getCell('G2').dataValidation?.type).toBe('list');
+
+        const parsed = await parseXlsxBuffer(buffer, 'Empleados');
+        expect(parsed.headers).toEqual(headers);
+        expect(parsed.rows).toHaveLength(1);
+        expect(parsed.rows[0]?.Email).toBe('carlos.mendoza@utr.edu.mx');
+        expect(parsed.rows[0]?.Estado).toBe('ACTIVO');
     });
 });
