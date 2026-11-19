@@ -8,7 +8,7 @@ http:
   url: http://localhost:3000/api/item/new-item
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5MjY4MTMyMiwiZXhwIjoxNzkyNjgyMjIyfQ.E_yoTsI-oFz6Uj2orO1uA7hdQUut8Yb3-ktSljHy3vw
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5NTAzMDE3MCwiZXhwIjoxNzk1MDMxMDcwfQ.0gkzSp2TiRoXQTKbuqVr8c6gglIB-Cdo_YECUcQJybQ
   body:
     type: json
     data: |-
@@ -21,7 +21,7 @@ http:
         "cost": 20,
         "manufacter": "DELL", 
         "fk_category": 1,
-        "fk_user_responsible": 101,
+        "fk_user_responsible": 99999999,
         "fk_place": 1
       }
   auth: inherit
