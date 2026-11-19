@@ -23,7 +23,7 @@ if(!accessSecret || !refreshSecret){
 }
 
 export const GenerateJWT=(payload:JwtPayloadContent, expiresIn: SignOptions["expiresIn"] = "15m"): string =>{
-    const options: SignOptions = {
+    const options: SignOptions = {  
         expiresIn,
         algorithm
 

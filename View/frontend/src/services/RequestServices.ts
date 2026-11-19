@@ -1,14 +1,25 @@
 import type { InventoryRequest, RequestStatus } from '../types';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-interface ApiRequest extends Partial<InventoryRequest> {
+interface ApiRequest extends Omit<Partial<InventoryRequest>, 'fk_item' | 'fk_user_requester' | 'fk_user_receiver'> {
   requestName?: string;
   description?: string;
   status?: number;
+  fk_item?: number | { id?: number; itemName?: string } | null;
+  fk_user_requester?: number | { id?: number; firstName?: string; lastName?: string } | null;
+  fk_user_reciver?: number | { id?: number; firstName?: string; lastName?: string } | null;
+  fk_user_receiver?: number | { id?: number; firstName?: string; lastName?: string } | null;
 }
 
 function normalizeRequest(data: ApiRequest): InventoryRequest {
+  const item = data.fk_item;
+  const requester = data.fk_user_requester;
+  const receiver = data.fk_user_reciver ?? data.fk_user_receiver;
+  const fullName = (user: typeof requester) => typeof user === 'object' && user
+    ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
+    : undefined;
+
   return {
     requestId: data.requestId ?? 0,
     name: data.name ?? data.requestName ?? 'Solicitud sin nombre',
@@ -16,9 +27,12 @@ function normalizeRequest(data: ApiRequest): InventoryRequest {
     requestStatus: (data.requestStatus ?? data.status ?? 1) as RequestStatus,
     createdAt: data.createdAt ?? '',
     updatedAt: data.updatedAt ?? '',
-    fk_item: data.fk_item ?? null,
-    fk_user_receiver: data.fk_user_receiver ?? null,
-    fk_user_requester: data.fk_user_requester ?? null,
+    fk_item: typeof item === 'object' && item ? item.id ?? null : item ?? null,
+    itemName: typeof item === 'object' && item ? item.itemName : data.itemName,
+    fk_user_receiver: typeof receiver === 'object' && receiver ? receiver.id ?? null : receiver ?? null,
+    receiverName: fullName(receiver),
+    fk_user_requester: typeof requester === 'object' && requester ? requester.id ?? null : requester ?? null,
+    requesterName: fullName(requester),
   };
 }
 
@@ -29,7 +43,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: 'include',
   });
   if (!response.ok) {
-    throw new Error(`No se pudo completar la operación (${response.status})`);
+    const body = await response.json().catch(() => ({})) as { message?: string };
+    throw new Error(body.message || `No se pudo completar la operación (${response.status})`);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -53,6 +68,11 @@ export async function getAllRequests(): Promise<InventoryRequest[]> {
   return listFromResponse(data).map(normalizeRequest);
 }
 
+export async function getReceivedRequests(userId: number): Promise<InventoryRequest[]> {
+  const data = await request<unknown>(`/request/received-requests/${userId}`);
+  return listFromResponse(data).map(normalizeRequest);
+}
+
 export async function getRequest(requestId: number): Promise<InventoryRequest> {
   const data = await request<ApiRequest>(`/request/one-request/${requestId}`);
   return normalizeRequest(data);
@@ -68,7 +88,7 @@ export interface CreateRequestPayload {
 }
 
 export async function createRequest(payload: CreateRequestPayload): Promise<InventoryRequest> {
-  const data = await request<ApiRequest>('/post/create-request/', {
+  const data = await request<ApiRequest>('/request/create-request', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -76,15 +96,13 @@ export async function createRequest(payload: CreateRequestPayload): Promise<Inve
 }
 
 export async function acceptRequest(requestId: number): Promise<void> {
-  await request('/request/accept-request/', {
+  await request(`/request/accept-request/${requestId}`, {
     method: 'PATCH',
-    body: JSON.stringify({ requestId }),
   });
 }
 
 export async function rejectRequest(requestId: number): Promise<void> {
-  await request('/request/reject-request/', {
+  await request(`/request/reject-request/${requestId}`, {
     method: 'PATCH',
-    body: JSON.stringify({ requestId }),
   });
 }

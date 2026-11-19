@@ -16,13 +16,13 @@ import { VerifyJWT } from '../middleware/jwtUtils.js';
 
 export const requestRouter = express.Router();
 
-requestRouter.post('/create-request', VerifyJWT(2), CreateRequest);
+requestRouter.post('/create-request', VerifyJWT(), CreateRequest);
 
 requestRouter.get('/user-requests/:userId', VerifyJWT(), SearchUserRequests);
 
 requestRouter.get('/received-requests/:userId', VerifyJWT(), SearchReceivedRequests);
 
-requestRouter.get('/all-requests', VerifyJWT(2), SearchAllRequests);
+requestRouter.get('/all-requests', VerifyJWT(1), SearchAllRequests);
 
 requestRouter.get('/request-summary', VerifyJWT(2), RequestSummary);
 

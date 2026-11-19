@@ -8,6 +8,9 @@ export interface InventoryRequest {
   createdAt: string;
   updatedAt: string;
   fk_item: number | null;
+  itemName?: string;
   fk_user_receiver: number | null;
+  receiverName?: string;
   fk_user_requester: number | null;
+  requesterName?: string;
 }

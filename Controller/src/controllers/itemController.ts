@@ -461,12 +461,13 @@ const ChangeResponsible = async(req: Request, res: Response) => {
         });
     }
 
+    const previousResponsible = await Employee.findByPk(foundItem.getDataValue('fk_user_responsible'));
     foundItem.set('fk_user_responsible', responsible_user);
     await foundItem.save();
 
     await createHistoryLog({
-        historyDescription: `Se actualizó el usuario responsable del item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}) a ${responsible_user}.`,
-        actionType: 'UPDATE',
+        historyDescription: `Se transfirió el resguardo de "${previousResponsible ? `${previousResponsible.getDataValue('firstName')} ${previousResponsible.getDataValue('lastName')}` : 'sin responsable'}" a "${responsibleEmployee.getDataValue('firstName')} ${responsibleEmployee.getDataValue('lastName')}" para el item "${foundItem.getDataValue('itemName')}" (#${parsedItemId}).`,
+        actionType: 'TRANSFER',
         userId: res.locals.jwtPayloadContent?.userId,
         itemId: foundItem.getDataValue('itemId'),
         placeId: foundItem.getDataValue('fk_place')

@@ -1,5 +1,7 @@
 export interface HistoryItem {
     historyId: number;
+    historyDescription?: string;
+    actionType?: string;
     action?: string;
     details?: string;
     fk_user?: {

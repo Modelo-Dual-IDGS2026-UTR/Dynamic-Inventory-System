@@ -50,7 +50,7 @@ export async function getItems(parameter: Record<string, unknown> = {}): Promise
         return Array.isArray(Items) ? Items : Items.data || [];
     } catch (error) {
         console.error('Error al cargar artículos:', error);
-        return [];
+        throw error;
     }
 }
 

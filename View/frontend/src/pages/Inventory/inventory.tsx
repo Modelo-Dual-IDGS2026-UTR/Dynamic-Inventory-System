@@ -67,7 +67,9 @@ export const Inventory: React.FC = () => {
   });
 
   useEffect(() => {
-    getItems().then(setItems);
+    getItems().then(setItems).catch((error: unknown) => {
+      setItemMessage(error instanceof Error ? error.message : 'No se pudieron cargar los artículos.');
+    });
     getCategories().then(setCategories).catch((error: unknown) => {
       setItemMessage(error instanceof Error ? error.message : 'No se pudieron cargar las categorías.');
     });
@@ -775,13 +777,16 @@ export const Inventory: React.FC = () => {
               <div className={styles.modalRightColumn}>
                 {/* Bloque de Acciones Superior */}
                 <div className={styles.actionsBlock}>
-                  <button
-                    className={styles.requestPrimaryBtn}
-                    type="button"
-                    onClick={() => navigate('/Dashboard/solicitudes')}
-                  >
-                    <span>Solicitar</span>
-                  </button>
+                  {currentUser?.employeeId &&
+                    selectedItem.fk_user_responsible?.id !== currentUser.employeeId && (
+                    <button
+                      className={styles.requestPrimaryBtn}
+                      type="button"
+                      onClick={() => navigate('/Dashboard/solicitudes', { state: { itemId: selectedItem.itemId } })}
+                    >
+                      <span>Solicitar</span>
+                    </button>
+                  )}
                   <button
                     className={styles.reportSecondaryBtn}
                     type="button"
@@ -818,7 +823,7 @@ export const Inventory: React.FC = () => {
                             <div className={styles.timelineDot} />
                             <div className={styles.timelineContent}>
                               <span className={styles.timelineHeader}>
-                                {entry.action || entry.details || 'Movimiento de inventario'}
+                                {entry.historyDescription || entry.action || entry.details || 'Movimiento de inventario'}
                               </span>
                               <span className={styles.timelineDate}>{dateFormatted}</span>
                             </div>

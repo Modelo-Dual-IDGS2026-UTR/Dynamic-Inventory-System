@@ -5,15 +5,15 @@ info:
 
 http:
   method: PATCH
-  url: http://localhost:3000/api/user/promotion/2
+  url: http://localhost:3000/api/user/promotion/5
   headers:
     - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUsInJvbGUiOjEsImlhdCI6MTc5NDI1MTE1OSwiZXhwIjoxNzk0MjUyMDU5fQ.B-AS-fC-9IQKgnn_Rn7hlw8LmPfIlR_-IUeTJiszulY
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUsInJvbGUiOjEsImlhdCI6MTc5NDU4NzU2MiwiZXhwIjoxNzk0NTg4NDYyfQ.b9aCP8TZOndAnvLPz_kKpBjvac3u0lna7KGoMM-kKXQ
   body:
     type: json
     data: |-
       {
-        "fk_role": 2
+        "fk_role": 3
       }
   auth: inherit
 
