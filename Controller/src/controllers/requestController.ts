@@ -1,6 +1,7 @@
 import { Employee, Item, Request as RequestModel, User } from '@dis/model';
 import { NotificationType } from '@dis/model/userNotificationModel.js';
 import { mySequelize } from '@dis/db/dbConection.js';
+import { Op } from 'sequelize';
 import type { Request, Response } from 'express';
 import { createHistoryLog } from '../helpers/historyHelper.js';
 import { createUserNotification } from '../helpers/notificationHelper.js';
@@ -94,8 +95,7 @@ const CreateRequest = async (req: Request, res: Response) => {
             User.findByPk(requesterId),
             Item.findByPk(itemId)
         ]);
-        const receiver = await User.findOne({ where: { employeeId: receiverReference } })
-            || await User.findByPk(receiverReference);
+        const receiver = await User.findOne({ where: { employeeId: receiverReference } });
         const receiverId = receiver?.getDataValue('userId') ?? null;
         if (!requester) {
             return res.status(401).json({
@@ -236,21 +236,29 @@ const SearchAllRequests = async (_req: Request, res: Response) => {
 const SetRequestReceiver = async (req: Request, res: Response) => {
     try {
         const requestId = findRequestId(req);
-        const receiverId = parsePositiveId(req.body?.fk_user);
-        if (!requestId || !receiverId) {
+        const requestedReceiverId = parsePositiveId(req.body?.fk_user);
+        if (!requestId || !requestedReceiverId) {
             return res.status(400).json({ message: 'A valid request ID and fk_user are required' });
         }
 
         const request = await RequestModel.findByPk(requestId);
         if (!request) return res.status(404).json({ message: 'Request not found' });
+        const jwtPayload = res.locals.jwtPayloadContent;
+        const requesterId = Number(request.getDataValue('fk_user_requester'));
+        const currentReceiverId = Number(request.getDataValue('fk_user_reciver'));
+        if (jwtPayload?.role !== 1 &&
+            Number(jwtPayload?.userId) !== requesterId &&
+            Number(jwtPayload?.userId) !== currentReceiverId) {
+            return res.status(403).json({ message: 'Only the requester, responsible receiver, or superadmin can reassign this request' });
+        }
         if (Number(request.getDataValue('requestStatus')) !== 1) {
             return res.status(409).json({ message: 'Only pending requests can be reassigned' });
         }
-        if (Number(request.getDataValue('fk_user_reciver')) === receiverId) {
+        if (Number(request.getDataValue('fk_user_reciver')) === requestedReceiverId) {
             return res.status(400).json({ message: 'The request is already assigned to that user' });
         }
 
-        const receiver = await User.findByPk(receiverId);
+        const receiver = await User.findByPk(requestedReceiverId);
         if (!receiver) return res.status(404).json({ message: 'Receiver user not found' });
         const item = await Item.findByPk(Number(request.getDataValue('fk_item')));
         if (!item) return res.status(404).json({ message: 'Item associated with the request not found' });
@@ -263,30 +271,30 @@ const SetRequestReceiver = async (req: Request, res: Response) => {
             });
         }
 
-        request.set('fk_user_reciver', receiverId);
+        request.set('fk_user_reciver', requestedReceiverId);
         await request.save();
 
         const currentUserId = res.locals.jwtPayloadContent?.userId
-            || Number(request.getDataValue('fk_user_requester'));
+            || requesterId;
         await createHistoryLog({
-            historyDescription: `Se cambió el receptor de la solicitud #${requestId} al usuario ${receiverId}.`,
+            historyDescription: `Se cambió el receptor de la solicitud #${requestId} al usuario ${requestedReceiverId}.`,
             actionType: 'UPDATE',
             userId: currentUserId,
             itemId: request.getDataValue('fk_item'),
             requestId
         });
 
-        if (receiverId !== Number(currentUserId)) {
+        if (requestedReceiverId !== Number(currentUserId)) {
             await createUserNotification({
                 notificationType: NotificationType.REQUEST,
                 requestDescription: `Se te ha asignado la solicitud "${request.getDataValue('requestName')}".`,
                 fk_trigger: requestId,
                 fk_user_trigger: currentUserId,
-                fk_notified: receiverId
+                fk_notified: requestedReceiverId
             });
         }
 
-        return res.status(200).json({ fk_user_reciver: receiverId });
+        return res.status(200).json({ fk_user_reciver: requestedReceiverId });
     } catch (error) {
         throw error;
     }
@@ -430,57 +438,55 @@ const SetRequestStatus = (status: number, label: string) =>
             const requestId = findRequestId(req);
             if (!requestId) return res.status(400).json({ message: 'Invalid Request ID' });
 
-            const request = await RequestModel.findByPk(requestId);
-            if (!request) return res.status(404).json({ message: 'Request not found' });
-            if (Number(request.getDataValue('requestStatus')) !== 1) {
-                return res.status(409).json({ message: 'Only pending requests can be resolved' });
-            }
-            const jwtPayload = res.locals.jwtPayloadContent;
-            if (status === 2 &&
-                Number(jwtPayload?.userId) === Number(request.getDataValue('fk_user_requester'))) {
-                return res.status(403).json({ message: 'You cannot accept your own request' });
-            }
-            if (jwtPayload?.role !== 1 &&
-                Number(jwtPayload?.userId) !== Number(request.getDataValue('fk_user_reciver'))) {
-                return res.status(403).json({ message: 'Only the responsible receiver or a superadmin can resolve this request' });
-            }
-
-            const itemId = Number(request.getDataValue('fk_item'));
+            let request: InstanceType<typeof RequestModel> | null = null;
+            let itemId = 0;
             let requesterEmployeeId: number | null = null;
-            if (status === 2) {
-                const requester = await User.findByPk(Number(request.getDataValue('fk_user_requester')));
-                const item = Number.isInteger(itemId) && itemId > 0 ? await Item.findByPk(itemId) : null;
-                const receiver = await User.findByPk(Number(request.getDataValue('fk_user_reciver')));
-                requesterEmployeeId = requester?.getDataValue('employeeId') ?? null;
-                if (!requester || !requesterEmployeeId) {
-                    return res.status(409).json({
-                        message: 'The requester is not linked to an employee and cannot receive this item'
-                    });
-                }
-                if (!item) return res.status(404).json({ message: 'Item associated with the request not found' });
-                if (!receiver || !receiver.getDataValue('employeeId')) {
-                    return res.status(409).json({ message: 'The receiver is not linked to an employee' });
-                }
-                if (Number(receiver.getDataValue('employeeId')) !== Number(item.getDataValue('fk_user_responsible'))) {
-                    return res.status(409).json({
-                        message: 'The item no longer belongs to the responsible employee assigned to this request'
-                    });
-                }
-                if (Number(requesterEmployeeId) === Number(item.getDataValue('fk_user_responsible'))) {
-                    return res.status(409).json({ message: 'The requester already has custody of this item' });
-                }
-            }
-            const previousResponsible = status === 2
-                ? await Employee.findByPk((await Item.findByPk(itemId))?.getDataValue('fk_user_responsible'))
-                : null;
-            const newResponsible = status === 2 && requesterEmployeeId
-                ? await Employee.findByPk(requesterEmployeeId)
-                : null;
+            let previousResponsible: InstanceType<typeof Employee> | null = null;
+            let newResponsible: InstanceType<typeof Employee> | null = null;
 
             await mySequelize.transaction(async (transaction) => {
-                if (status === 2 && requesterEmployeeId) {
-                    const item = await Item.findByPk(itemId, { transaction });
+                request = await RequestModel.findByPk(requestId, {
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+                if (!request) throw new Error('Request not found');
+                if (Number(request.getDataValue('requestStatus')) !== 1) {
+                    throw new Error('Only pending requests can be resolved');
+                }
+
+                const jwtPayload = res.locals.jwtPayloadContent;
+                if (status === 2 &&
+                    Number(jwtPayload?.userId) === Number(request.getDataValue('fk_user_requester'))) {
+                    throw new Error('You cannot accept your own request');
+                }
+                if (jwtPayload?.role !== 1 &&
+                    Number(jwtPayload?.userId) !== Number(request.getDataValue('fk_user_reciver'))) {
+                    throw new Error('Only the responsible receiver or a superadmin can resolve this request');
+                }
+
+                itemId = Number(request.getDataValue('fk_item'));
+                if (status === 2) {
+                    const requester = await User.findByPk(Number(request.getDataValue('fk_user_requester')), { transaction });
+                    const item = Number.isInteger(itemId) && itemId > 0
+                        ? await Item.findByPk(itemId, { transaction, lock: transaction.LOCK.UPDATE })
+                        : null;
+                    const receiver = await User.findByPk(Number(request.getDataValue('fk_user_reciver')), { transaction });
+                    requesterEmployeeId = requester?.getDataValue('employeeId') ?? null;
+                    if (!requester || !requesterEmployeeId) {
+                        throw new Error('The requester is not linked to an employee and cannot receive this item');
+                    }
                     if (!item) throw new Error('Item associated with the request not found');
+                    if (!receiver || !receiver.getDataValue('employeeId')) {
+                        throw new Error('The receiver is not linked to an employee');
+                    }
+                    if (Number(receiver.getDataValue('employeeId')) !== Number(item.getDataValue('fk_user_responsible'))) {
+                        throw new Error('The item no longer belongs to the responsible employee assigned to this request');
+                    }
+                    if (Number(requesterEmployeeId) === Number(item.getDataValue('fk_user_responsible'))) {
+                        throw new Error('The requester already has custody of this item');
+                    }
+                    previousResponsible = await Employee.findByPk(item.getDataValue('fk_user_responsible'), { transaction });
+                    newResponsible = await Employee.findByPk(requesterEmployeeId, { transaction });
                     item.set('fk_user_responsible', requesterEmployeeId);
                     await item.save({ transaction });
                     await RequestModel.update(
@@ -488,7 +494,8 @@ const SetRequestStatus = (status: number, label: string) =>
                         {
                             where: {
                                 fk_item: itemId,
-                                requestStatus: 1
+                                requestStatus: 1,
+                                requestId: { [Op.ne]: requestId }
                             },
                             transaction
                         }
@@ -497,18 +504,36 @@ const SetRequestStatus = (status: number, label: string) =>
                 request.set('requestStatus', status);
                 await request.save({ transaction });
             });
+            if (!request) throw new Error('Request not found');
+            const completedRequest = request as InstanceType<typeof RequestModel>;
+            const previousEmployee = previousResponsible as InstanceType<typeof Employee> | null;
+            const newEmployee = newResponsible as InstanceType<typeof Employee> | null;
             await createHistoryLog({
                 historyDescription: status === 2
-                    ? `Se transfirió el resguardo del item #${itemId} de "${previousResponsible ? `${previousResponsible.getDataValue('firstName')} ${previousResponsible.getDataValue('lastName')}` : 'sin responsable'}" a "${newResponsible ? `${newResponsible.getDataValue('firstName')} ${newResponsible.getDataValue('lastName')}` : 'nuevo responsable'}".`
+                    ? `Se transfirió el resguardo del item #${itemId} de "${previousEmployee ? `${previousEmployee.getDataValue('firstName')} ${previousEmployee.getDataValue('lastName')}` : 'sin responsable'}" a "${newEmployee ? `${newEmployee.getDataValue('firstName')} ${newEmployee.getDataValue('lastName')}` : 'nuevo responsable'}".`
                     : `Se marcó la solicitud #${requestId} como ${label}.`,
                 actionType: status === 2 ? 'TRANSFER' : 'UPDATE',
-                userId: res.locals.jwtPayloadContent?.userId || Number(request.getDataValue('fk_user_requester')),
+                userId: res.locals.jwtPayloadContent?.userId || Number(completedRequest.getDataValue('fk_user_requester')),
                 itemId,
                 requestId
             });
 
             return res.status(200).json({ requestStatus: status });
         } catch (error) {
+            if (error instanceof Error && ['Request not found', 'Only pending requests can be resolved', 'You cannot accept your own request'].includes(error.message)) {
+                return res.status(error.message === 'Request not found' ? 404 : 409).json({ message: error.message });
+            }
+            if (error instanceof Error && error.message.startsWith('Only the responsible receiver')) {
+                return res.status(403).json({ message: error.message });
+            }
+            if (error instanceof Error && (
+                error.message.includes('not linked') ||
+                error.message.includes('no longer belongs') ||
+                error.message.includes('already has custody') ||
+                error.message.includes('associated with the request')
+            )) {
+                return res.status(error.message.includes('associated') ? 404 : 409).json({ message: error.message });
+            }
             throw error;
         }
     };
@@ -524,12 +549,8 @@ const DeleteRequest = async (req: Request, res: Response) => {
             return res.status(409).json({ message: 'Only pending requests can be deleted' });
         }
         const jwtPayload = res.locals.jwtPayloadContent;
-        const requesterId = Number(request.getDataValue('fk_user_requester'));
-        const receiverId = Number(request.getDataValue('fk_user_reciver'));
-        if (jwtPayload?.role !== 1 &&
-            Number(jwtPayload?.userId) !== requesterId &&
-            Number(jwtPayload?.userId) !== receiverId) {
-            return res.status(403).json({ message: 'Only the requester, responsible receiver, or superadmin can delete this request' });
+        if (jwtPayload?.role !== 1) {
+            return res.status(403).json({ message: 'Only a superadmin can delete requests' });
         }
 
         await createHistoryLog({

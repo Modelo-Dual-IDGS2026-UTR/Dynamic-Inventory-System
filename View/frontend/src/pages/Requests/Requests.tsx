@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../utils/auth';
 import type { InventoryRequest, Item, RequestStatus } from '../../types';
 import { acceptRequest, createRequest, getAllRequests, getReceivedRequests, getUserRequests, rejectRequest } from '../../services/RequestServices';
@@ -25,9 +25,10 @@ const roleForView: Record<RequestView, number> = { usuario: 3, admin: 2, superad
 export const Requests: React.FC<RequestsProps> = ({ view }) => {
   const { currentUser } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const role = Number(currentUser?.fk_role);
   const currentView: RequestView = view ?? (role === 1 ? 'superadmin' : role === 2 ? 'admin' : 'usuario');
-  const isUnauthorizedView = Boolean(currentUser && (role > 2 || role !== roleForView[currentView]));
+  const isUnauthorizedView = Boolean(currentUser && role !== roleForView[currentView]);
   const isAdmin = role <= 2;
   const content = viewContent[currentView];
   const [requests, setRequests] = useState<InventoryRequest[]>([]);
@@ -69,7 +70,9 @@ export const Requests: React.FC<RequestsProps> = ({ view }) => {
 
   useEffect(() => {
     void loadRequests();
-    getItems().then(setItems).catch(() => setError('No se pudieron cargar los artículos para solicitar.'));
+    getItems().then(setItems).catch((loadError: unknown) => {
+      setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar los artículos para solicitar.');
+    });
   }, [loadRequests]);
 
   useEffect(() => {
@@ -85,7 +88,7 @@ export const Requests: React.FC<RequestsProps> = ({ view }) => {
   }, [currentUser?.employeeId, items, location.state]);
 
   const requestableItems = useMemo(
-    () => items.filter((item) => item.fk_user_responsible?.id !== currentUser?.employeeId),
+    () => items.filter((item) => item.fk_user_responsible?.id && item.fk_user_responsible.id !== currentUser?.employeeId),
     [currentUser?.employeeId, items],
   );
   const selectedItem = useMemo(
@@ -107,12 +110,20 @@ export const Requests: React.FC<RequestsProps> = ({ view }) => {
   const openForm = () => {
     setFormMessage('');
     setIsFormOpen(true);
+    void getItems()
+      .then(setItems)
+      .catch((loadError: unknown) => {
+        setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar los artículos para solicitar.');
+      });
   };
 
   const closeForm = () => {
     if (isSubmitting) return;
     setIsFormOpen(false);
     setFormMessage('');
+    if ((location.state as { itemId?: number } | null)?.itemId) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
   };
 
   const submitRequest = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -159,6 +170,8 @@ export const Requests: React.FC<RequestsProps> = ({ view }) => {
       if (action === 'accept') await acceptRequest(requestId);
       else await rejectRequest(requestId);
       await loadRequests();
+      const refreshedItems = await getItems();
+      setItems(refreshedItems);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'No se pudo actualizar la solicitud.');
     }
@@ -185,13 +198,17 @@ export const Requests: React.FC<RequestsProps> = ({ view }) => {
       <div className={styles.tableCard}>
         {isLoading ? <div className={styles.message}>Cargando solicitudes...</div> : requests.length === 0 ? <div className={styles.empty}>No hay solicitudes para mostrar.</div> : (
           <table className={styles.table}>
-            <thead><tr><th>Solicitud</th><th>Artículo</th><th>{currentView === 'usuario' ? 'Responsable' : 'Solicitante'}</th><th>Estado</th><th>Creada</th>{isAdmin && <th>Resolver</th>}</tr></thead>
+            <thead><tr><th>Solicitud</th><th>Artículo</th><th>{currentView === 'usuario' ? 'Responsable' : 'Usuario involucrado'}</th><th>Estado</th><th>Creada</th>{isAdmin && <th>Resolver</th>}</tr></thead>
             <tbody>
               {requests.map((request) => (
                 <tr key={request.requestId}>
                   <td><strong>REQ-{request.requestId}</strong><br />{request.name}</td>
                   <td>{request.itemName || 'Artículo no disponible'}</td>
-                  <td>{currentView === 'usuario' ? request.receiverName || 'Sin responsable' : request.requesterName || 'Sin solicitante'}</td>
+                  <td>{currentView === 'usuario'
+                    ? request.receiverName || 'Sin responsable'
+                    : request.fk_user_requester === currentUser?.userId
+                      ? request.receiverName || 'Sin responsable'
+                      : request.requesterName || 'Sin solicitante'}</td>
                   <td><span className={`${styles.badge} ${styles[`status${request.requestStatus}`]}`}>{statusLabels[request.requestStatus]}</span></td>
                   <td>{request.createdAt ? new Date(request.createdAt).toLocaleDateString('es-MX') : 'Sin fecha'}</td>
                   {isAdmin && <td>{request.requestStatus === 1 && request.fk_user_requester !== currentUser?.userId && <div className={styles.actions}><button className={styles.actionButton} type="button" onClick={() => void changeRequestStatus(request.requestId, 'accept')}>Aceptar</button><button className={styles.dangerButton} type="button" onClick={() => void changeRequestStatus(request.requestId, 'reject')}>Rechazar</button></div>}{request.requestStatus === 1 && request.fk_user_requester === currentUser?.userId && <span className={styles.noAction}>No puedes aceptar tu propia solicitud</span>}</td>}
@@ -232,24 +249,6 @@ export const Requests: React.FC<RequestsProps> = ({ view }) => {
                 <table className={styles.miniTable}>
                   <thead><tr><th>Artículo</th><th>Solicitante</th><th>Responsable</th><th>Estado</th><th>Fecha</th></tr></thead>
                     <tbody>{historyRequests.map((request) => <tr key={request.requestId}><td>{request.itemName || 'Artículo no disponible'}</td><td>{request.requesterName || 'Sin solicitante'}</td><td>{request.receiverName || 'Sin responsable'}</td><td><span className={`${styles.badge} ${styles[`status${request.requestStatus}`]}`}>{statusLabels[request.requestStatus]}</span></td><td>{request.createdAt ? new Date(request.createdAt).toLocaleDateString('es-MX') : 'Sin fecha'}</td></tr>)}</tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        )}
-        {!isAdmin && (
-          <section className={styles.historyCard}>
-            <div className={styles.historyHeader}>
-              <div>
-                <h2>Historial de mis resguardos</h2>
-                <p>Consulta los artículos aceptados que tienes asignados.</p>
-              </div>
-            </div>
-            {ownCustodyRequests.length === 0 ? <div className={styles.empty}>No hay resguardos en tu historial.</div> : (
-              <div className={styles.miniTableWrapper}>
-                <table className={styles.miniTable}>
-                  <thead><tr><th>Artículo</th><th>Solicitud</th><th>Estado</th><th>Fecha</th></tr></thead>
-                  <tbody>{ownCustodyRequests.map((request) => <tr key={request.requestId}><td>{request.itemName || 'Artículo no disponible'}</td><td>{request.name}</td><td><span className={`${styles.badge} ${styles[`status${request.requestStatus}`]}`}>{statusLabels[request.requestStatus]}</span></td><td>{request.createdAt ? new Date(request.createdAt).toLocaleDateString('es-MX') : 'Sin fecha'}</td></tr>)}</tbody>
                 </table>
               </div>
             )}

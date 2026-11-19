@@ -67,7 +67,9 @@ export const Inventory: React.FC = () => {
   });
 
   useEffect(() => {
-    getItems().then(setItems);
+    getItems().then(setItems).catch((error: unknown) => {
+      setItemMessage(error instanceof Error ? error.message : 'No se pudieron cargar los artículos.');
+    });
     getCategories().then(setCategories).catch((error: unknown) => {
       setItemMessage(error instanceof Error ? error.message : 'No se pudieron cargar las categorías.');
     });
