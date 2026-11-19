@@ -157,6 +157,43 @@ CREATE TABLE UserNotification (
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE ReportResolutionReview (
+    reviewId INT AUTO_INCREMENT PRIMARY KEY,
+    fk_report INT NOT NULL,
+    fk_user_requested INT NULL,
+    fk_user_reviewed INT NULL,
+    reviewStatus ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+    requestNote varchar(500) NULL,
+    reviewNote varchar(500) NULL,
+    reviewedAt DATETIME NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_report_review_report_status (fk_report, reviewStatus),
+    INDEX idx_report_review_requested_by (fk_user_requested),
+    INDEX idx_report_review_reviewed_by (fk_user_reviewed)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE ReportComment (
+    commentId INT AUTO_INCREMENT PRIMARY KEY,
+    fk_report INT NOT NULL,
+    fk_user_author INT NULL,
+    content varchar(1000) NOT NULL,
+    isEdited BOOLEAN NOT NULL DEFAULT FALSE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_report_comment_report_created (fk_report, createdAt),
+    INDEX idx_report_comment_author (fk_user_author)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE ReportCommentEdit (
+    editId INT AUTO_INCREMENT PRIMARY KEY,
+    fk_comment INT NOT NULL,
+    fk_user_editor INT NULL,
+    previousContent varchar(1000) NOT NULL,
+    editedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_comment_edit_comment_edited (fk_comment, editedAt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 /*===============================
     2. FOREIGN KEY ASSIGNATION
   ===============================*/
@@ -263,6 +300,47 @@ ALTER TABLE Report
         ON DELETE SET NULL
         ON UPDATE CASCADE;
 
+ALTER TABLE ReportResolutionReview
+    ADD CONSTRAINT fk_report_review_report
+        FOREIGN KEY (fk_report)
+        REFERENCES Report(reportId)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    ADD CONSTRAINT fk_report_review_requester
+        FOREIGN KEY (fk_user_requested)
+        REFERENCES User(userId)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    ADD CONSTRAINT fk_report_review_reviewer
+        FOREIGN KEY (fk_user_reviewed)
+        REFERENCES User(userId)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE;
+
+ALTER TABLE ReportComment
+    ADD CONSTRAINT fk_report_comment_report
+        FOREIGN KEY (fk_report)
+        REFERENCES Report(reportId)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    ADD CONSTRAINT fk_report_comment_author
+        FOREIGN KEY (fk_user_author)
+        REFERENCES User(userId)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE;
+
+ALTER TABLE ReportCommentEdit
+    ADD CONSTRAINT fk_comment_edit_comment
+        FOREIGN KEY (fk_comment)
+        REFERENCES ReportComment(commentId)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    ADD CONSTRAINT fk_comment_edit_editor
+        FOREIGN KEY (fk_user_editor)
+        REFERENCES User(userId)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE;
+
 /*===============================
     3. INSERT INITIAL VALUES - DELETE ON DEPLOY
   ===============================*/
@@ -279,6 +357,10 @@ VALUES ("All","No restrictions"),
 
 INSERT INTO Role_Permission(fk_role, fk_permission)
 VALUES (1, 1);
+
+-- Reserved initial employee account for first SuperAdmin Google login (jira.utr@utr.edu.mx)
+INSERT INTO Employee(employeeId, firstName, lastName, employeeType, email, area, status)
+VALUES (99999999, "JIRA", "UTR", "Tiempo Completo", "jira.utr@utr.edu.mx", "Soporte TI", TRUE);
 
 INSERT INTO User(googleUserId, firstName, lastName, universityId, userStatus, email, area, fk_role)
 VALUES ("sddasddasds","TEST USER", "01", "1234", TRUE, "st1234@utr.edu.mx", "IDGS", 1);

@@ -1,92 +1,35 @@
-import { Report, User, Item, Place } from '@dis/model';
+import { mySequelize } from '@dis/db/dbConection.js';
+import {
+    Report,
+    User,
+    Item,
+    Place,
+    ReportResolutionReview,
+    ReportReviewStatus,
+    ReportComment,
+    ReportCommentEdit
+} from '@dis/model';
 import { NotificationType } from '@dis/model/userNotificationModel.js';
 import type { Response, Request } from 'express';
-import { FilterOptions } from "../helpers/filterOptions.js";
+import { FilterOptions } from '../helpers/filterOptions.js';
 import { createHistoryLog } from '../helpers/historyHelper.js';
-import { createUserNotification } from '../helpers/notificationHelper.js';
-
-// Standard includes for Report queries
-const REPORT_INCLUDES = [
-    {
-        model: Place,
-        as: 'related_place',
-        attributes: ['placeId', 'placeName']
-    },
-    {
-        model: User,
-        as: 'related_user_assigned',
-        attributes: ['userId', 'firstName', 'lastName', 'universityId', 'employeeId']
-    },
-    {
-        model: User,
-        as: 'related_user_creator',
-        attributes: ['userId', 'firstName', 'lastName', 'universityId', 'employeeId']
-    },
-    {
-        model: Item,
-        as: 'related_item',
-        attributes: ['itemId', 'itemName']
-    }
-];
-
-// Helper to format report JSON response
-interface ReportResponseData {
-    [key: string]: unknown;
-    related_place?: { placeId: number; placeName: string } | null;
-    related_user_assigned?: { userId: number; firstName: string; lastName: string; universityId?: string | null; employeeId?: number | null } | null;
-    related_user_creator?: { userId: number; firstName: string; lastName: string; universityId?: string | null; employeeId?: number | null } | null;
-    related_item?: { itemId: number; itemName: string } | null;
-}
-
-const formatReport = (reportInstance: InstanceType<typeof Report> | null) => {
-    const report = reportInstance?.toJSON() as ReportResponseData | undefined;
-    if (!report) {
-        return null;
-    }
-    const { related_place, related_user_assigned, related_user_creator, related_item, ...rest } = report;
-
-    return {
-        ...rest,
-        fk_place: related_place
-            ? { id: related_place.placeId, name: related_place.placeName }
-            : null,
-        fk_user_assigned: related_user_assigned
-            ? {
-                id: related_user_assigned.userId,
-                firstName: related_user_assigned.firstName,
-                lastName: related_user_assigned.lastName,
-                universityId: related_user_assigned.universityId ?? null,
-                employeeId: related_user_assigned.employeeId ?? null
-            }
-            : null,
-        fk_user_creator: related_user_creator
-            ? {
-                id: related_user_creator.userId,
-                firstName: related_user_creator.firstName,
-                lastName: related_user_creator.lastName,
-                universityId: related_user_creator.universityId ?? null,
-                employeeId: related_user_creator.employeeId ?? null
-            }
-            : null,
-        fk_item: related_item
-            ? { id: related_item.itemId, itemName: related_item.itemName }
-            : null
-    };
-};
-
-const parsePositiveId = (value: unknown) => {
-    const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-};
-
-const isValidDate = (value: unknown) => {
-    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return false;
-    }
-
-    const date = new Date(`${value}T00:00:00Z`);
-    return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
-};
+import { createUserNotification, notifyUsersByRole } from '../helpers/notificationHelper.js';
+import {
+    COMMENT_INCLUDES,
+    REPORT_ACCESS_ATTRIBUTES,
+    REPORT_INCLUDES,
+    REVIEW_INCLUDES,
+    assertReportCommentAccess,
+    formatReport,
+    formatReportComment,
+    formatResolutionReview,
+    isValidDate,
+    notifyDistinctUsers,
+    parseBoundedText,
+    parseOptionalNote,
+    parsePositiveId,
+    validateAssignedUserRecord
+} from '../helpers/reportHelper.js';
 
 const CreateReport = async (req: Request, res: Response) => {
     try {
@@ -100,7 +43,8 @@ const CreateReport = async (req: Request, res: Response) => {
             fk_item,
             fk_place
         } = req.body;
-        const creatorId = res.locals.jwtPayloadContent?.userId;
+        const jwtPayload = res.locals.jwtPayloadContent;
+        const creatorId = jwtPayload?.userId;
         const assignedId = fk_user_assigned == null ? null : parsePositiveId(fk_user_assigned);
         const itemId = fk_item == null ? null : parsePositiveId(fk_item);
         const placeId = fk_place == null ? null : parsePositiveId(fk_place);
@@ -126,6 +70,11 @@ const CreateReport = async (req: Request, res: Response) => {
         ) {
             return res.status(400).json({ message: 'Invalid or missing report fields' });
         }
+        if (status === 3 && Number(jwtPayload?.role) !== 1) {
+            return res.status(403).json({
+                message: 'Only SuperAdmin can create a report directly as Done'
+            });
+        }
 
         const [creator, assignedUser, item, place] = await Promise.all([
             User.findByPk(creatorId),
@@ -135,7 +84,12 @@ const CreateReport = async (req: Request, res: Response) => {
         ]);
 
         if (!creator) return res.status(404).json({ message: 'Creator user not found' });
-        if (assignedId && !assignedUser) return res.status(404).json({ message: 'Assigned user not found' });
+        if (assignedId) {
+            const assignedValidation = validateAssignedUserRecord(assignedUser);
+            if (!assignedValidation.valid) {
+                return res.status(assignedValidation.status).json({ message: assignedValidation.message });
+            }
+        }
         if (itemId && !item) return res.status(404).json({ message: 'Item not found' });
         if (placeId && !place) return res.status(404).json({ message: 'Place not found' });
 
@@ -305,57 +259,521 @@ const SetReportStatus = async (req: Request, res: Response) => {
     try {
         const status = Number(req.body?.status);
         const parsedReportId = parsePositiveId(req.params.reportId);
+        const jwtPayload = res.locals.jwtPayloadContent;
+        if (!jwtPayload) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
         if (!parsedReportId || !Number.isInteger(status) || status < 1 || status > 3) {
             return res.status(400).json({ message: 'Status must be an integer between 1 and 3' });
         }
+        if (status === 3 && Number(jwtPayload.role) !== 1) {
+            return res.status(403).json({
+                message: 'Admins cannot mark a report as Done directly. Submit a resolution review request instead.'
+            });
+        }
+
         const foundReport = await Report.findByPk(parsedReportId);
         if (!foundReport) {
             return res.status(404).json({ message: 'Report not found' });
         }
 
-        if (status === Number(foundReport.getDataValue('reportStatus'))) {
+        const currentStatus = Number(foundReport.getDataValue('reportStatus'));
+        if (currentStatus === 3 && Number(jwtPayload.role) !== 1) {
+            return res.status(403).json({
+                message: 'Only SuperAdmin can reopen a report marked as Done'
+            });
+        }
+        if (status === currentStatus) {
             return res.status(400).json({ message: 'The status could not change because is the same status' });
         }
 
-        foundReport.set('reportStatus', status);
-        await foundReport.save();
-        await createHistoryLog({
-            historyDescription: `Se actualizó el estado del reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) a ${status}.`,
-            actionType: 'UPDATE',
-            userId: res.locals.jwtPayloadContent?.userId || Number(foundReport.getDataValue('fk_user_creator')),
-            itemId: foundReport.getDataValue('fk_item'),
-            placeId: foundReport.getDataValue('fk_place'),
-            reportId: parsedReportId,
-        });
+        const currentUserId = parsePositiveId(jwtPayload.userId);
+        const transaction = await mySequelize.transaction();
+        try {
+            foundReport.set('reportStatus', status);
+            await foundReport.save({ transaction });
 
-        const creatorId = foundReport.getDataValue('fk_user_creator');
-        const assignedId = foundReport.getDataValue('fk_user_assigned');
-        const currentUserId = res.locals.jwtPayloadContent?.userId;
+            // SuperAdmin direct resolution bypasses the PR flow and closes any open pending review
+            if (status === 3) {
+                await ReportResolutionReview.update(
+                    {
+                        reviewStatus: ReportReviewStatus.APPROVED,
+                        fk_user_reviewed: currentUserId,
+                        reviewNote: 'Direct resolution by SuperAdmin',
+                        reviewedAt: new Date()
+                    },
+                    {
+                        where: {
+                            fk_report: parsedReportId,
+                            reviewStatus: ReportReviewStatus.PENDING
+                        },
+                        transaction
+                    }
+                );
+            }
 
-        if (creatorId && Number(creatorId) !== Number(currentUserId)) {
-            await createUserNotification({
-                notificationType: NotificationType.REPORT,
-                requestDescription: `Tu reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) ha cambiado a estado: ${status}.`,
-                fk_trigger: parsedReportId,
-                fk_user_trigger: currentUserId || null,
-                fk_notified: Number(creatorId)
+            await createHistoryLog({
+                historyDescription: `Se actualizó el estado del reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) a ${status}.`,
+                actionType: 'UPDATE',
+                userId: currentUserId || Number(foundReport.getDataValue('fk_user_creator')),
+                itemId: foundReport.getDataValue('fk_item'),
+                placeId: foundReport.getDataValue('fk_place'),
+                reportId: parsedReportId,
+                transaction
             });
+
+            await transaction.commit();
+        } catch (txError) {
+            await transaction.rollback();
+            throw txError;
         }
-        if (assignedId && Number(assignedId) !== Number(currentUserId) && Number(assignedId) !== Number(creatorId)) {
-            await createUserNotification({
-                notificationType: NotificationType.REPORT,
-                requestDescription: `El reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) asignado a ti cambió a estado: ${status}.`,
-                fk_trigger: parsedReportId,
-                fk_user_trigger: currentUserId || null,
-                fk_notified: Number(assignedId)
-            });
-        }
+
+        const creatorId = parsePositiveId(foundReport.getDataValue('fk_user_creator'));
+        const assignedId = parsePositiveId(foundReport.getDataValue('fk_user_assigned'));
+        await notifyDistinctUsers(
+            [creatorId, assignedId],
+            currentUserId,
+            parsedReportId,
+            `El reporte "${foundReport.getDataValue('reportName')}" (#${parsedReportId}) ha cambiado a estado: ${status}.`
+        );
 
         return res.status(200).json({ status });
     } catch (error) {
         throw error;
     }
-}
+};
+
+const RequestReportResolution = async (req: Request, res: Response) => {
+    try {
+        const parsedReportId = parsePositiveId(req.params.reportId);
+        const jwtPayload = res.locals.jwtPayloadContent;
+        const currentUserId = parsePositiveId(jwtPayload?.userId);
+        if (!jwtPayload || !currentUserId) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+        if (!parsedReportId) {
+            return res.status(400).json({ message: 'Invalid Report ID' });
+        }
+
+        const noteValidation = parseOptionalNote(req.body?.requestNote ?? req.body?.note);
+        if (!noteValidation.valid) {
+            return res.status(400).json({
+                message: 'requestNote must be a non-empty string with at most 500 characters'
+            });
+        }
+
+        const transaction = await mySequelize.transaction();
+        let createdReviewId: number;
+        let reportName: string;
+
+        try {
+            const foundReport = await Report.findByPk(parsedReportId, {
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+            if (!foundReport) {
+                await transaction.rollback();
+                return res.status(404).json({ message: 'Report not found' });
+            }
+            if (Number(foundReport.getDataValue('reportStatus')) === 3) {
+                await transaction.rollback();
+                return res.status(409).json({ message: 'Report is already marked as Done' });
+            }
+
+            const existingPending = await ReportResolutionReview.findOne({
+                where: {
+                    fk_report: parsedReportId,
+                    reviewStatus: ReportReviewStatus.PENDING
+                },
+                transaction
+            });
+            if (existingPending) {
+                await transaction.rollback();
+                return res.status(409).json({
+                    message: 'A pending resolution review already exists for this report'
+                });
+            }
+
+            const createdReview = await ReportResolutionReview.create(
+                {
+                    fk_report: parsedReportId,
+                    fk_user_requested: currentUserId,
+                    reviewStatus: ReportReviewStatus.PENDING,
+                    requestNote: noteValidation.value
+                },
+                { transaction }
+            );
+
+            createdReviewId = Number(createdReview.getDataValue('reviewId'));
+            reportName = String(foundReport.getDataValue('reportName'));
+
+            await createHistoryLog({
+                historyDescription: `Se solicitó revisión de cierre para el reporte "${reportName}" (#${parsedReportId}).`,
+                actionType: 'UPDATE',
+                userId: currentUserId,
+                itemId: foundReport.getDataValue('fk_item'),
+                placeId: foundReport.getDataValue('fk_place'),
+                reportId: parsedReportId,
+                transaction
+            });
+
+            await transaction.commit();
+        } catch (txError) {
+            await transaction.rollback();
+            throw txError;
+        }
+
+        await notifyUsersByRole(1, {
+            notificationType: NotificationType.REPORT,
+            requestDescription: `El reporte "${reportName}" (#${parsedReportId}) tiene una solicitud de resolución pendiente de revisión.`,
+            fk_trigger: parsedReportId,
+            fk_user_trigger: currentUserId
+        });
+
+        const reviewWithUsers = await ReportResolutionReview.findByPk(createdReviewId, {
+            include: REVIEW_INCLUDES
+        });
+
+        return res.status(201).json(formatResolutionReview(reviewWithUsers));
+    } catch (error) {
+        throw error;
+    }
+};
+
+const GetReportResolutionReviews = async (req: Request, res: Response) => {
+    try {
+        const parsedReportId = parsePositiveId(req.params.reportId);
+        if (!parsedReportId) {
+            return res.status(400).json({ message: 'Invalid Report ID' });
+        }
+
+        const foundReport = await Report.findByPk(parsedReportId);
+        if (!foundReport) {
+            return res.status(404).json({ message: 'Report not found' });
+        }
+
+        const reviews = await ReportResolutionReview.findAll({
+            where: { fk_report: parsedReportId },
+            include: REVIEW_INCLUDES,
+            order: [['createdAt', 'DESC'], ['reviewId', 'DESC']]
+        });
+
+        return res.status(200).json(reviews.map(formatResolutionReview));
+    } catch (error) {
+        throw error;
+    }
+};
+
+const ReviewReportResolution = async (req: Request, res: Response) => {
+    try {
+        const parsedReviewId = parsePositiveId(req.params.reviewId);
+        const jwtPayload = res.locals.jwtPayloadContent;
+        const currentUserId = parsePositiveId(jwtPayload?.userId);
+        if (!jwtPayload || !currentUserId) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+        if (Number(jwtPayload.role) !== 1) {
+            return res.status(403).json({ message: 'Only SuperAdmin can approve or reject resolution reviews' });
+        }
+
+        const rawDecision = typeof req.body?.decision === 'string'
+            ? req.body.decision.trim().toUpperCase()
+            : '';
+        if (
+            !parsedReviewId ||
+            (rawDecision !== ReportReviewStatus.APPROVED && rawDecision !== ReportReviewStatus.REJECTED)
+        ) {
+            return res.status(400).json({
+                message: 'Valid reviewId and decision (APPROVED or REJECTED) are required'
+            });
+        }
+
+        const noteValidation = parseOptionalNote(req.body?.reviewNote ?? req.body?.note);
+        if (!noteValidation.valid) {
+            return res.status(400).json({
+                message: 'reviewNote must be a non-empty string with at most 500 characters'
+            });
+        }
+
+        const decision = rawDecision as ReportReviewStatus.APPROVED | ReportReviewStatus.REJECTED;
+        const transaction = await mySequelize.transaction();
+
+        let reportId: number;
+        let reportName: string;
+        let requesterId: number | null;
+        let assignedId: number | null;
+        let creatorId: number | null;
+        let resultingReportStatus: number;
+
+        try {
+            const review = await ReportResolutionReview.findByPk(parsedReviewId, {
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+            if (!review) {
+                await transaction.rollback();
+                return res.status(404).json({ message: 'Resolution review not found' });
+            }
+            if (review.getDataValue('reviewStatus') !== ReportReviewStatus.PENDING) {
+                await transaction.rollback();
+                return res.status(409).json({ message: 'This resolution review has already been processed' });
+            }
+
+            reportId = Number(review.getDataValue('fk_report'));
+            const foundReport = await Report.findByPk(reportId, { transaction });
+            if (!foundReport) {
+                await transaction.rollback();
+                return res.status(404).json({ message: 'Report not found' });
+            }
+
+            review.set('reviewStatus', decision);
+            review.set('fk_user_reviewed', currentUserId);
+            review.set('reviewNote', noteValidation.value);
+            review.set('reviewedAt', new Date());
+            await review.save({ transaction });
+
+            resultingReportStatus = Number(foundReport.getDataValue('reportStatus'));
+            if (decision === ReportReviewStatus.APPROVED) {
+                foundReport.set('reportStatus', 3);
+                await foundReport.save({ transaction });
+                resultingReportStatus = 3;
+            }
+
+            reportName = String(foundReport.getDataValue('reportName'));
+            requesterId = parsePositiveId(review.getDataValue('fk_user_requested'));
+            assignedId = parsePositiveId(foundReport.getDataValue('fk_user_assigned'));
+            creatorId = parsePositiveId(foundReport.getDataValue('fk_user_creator'));
+
+            const actionLabel = decision === ReportReviewStatus.APPROVED ? 'aprobó' : 'rechazó';
+            await createHistoryLog({
+                historyDescription: `SuperAdmin ${actionLabel} la solicitud de resolución del reporte "${reportName}" (#${reportId}).`,
+                actionType: 'UPDATE',
+                userId: currentUserId,
+                itemId: foundReport.getDataValue('fk_item'),
+                placeId: foundReport.getDataValue('fk_place'),
+                reportId,
+                transaction
+            });
+
+            await transaction.commit();
+        } catch (txError) {
+            await transaction.rollback();
+            throw txError;
+        }
+
+        const notificationTargets = decision === ReportReviewStatus.APPROVED
+            ? [requesterId, assignedId, creatorId]
+            : [requesterId, assignedId];
+        const notificationMessage = decision === ReportReviewStatus.APPROVED
+            ? `La resolución del reporte "${reportName}" (#${reportId}) fue aprobada y marcada como resuelta.`
+            : `La solicitud de resolución del reporte "${reportName}" (#${reportId}) fue rechazada.${noteValidation.value ? ` Motivo: ${noteValidation.value}` : ''}`;
+
+        await notifyDistinctUsers(notificationTargets, currentUserId, reportId, notificationMessage);
+
+        const updatedReview = await ReportResolutionReview.findByPk(parsedReviewId, {
+            include: REVIEW_INCLUDES
+        });
+
+        return res.status(200).json({
+            review: formatResolutionReview(updatedReview),
+            reportStatus: resultingReportStatus
+        });
+    } catch (error) {
+        throw error;
+    }
+};
+
+const GetReportComments = async (req: Request, res: Response) => {
+    try {
+        const parsedReportId = parsePositiveId(req.params.reportId);
+        if (!parsedReportId) {
+            return res.status(400).json({ message: 'Invalid Report ID' });
+        }
+
+        const foundReport = await Report.findByPk(parsedReportId, {
+            attributes: [...REPORT_ACCESS_ATTRIBUTES]
+        });
+        if (!foundReport) {
+            return res.status(404).json({ message: 'Report not found' });
+        }
+
+        const access = await assertReportCommentAccess(foundReport, res.locals.jwtPayloadContent);
+        if (!access.allowed) {
+            return res.status(access.status).json({ message: access.message });
+        }
+
+        const comments = await ReportComment.findAll({
+            where: { fk_report: parsedReportId },
+            include: COMMENT_INCLUDES,
+            order: [['createdAt', 'ASC'], ['commentId', 'ASC']]
+        });
+
+        return res.status(200).json(comments.map(formatReportComment));
+    } catch (error) {
+        throw error;
+    }
+};
+
+const CreateReportComment = async (req: Request, res: Response) => {
+    try {
+        const parsedReportId = parsePositiveId(req.params.reportId);
+        if (!parsedReportId) {
+            return res.status(400).json({ message: 'Invalid Report ID' });
+        }
+
+        const contentValidation = parseBoundedText(req.body?.content, 1000, false);
+        if (!contentValidation.valid || !contentValidation.value) {
+            return res.status(400).json({
+                message: 'content must be a non-empty string with at most 1000 characters'
+            });
+        }
+
+        const foundReport = await Report.findByPk(parsedReportId, {
+            attributes: [...REPORT_ACCESS_ATTRIBUTES]
+        });
+        if (!foundReport) {
+            return res.status(404).json({ message: 'Report not found' });
+        }
+
+        const access = await assertReportCommentAccess(foundReport, res.locals.jwtPayloadContent);
+        if (!access.allowed) {
+            return res.status(access.status).json({ message: access.message });
+        }
+
+        const transaction = await mySequelize.transaction();
+        let createdCommentId: number;
+        const reportName = String(foundReport.getDataValue('reportName'));
+
+        try {
+            const createdComment = await ReportComment.create(
+                {
+                    fk_report: parsedReportId,
+                    fk_user_author: access.userId,
+                    content: contentValidation.value,
+                    isEdited: false
+                },
+                { transaction }
+            );
+            createdCommentId = Number(createdComment.getDataValue('commentId'));
+
+            await createHistoryLog({
+                historyDescription: `Se agregó un comentario en el reporte "${reportName}" (#${parsedReportId}).`,
+                actionType: 'CREATE',
+                userId: access.userId,
+                itemId: foundReport.getDataValue('fk_item'),
+                placeId: foundReport.getDataValue('fk_place'),
+                reportId: parsedReportId,
+                transaction
+            });
+
+            await transaction.commit();
+        } catch (txError) {
+            await transaction.rollback();
+            throw txError;
+        }
+
+        const creatorId = parsePositiveId(foundReport.getDataValue('fk_user_creator'));
+        const assignedId = parsePositiveId(foundReport.getDataValue('fk_user_assigned'));
+        await notifyDistinctUsers(
+            [creatorId, assignedId],
+            access.userId,
+            parsedReportId,
+            `Nuevo comentario en el reporte "${reportName}" (#${parsedReportId}).`
+        );
+
+        const commentWithAuthor = await ReportComment.findByPk(createdCommentId, {
+            include: COMMENT_INCLUDES
+        });
+
+        return res.status(201).json(formatReportComment(commentWithAuthor));
+    } catch (error) {
+        throw error;
+    }
+};
+
+const EditReportComment = async (req: Request, res: Response) => {
+    try {
+        const parsedCommentId = parsePositiveId(req.params.commentId);
+        if (!parsedCommentId) {
+            return res.status(400).json({ message: 'Invalid Comment ID' });
+        }
+
+        const contentValidation = parseBoundedText(req.body?.content, 1000, false);
+        if (!contentValidation.valid || !contentValidation.value) {
+            return res.status(400).json({
+                message: 'content must be a non-empty string with at most 1000 characters'
+            });
+        }
+
+        const comment = await ReportComment.findByPk(parsedCommentId);
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        const reportId = Number(comment.getDataValue('fk_report'));
+        const foundReport = await Report.findByPk(reportId, {
+            attributes: [...REPORT_ACCESS_ATTRIBUTES]
+        });
+        if (!foundReport) {
+            return res.status(404).json({ message: 'Report not found' });
+        }
+
+        const access = await assertReportCommentAccess(foundReport, res.locals.jwtPayloadContent);
+        if (!access.allowed) {
+            return res.status(access.status).json({ message: access.message });
+        }
+
+        if (Number(comment.getDataValue('fk_user_author')) !== access.userId) {
+            return res.status(403).json({ message: 'Only the original author can edit this comment' });
+        }
+
+        const previousContent = String(comment.getDataValue('content'));
+        if (previousContent === contentValidation.value) {
+            return res.status(400).json({ message: 'Comment content is unchanged' });
+        }
+
+        const reportName = String(foundReport.getDataValue('reportName'));
+        const transaction = await mySequelize.transaction();
+
+        try {
+            await ReportCommentEdit.create(
+                {
+                    fk_comment: parsedCommentId,
+                    fk_user_editor: access.userId,
+                    previousContent
+                },
+                { transaction }
+            );
+
+            comment.set('content', contentValidation.value);
+            comment.set('isEdited', true);
+            await comment.save({ transaction });
+
+            await createHistoryLog({
+                historyDescription: `Se editó el comentario #${parsedCommentId} del reporte "${reportName}" (#${reportId}).`,
+                actionType: 'UPDATE',
+                userId: access.userId,
+                itemId: foundReport.getDataValue('fk_item'),
+                placeId: foundReport.getDataValue('fk_place'),
+                reportId,
+                transaction
+            });
+
+            await transaction.commit();
+        } catch (txError) {
+            await transaction.rollback();
+            throw txError;
+        }
+
+        const updatedComment = await ReportComment.findByPk(parsedCommentId, {
+            include: COMMENT_INCLUDES
+        });
+
+        return res.status(200).json(formatReportComment(updatedComment));
+    } catch (error) {
+        throw error;
+    }
+};
 
 const SetAssignedUser = async (req: Request, res: Response) => {
     try {
@@ -384,8 +802,11 @@ const SetAssignedUser = async (req: Request, res: Response) => {
         const assignedUser = assignedUserId
             ? await User.findByPk(assignedUserId)
             : null;
-        if (assignedUserId && !assignedUser) {
-            return res.status(404).json({ message: 'Assigned user not found' });
+        if (assignedUserId) {
+            const assignedValidation = validateAssignedUserRecord(assignedUser);
+            if (!assignedValidation.valid) {
+                return res.status(assignedValidation.status).json({ message: assignedValidation.message });
+            }
         }
 
         foundReport.set('fk_user_assigned', assignedUserId);
@@ -527,6 +948,12 @@ export {
     SearchReportsCreatedUser,
     SearchReportsAssignedUser,
     SetReportStatus,
+    RequestReportResolution,
+    GetReportResolutionReviews,
+    ReviewReportResolution,
+    GetReportComments,
+    CreateReportComment,
+    EditReportComment,
     SetAssignedUser,
     SetDueDate,
     setPriority,

@@ -14,6 +14,9 @@ import { UserNotification } from './userNotificationModel.js';
 import { UserSession } from './userSessionModel.js';
 import { Category } from './categoryModel.js';
 import { Employee } from './employeeModel.js';
+import { ReportResolutionReview, ReportReviewStatus } from './reportResolutionReviewModel.js';
+import { ReportComment } from './reportCommentModel.js';
+import { ReportCommentEdit } from './reportCommentEditModel.js';
 
 const setupAssociations = () => {
     //######User-Role################
@@ -247,6 +250,78 @@ const setupAssociations = () => {
         targetKey: 'userId',
         as: 'notified_user'
     });
+    //######ReportResolutionReview################
+    Report.hasMany(ReportResolutionReview, {
+        foreignKey: 'fk_report',
+        sourceKey: 'reportId',
+        as: 'resolution_reviews'
+    });
+    ReportResolutionReview.belongsTo(Report, {
+        foreignKey: 'fk_report',
+        targetKey: 'reportId',
+        as: 'related_report'
+    });
+    User.hasMany(ReportResolutionReview, {
+        foreignKey: 'fk_user_requested',
+        sourceKey: 'userId',
+        as: 'requested_report_reviews'
+    });
+    ReportResolutionReview.belongsTo(User, {
+        foreignKey: 'fk_user_requested',
+        targetKey: 'userId',
+        as: 'requester'
+    });
+    User.hasMany(ReportResolutionReview, {
+        foreignKey: 'fk_user_reviewed',
+        sourceKey: 'userId',
+        as: 'reviewed_report_reviews'
+    });
+    ReportResolutionReview.belongsTo(User, {
+        foreignKey: 'fk_user_reviewed',
+        targetKey: 'userId',
+        as: 'reviewer'
+    });
+    //######ReportComment & ReportCommentEdit################
+    Report.hasMany(ReportComment, {
+        foreignKey: 'fk_report',
+        sourceKey: 'reportId',
+        as: 'comments'
+    });
+    ReportComment.belongsTo(Report, {
+        foreignKey: 'fk_report',
+        targetKey: 'reportId',
+        as: 'related_report'
+    });
+    User.hasMany(ReportComment, {
+        foreignKey: 'fk_user_author',
+        sourceKey: 'userId',
+        as: 'report_comments'
+    });
+    ReportComment.belongsTo(User, {
+        foreignKey: 'fk_user_author',
+        targetKey: 'userId',
+        as: 'author'
+    });
+    ReportComment.hasMany(ReportCommentEdit, {
+        foreignKey: 'fk_comment',
+        sourceKey: 'commentId',
+        as: 'edit_history'
+    });
+    ReportCommentEdit.belongsTo(ReportComment, {
+        foreignKey: 'fk_comment',
+        targetKey: 'commentId',
+        as: 'comment'
+    });
+    User.hasMany(ReportCommentEdit, {
+        foreignKey: 'fk_user_editor',
+        sourceKey: 'userId',
+        as: 'report_comment_edits'
+    });
+    ReportCommentEdit.belongsTo(User, {
+        foreignKey: 'fk_user_editor',
+        targetKey: 'userId',
+        as: 'editor'
+    });
 }
 
 setupAssociations();
@@ -265,5 +340,9 @@ export {
     UserNotification,
     UserSession,
     Category,
-    Employee
+    Employee,
+    ReportResolutionReview,
+    ReportReviewStatus,
+    ReportComment,
+    ReportCommentEdit
 }

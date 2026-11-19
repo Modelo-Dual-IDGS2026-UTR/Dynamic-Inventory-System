@@ -1,0 +1,25 @@
+info:
+  name: request-resolution
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: http://localhost:3000/api/report/resolution-requests/1
+  headers:
+    - name: Cookie
+      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsInJvbGUiOjEsImlhdCI6MTc5NTAzMDE3MCwiZXhwIjoxNzk1MDMxMDcwfQ.0gkzSp2TiRoXQTKbuqVr8c6gglIB-Cdo_YECUcQJybQ
+  body:
+    type: json
+    data: |-
+      {
+        "requestNote": "Equipo reparado y probado en laboratorio"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true
