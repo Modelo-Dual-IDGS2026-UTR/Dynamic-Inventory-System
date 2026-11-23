@@ -9,11 +9,13 @@ export interface ItemResponsible {
   area?: string;
 }
 
+export type ItemStatus = "In Use" | "In Stock" | "Damaged" | "Not Assigned";
+
 export interface Item{
   "itemId":number,
   "itemName":string,
   "itemDescription":string,
-  "itemStatus":"In Use" | "In Stock" | "Damaged",
+  "itemStatus":ItemStatus,
   "manufacter":string,
   "cost":number | null,
   "category": string | { id: number; name: string } | null,

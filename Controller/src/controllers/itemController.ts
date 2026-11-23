@@ -1,11 +1,30 @@
 import { Employee, Item, ItemStatus, Place, User, Category } from '@dis/model';
 import { NotificationType } from '@dis/model/userNotificationModel.js';
 import type { Response, Request } from 'express'
-import { type WhereOptions } from 'sequelize';
+import { Op, type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
-import { createHistoryLog } from '../helpers/historyHelper.js';
+import { createBulkHistoryLogs, createHistoryLog } from '../helpers/historyHelper.js';
 import { createUserNotification } from '../helpers/notificationHelper.js';
 import { mySequelize } from '@dis/db/dbConection.js';
+import {
+    buildCsvContent,
+    parseCsvBuffer,
+    validateCsvHeaders,
+} from '../helpers/csvHelper.js';
+import {
+    buildItemTemplateWorkbookBuffer,
+    parseXlsxBuffer,
+} from '../helpers/excelHelper.js';
+import { isXlsxFile } from '../middleware/csvUpload.js';
+import {
+    buildItemLookupCatalogs,
+    ITEM_CSV_HEADERS,
+    validateAndPrepareItemRows,
+    type CategoryLookupRecord,
+    type EmployeeLookupRecord,
+    type PlaceLookupRecord,
+    type ValidatedItemPayload,
+} from '../helpers/itemCsvHelper.js';
 
 const PUBLIC_ITEM_INCLUDES = [
     {
@@ -624,6 +643,387 @@ async function ShowItem(id: number, role: number, res: Response) {
 
 
 
+const downloadItemImportTemplate = async (req: Request, res: Response) => {
+    try {
+        const requestedFormat = String(req.query.format ?? 'xlsx').trim().toLowerCase();
+
+        const [categories, employees, places] = await Promise.all([
+            Category.findAll({
+                where: { categoryStatus: true },
+                attributes: ['categoryName'],
+                order: [['categoryName', 'ASC']],
+            }),
+            Employee.findAll({
+                where: { status: true },
+                attributes: ['email'],
+                order: [['email', 'ASC']],
+            }),
+            Place.findAll({
+                attributes: ['placeName'],
+                order: [['placeName', 'ASC']],
+            }),
+        ]);
+
+        const categoryNames = Array.from(
+            new Set(
+                categories
+                    .map((c) => String(c.getDataValue('categoryName') ?? '').trim())
+                    .filter(Boolean)
+            )
+        );
+        const employeeEmails = Array.from(
+            new Set(
+                employees
+                    .map((e) => String(e.getDataValue('email') ?? '').trim())
+                    .filter(Boolean)
+            )
+        );
+        const placeNames = Array.from(
+            new Set(
+                places
+                    .map((p) => String(p.getDataValue('placeName') ?? '').trim())
+                    .filter(Boolean)
+            )
+        );
+
+        const exampleRow = [
+            'Laptop Dell Latitude',
+            'Equipo portatil asignado para desarrollo y soporte',
+            ItemStatus.IN_STOCK,
+            18500,
+            'Dell',
+            'CB-DEMO-0001',
+            categoryNames[0] ?? 'Computo',
+            employeeEmails[0] ?? 'responsable@utr.edu.mx',
+            placeNames[0] ?? 'Almacen Central',
+        ];
+
+        if (requestedFormat === 'csv') {
+            const csvContent = buildCsvContent(ITEM_CSV_HEADERS, [exampleRow]);
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', 'attachment; filename="plantilla_items.csv"');
+            return res.status(200).send(csvContent);
+        }
+
+        const workbookBuffer = await buildItemTemplateWorkbookBuffer({
+            statuses: Object.values(ItemStatus),
+            categories: categoryNames,
+            responsibles: employeeEmails,
+            places: placeNames,
+            exampleRow,
+        });
+
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader('Content-Disposition', 'attachment; filename="plantilla_items.xlsx"');
+        return res.status(200).send(workbookBuffer);
+    } catch (error) {
+        console.error('Error al generar plantilla de items:', error);
+        return res.status(500).json({ message: 'Error al generar la plantilla de items' });
+    }
+};
+
+class ItemImportConflictError extends Error {
+    readonly duplicatedCodeBars: string[];
+
+    constructor(duplicatedCodeBars: string[]) {
+        super('Existen múltiples items en la base de datos con el mismo código de barras');
+        this.duplicatedCodeBars = duplicatedCodeBars;
+    }
+}
+
+const IMPORT_BATCH_SIZE = 25;
+
+/**
+ * Importa y actualiza artículos de inventario de forma masiva desde `.csv` o `.xlsx`.
+ * Nota de contrato: aunque `codeBar` es opcional en el modelo y en `CreateItem`, en la
+ * importación masiva es obligatorio porque funciona como clave de upsert.
+ */
+const importItems = async (req: Request, res: Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No se ha subido ningún archivo' });
+        }
+
+        const { headers: fileHeaders, rows: parsedRows } = isXlsxFile(req.file)
+            ? await parseXlsxBuffer(req.file.buffer, 'Items')
+            : await parseCsvBuffer(req.file.buffer);
+
+        const headerValidation = validateCsvHeaders(fileHeaders, ITEM_CSV_HEADERS);
+
+        if (!headerValidation.valid) {
+            return res.status(400).json({
+                message: 'Los encabezados del archivo no son válidos',
+                expectedHeaders: [...ITEM_CSV_HEADERS],
+                receivedHeaders: fileHeaders,
+                missingHeaders: headerValidation.missingHeaders,
+                extraHeaders: headerValidation.extraHeaders,
+                duplicateHeaders: headerValidation.duplicateHeaders,
+            });
+        }
+
+        const [rawCategories, rawEmployees, rawPlaces] = await Promise.all([
+            Category.findAll({
+                attributes: ['categoryId', 'categoryName', 'folioNumber', 'categoryStatus'],
+            }),
+            Employee.findAll({
+                attributes: ['employeeId', 'email', 'status'],
+            }),
+            Place.findAll({
+                attributes: ['placeId', 'placeName'],
+            }),
+        ]);
+
+        const catalogs = buildItemLookupCatalogs(
+            rawCategories.map((c) => c.toJSON() as CategoryLookupRecord),
+            rawEmployees.map((e) => e.toJSON() as EmployeeLookupRecord),
+            rawPlaces.map((p) => p.toJSON() as PlaceLookupRecord)
+        );
+
+        const { validItems, errors } = validateAndPrepareItemRows(parsedRows, catalogs);
+
+        if (errors.length > 0) {
+            return res.status(400).json({
+                message: 'Se encontraron errores de validación en el archivo CSV. No se creó ni modificó ningún item.',
+                errors,
+            });
+        }
+
+        if (validItems.length === 0) {
+            return res.status(400).json({
+                message: 'El archivo CSV no contiene filas válidas para importar',
+            });
+        }
+
+        const currentUserId =
+            typeof res.locals.jwtPayloadContent?.userId === 'number'
+                ? res.locals.jwtPayloadContent.userId
+                : null;
+
+        const notificationTargets: Array<{
+            employeeId: number;
+            itemId: number;
+            itemName: string;
+            isNew: boolean;
+        }> = [];
+        let createdCount = 0;
+        let updatedCount = 0;
+
+        await mySequelize.transaction(async (t) => {
+            const existingItems = await Item.findAll({
+                where: {
+                    codeBar: {
+                        [Op.in]: validItems.map((item) => item.codeBar),
+                    },
+                },
+                transaction: t,
+            });
+
+            const existingByCodeBar = new Map<string, InstanceType<typeof Item>[]>();
+            for (const existingItem of existingItems) {
+                const key = String(existingItem.getDataValue('codeBar') ?? '').trim().toLowerCase();
+                if (!key) continue;
+                const list = existingByCodeBar.get(key);
+                if (list) {
+                    list.push(existingItem);
+                } else {
+                    existingByCodeBar.set(key, [existingItem]);
+                }
+            }
+
+            const ambiguousCodeBars: string[] = [];
+            const itemsToCreate: ValidatedItemPayload[] = [];
+            const itemsToUpdate: Array<{
+                instance: InstanceType<typeof Item>;
+                payload: ValidatedItemPayload;
+                previousResponsibleId: number | null;
+            }> = [];
+
+            for (const itemPayload of validItems) {
+                const key = itemPayload.codeBar.trim().toLowerCase();
+                const matches = existingByCodeBar.get(key) ?? [];
+
+                if (matches.length > 1) {
+                    ambiguousCodeBars.push(itemPayload.codeBar);
+                    continue;
+                }
+
+                const existingMatch = matches[0];
+                if (existingMatch) {
+                    const prevResp = existingMatch.getDataValue('fk_user_responsible');
+                    itemsToUpdate.push({
+                        instance: existingMatch,
+                        payload: itemPayload,
+                        previousResponsibleId: prevResp !== null && prevResp !== undefined ? Number(prevResp) : null,
+                    });
+                } else {
+                    itemsToCreate.push(itemPayload);
+                }
+            }
+
+            if (ambiguousCodeBars.length > 0) {
+                throw new ItemImportConflictError(ambiguousCodeBars);
+            }
+
+            const historyEntries: Parameters<typeof createBulkHistoryLogs>[0][number][] = [];
+
+            if (itemsToCreate.length > 0) {
+                const createdInstances = await Item.bulkCreate(
+                    itemsToCreate.map((item) => ({ ...item })),
+                    {
+                        transaction: t,
+                        validate: true,
+                    }
+                );
+
+                const missingIdLookup = createdInstances.some((inst) => !inst.getDataValue('itemId'))
+                    ? await Item.findAll({
+                        where: {
+                            codeBar: {
+                                [Op.in]: itemsToCreate.map((item) => item.codeBar),
+                            },
+                        },
+                        attributes: ['itemId', 'codeBar'],
+                        transaction: t,
+                    })
+                    : [];
+
+                const createdIdByCodeBar = new Map<string, number>();
+                for (const inst of missingIdLookup) {
+                    const cb = String(inst.getDataValue('codeBar') ?? '').trim().toLowerCase();
+                    const id = Number(inst.getDataValue('itemId'));
+                    if (cb && Number.isInteger(id) && id > 0) {
+                        createdIdByCodeBar.set(cb, id);
+                    }
+                }
+
+                createdInstances.forEach((createdInstance, index) => {
+                    const payload = itemsToCreate[index];
+                    if (!payload) return;
+
+                    const rawId = Number(createdInstance.getDataValue('itemId'));
+                    const itemId =
+                        Number.isInteger(rawId) && rawId > 0
+                            ? rawId
+                            : (createdIdByCodeBar.get(payload.codeBar.trim().toLowerCase()) ?? null);
+
+                    historyEntries.push({
+                        historyDescription: `Se importó el item "${payload.itemName}" con código de barras: ${payload.codeBar}.`.slice(0, 255),
+                        actionType: 'CREATE',
+                        userId: currentUserId,
+                        itemId,
+                        placeId: payload.fk_place,
+                    });
+
+                    if (itemId !== null) {
+                        notificationTargets.push({
+                            employeeId: payload.fk_user_responsible,
+                            itemId,
+                            itemName: payload.itemName,
+                            isNew: true,
+                        });
+                    }
+                });
+            }
+
+            for (let i = 0; i < itemsToUpdate.length; i += IMPORT_BATCH_SIZE) {
+                const batch = itemsToUpdate.slice(i, i + IMPORT_BATCH_SIZE);
+                await Promise.all(
+                    batch.map(({ instance, payload }) => instance.update({ ...payload }, { transaction: t }))
+                );
+            }
+
+            for (const { instance, payload, previousResponsibleId } of itemsToUpdate) {
+                const itemId = Number(instance.getDataValue('itemId'));
+                const validItemId = Number.isInteger(itemId) && itemId > 0 ? itemId : null;
+
+                historyEntries.push({
+                    historyDescription: `Se actualizó por importación el item "${payload.itemName}"${validItemId ? ` (#${validItemId})` : ''} con código de barras: ${payload.codeBar}.`.slice(0, 255),
+                    actionType: 'UPDATE',
+                    userId: currentUserId,
+                    itemId: validItemId,
+                    placeId: payload.fk_place,
+                });
+
+                if (validItemId !== null && previousResponsibleId !== payload.fk_user_responsible) {
+                    notificationTargets.push({
+                        employeeId: payload.fk_user_responsible,
+                        itemId: validItemId,
+                        itemName: payload.itemName,
+                        isNew: false,
+                    });
+                }
+            }
+
+            await createBulkHistoryLogs(historyEntries, t);
+
+            createdCount = itemsToCreate.length;
+            updatedCount = itemsToUpdate.length;
+        });
+
+        if (notificationTargets.length > 0) {
+            const uniqueEmployeeIds = Array.from(new Set(notificationTargets.map((target) => target.employeeId)));
+            const responsibleUsers = await User.findAll({
+                where: {
+                    employeeId: {
+                        [Op.in]: uniqueEmployeeIds,
+                    },
+                },
+                attributes: ['userId', 'employeeId'],
+            });
+
+            const userIdByEmployeeId = new Map<number, number>();
+            for (const user of responsibleUsers) {
+                const empId = Number(user.getDataValue('employeeId'));
+                const usrId = Number(user.getDataValue('userId'));
+                if (Number.isInteger(empId) && Number.isInteger(usrId)) {
+                    userIdByEmployeeId.set(empId, usrId);
+                }
+            }
+
+            const notificationsToSend = notificationTargets.flatMap((target) => {
+                const targetUserId = userIdByEmployeeId.get(target.employeeId);
+                if (!targetUserId || (currentUserId !== null && targetUserId === currentUserId)) {
+                    return [];
+                }
+                return [{
+                    notificationType: NotificationType.ITEM,
+                    requestDescription: target.isNew
+                        ? `Se te ha asignado la responsabilidad del nuevo item "${target.itemName}".`
+                        : `Se te ha asignado la responsabilidad del item "${target.itemName}".`,
+                    fk_trigger: target.itemId,
+                    fk_user_trigger: currentUserId,
+                    fk_notified: targetUserId,
+                }];
+            });
+
+            for (let i = 0; i < notificationsToSend.length; i += IMPORT_BATCH_SIZE) {
+                const batch = notificationsToSend.slice(i, i + IMPORT_BATCH_SIZE);
+                await Promise.all(batch.map((notification) => createUserNotification(notification)));
+            }
+        }
+
+        return res.status(200).json({
+            message: 'Importación y actualización de items completada con éxito',
+            totalProcesados: validItems.length,
+            creados: createdCount,
+            actualizados: updatedCount,
+        });
+    } catch (error) {
+        if (error instanceof ItemImportConflictError) {
+            return res.status(409).json({
+                message:
+                    'Existen múltiples items en la base de datos con el mismo código de barras; no se puede determinar cuál actualizar',
+                duplicatedCodeBars: error.duplicatedCodeBars,
+            });
+        }
+        console.error('Error al importar items:', error);
+        return res.status(500).json({ message: 'Error al procesar la importación de items' });
+    }
+};
+
 export {
     CreateItem,
     SearchItemById,
@@ -632,5 +1032,7 @@ export {
     DeleteItemByID,
     SetStatus,
     SetCategory,
-    ChangeResponsible
+    ChangeResponsible,
+    importItems,
+    downloadItemImportTemplate
 }

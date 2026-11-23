@@ -1,0 +1,6 @@
+Nombre,Descripcion,Estado,Costo,Fabricante,Codigo de Barras,Categoria,Responsable,Lugar
+Laptop Dell Latitude,Equipo portatil asignado para soporte tecnico,In Use,18500,Dell,CB-UTR-0001,Computo,emmanuel.macias@utr.edu.mx,Almacen Central
+Monitor Samsung 24,Monitor LED Full HD de 24 pulgadas,En Stock,4200,Samsung,CB-UTR-0002,Computo,75511,Almacen Central
+Proyector Epson X49,Proyector multimedia para salon de clases,Dañado,11800,Epson,CB-UTR-0003,Audiovisual,jira.utr@utr.edu.mx,Laboratorio 1
+Silla Ergonomica,Silla ejecutiva de malla negra con soporte lumbar,No Asignado,3100,Herman Miller,CB-UTR-0004,1,101,1
+

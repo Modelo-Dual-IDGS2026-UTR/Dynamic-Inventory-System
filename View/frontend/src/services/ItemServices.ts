@@ -1,4 +1,4 @@
-import type { Item } from "../types"
+import type { Item, ItemStatus } from "../types"
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -18,7 +18,7 @@ export interface UpdateItemPayload {
     itemDescription: string;
     cost: number;
     manufacter: string;
-    itemStatus: 'In Use' | 'In Stock' | 'Damaged';
+    itemStatus: ItemStatus;
     codeBar: string;
     category: number;
     fk_user_responsible: number;
@@ -118,7 +118,7 @@ export async function updateItem(itemId: number, payload: UpdateItemPayload): Pr
     }
 }
 
-export async function setItemStatus(itemId: number, itemStatus: 'In Use' | 'In Stock' | 'Damaged'): Promise<void> {
+export async function setItemStatus(itemId: number, itemStatus: ItemStatus): Promise<void> {
     const response = await fetch(`${API_URL}/item/set-status/${itemId}`, {
         method: 'PATCH',
         headers: {

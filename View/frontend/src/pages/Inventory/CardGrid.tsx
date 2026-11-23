@@ -16,6 +16,8 @@ function CardGrid({ items, onSelectItem }: CardGridProps): JSX.Element {
                 return styles.statusInStock;
             case 'Damaged':
                 return styles.statusDamaged;
+            case 'Not Assigned':
+                return styles.statusNotAssigned;
             default:
                 return '';
         }

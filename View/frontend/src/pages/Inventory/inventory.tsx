@@ -4,7 +4,7 @@ import { useView } from '../../context/ViewContext';
 import styles from './Inventario.module.css';
 import ItemTable from './ItemTable';
 import CardGrid from './CardGrid';
-import type { Item } from '../../types';
+import type { Item, ItemStatus } from '../../types';
 import type { Place } from '../../types/PlaceModel';
 import { createItem, getItems, setItemStatus, deleteItem, updateItem } from '../../services/ItemServices';
 import { getCategories, type Category } from '../../services/CategoryServices';
@@ -238,7 +238,7 @@ export const Inventory: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus: 'In Use' | 'In Stock' | 'Damaged') => {
+  const handleStatusChange = async (newStatus: ItemStatus) => {
     if (!selectedItem || selectedItem.itemStatus === newStatus) return;
     setIsUpdatingStatus(true);
     setAdminActionMessage('');
@@ -365,10 +365,12 @@ export const Inventory: React.FC = () => {
   const inUseCount = items.filter((item) => item.itemStatus === 'In Use').length;
   const inStockCount = items.filter((item) => item.itemStatus === 'In Stock').length;
   const damagedCount = items.filter((item) => item.itemStatus === 'Damaged').length;
+  const notAssignedCount = items.filter((item) => item.itemStatus === 'Not Assigned').length;
 
   const inUsePercent = totalItems > 0 ? ((inUseCount / totalItems) * 100).toFixed(1) : '0.0';
   const inStockPercent = totalItems > 0 ? ((inStockCount / totalItems) * 100).toFixed(1) : '0.0';
   const damagedPercent = totalItems > 0 ? ((damagedCount / totalItems) * 100).toFixed(1) : '0.0';
+  const notAssignedPercent = totalItems > 0 ? ((notAssignedCount / totalItems) * 100).toFixed(1) : '0.0';
 
   return (
     <div className={styles.container}>
@@ -403,6 +405,14 @@ export const Inventory: React.FC = () => {
             <span className={styles.statLabel}>Dañado</span>
             <span className={styles.statValue}>{damagedCount}</span>
             <span className={styles.statSubtext}>{damagedPercent}% del total</span>
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconNeutral}`}>—</div>
+          <div className={styles.statInfo}>
+            <span className={styles.statLabel}>Sin Asignar</span>
+            <span className={styles.statValue}>{notAssignedCount}</span>
+            <span className={styles.statSubtext}>{notAssignedPercent}% del total</span>
           </div>
         </div>
       </div>
@@ -695,13 +705,14 @@ export const Inventory: React.FC = () => {
                               disabled={isUpdatingStatus}
                               onBlur={() => setIsChangingStatusInline(false)}
                               onChange={(e) => {
-                                handleStatusChange(e.target.value as 'In Use' | 'In Stock' | 'Damaged');
+                                handleStatusChange(e.target.value as ItemStatus);
                                 setIsChangingStatusInline(false);
                               }}
                             >
                               <option value="In Stock">In Stock</option>
                               <option value="In Use">In Use</option>
                               <option value="Damaged">Damaged</option>
+                              <option value="Not Assigned">Not Assigned</option>
                             </select>
                           ) : (
                             <div
@@ -724,6 +735,11 @@ export const Inventory: React.FC = () => {
                               {selectedItem.itemStatus === 'Damaged' && (
                                 <span className={`${styles.statusBadgeDamaged} ${isAdminOrSuper ? styles.statusClickableBadge : ''}`}>
                                   Damaged {isAdminOrSuper && '▾'}
+                                </span>
+                              )}
+                              {selectedItem.itemStatus === 'Not Assigned' && (
+                                <span className={`${styles.statusBadgeNotAssigned} ${isAdminOrSuper ? styles.statusClickableBadge : ''}`}>
+                                  Not Assigned {isAdminOrSuper && '▾'}
                                 </span>
                               )}
                               {!selectedItem.itemStatus && (

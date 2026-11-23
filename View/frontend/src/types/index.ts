@@ -1,5 +1,5 @@
 import type { User } from "./UserModel";
-import type { Item } from "./ItemModel";
+import type { Item, ItemStatus } from "./ItemModel";
 import type { Place } from "./PlaceModel";
 import type { UserRole } from "./UserRoleModel";
 import type { Report, ReportStatus, ReportPriority, CreateReportPayload } from "./ReportModel";
@@ -9,6 +9,7 @@ import type { Employee } from "./EmployeeModel";
 export {
     User,
     Item,
+    ItemStatus,
     Place,
     UserRole,
     Report,

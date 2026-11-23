@@ -4,7 +4,8 @@ import { DataTypes } from 'sequelize'
 export enum ItemStatus {
     IN_USE = "In Use",
     IN_STOCK = "In Stock",
-    DAMAGED = "Damaged"
+    DAMAGED = "Damaged",
+    NA = "Not Assigned"
 }
 
 export const Item = mySequelize.define("Item",{
@@ -23,7 +24,7 @@ export const Item = mySequelize.define("Item",{
     },
     itemStatus:{
         type: DataTypes.ENUM(...Object.values(ItemStatus)),
-        defaultValue: ItemStatus.IN_STOCK
+        defaultValue: ItemStatus.NA
     },
     cost:{
         type:DataTypes.INTEGER,
