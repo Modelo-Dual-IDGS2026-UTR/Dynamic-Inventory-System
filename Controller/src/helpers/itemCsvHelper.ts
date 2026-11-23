@@ -113,6 +113,14 @@ export const parseItemStatus = (rawValue: unknown): ItemStatus | null => {
 };
 
 const parsePositiveIntegerCost = (rawValue: unknown): number | null => {
+    if (typeof rawValue === 'number') {
+        if (!Number.isFinite(rawValue) || rawValue <= 0) {
+            return null;
+        }
+        const rounded = Math.round(rawValue);
+        return Number.isSafeInteger(rounded) && rounded > 0 ? rounded : null;
+    }
+
     const cleaned = String(rawValue ?? '')
         .trim()
         .replace(/^\$/, '')
@@ -122,20 +130,25 @@ const parsePositiveIntegerCost = (rawValue: unknown): number | null => {
         return null;
     }
 
-    const withoutThousandsSeparators = /^\d{1,3}(,\d{3})+$/.test(cleaned)
+    const withoutThousandsSeparators = /^\d{1,3}(,\d{3})+(\.\d+)?$/.test(cleaned)
         ? cleaned.replace(/,/g, '')
         : cleaned;
 
-    if (!/^\d+$/.test(withoutThousandsSeparators)) {
+    if (!/^\d+(\.\d+)?$/.test(withoutThousandsSeparators)) {
         return null;
     }
 
     const parsed = Number(withoutThousandsSeparators);
-    if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    if (!Number.isFinite(parsed) || parsed <= 0) {
         return null;
     }
 
-    return parsed;
+    const rounded = Math.round(parsed);
+    if (!Number.isSafeInteger(rounded) || rounded <= 0) {
+        return null;
+    }
+
+    return rounded;
 };
 
 const ItemCsvFieldsSchema = z.object({
@@ -235,19 +248,25 @@ export const buildItemLookupCatalogs = (
 
 const isPositiveIntegerText = (text: string): boolean => /^[1-9]\d*$/.test(text);
 
+const extractExplicitId = (text: string): number | null => {
+    const match = /^#([1-9]\d*)$/.exec(text);
+    return match ? Number(match[1]) : null;
+};
+
 const resolveCategoryId = (
     rawCategory: unknown,
     catalogs: ItemLookupCatalogs
 ): { id?: number; error?: string } => {
     const rawText = String(rawCategory ?? '').trim();
+    const explicitId = extractExplicitId(rawText);
 
-    if (isPositiveIntegerText(rawText)) {
-        const byId = catalogs.categoriesById.get(Number(rawText));
+    if (explicitId !== null) {
+        const byId = catalogs.categoriesById.get(explicitId);
         if (!byId) {
             return { error: `Categoría con ID "${rawText}" no encontrada` };
         }
         if (byId.categoryStatus === false) {
-            return { error: `La categoría "${byId.categoryName}" (ID ${rawText}) está inactiva` };
+            return { error: `La categoría "${byId.categoryName}" (ID ${explicitId}) está inactiva` };
         }
         return { id: byId.categoryId };
     }
@@ -258,6 +277,15 @@ const resolveCategoryId = (
     const matches = byName.length > 0 ? byName : byFolio;
 
     if (matches.length === 0) {
+        if (isPositiveIntegerText(rawText)) {
+            const byId = catalogs.categoriesById.get(Number(rawText));
+            if (byId) {
+                if (byId.categoryStatus === false) {
+                    return { error: `La categoría "${byId.categoryName}" (ID ${rawText}) está inactiva` };
+                }
+                return { id: byId.categoryId };
+            }
+        }
         return { error: `Categoría "${rawText}" no encontrada (usa el nombre, folio o ID de categoría)` };
     }
 
@@ -268,7 +296,7 @@ const resolveCategoryId = (
 
     if (activeMatches.length > 1) {
         return {
-            error: `Existen múltiples categorías con "${rawText}"; especifica su ID o número de folio`,
+            error: `Existen múltiples categorías con "${rawText}"; especifica su ID (ej. #1) o número de folio`,
         };
     }
 
@@ -308,16 +336,29 @@ const resolvePlaceId = (
     catalogs: ItemLookupCatalogs
 ): { id?: number; error?: string } => {
     const rawText = String(rawPlace ?? '').trim();
+    const explicitId = extractExplicitId(rawText);
 
-    const place = isPositiveIntegerText(rawText)
-        ? catalogs.placesById.get(Number(rawText))
-        : catalogs.placesByName.get(normalizeLookupKey(rawText));
-
-    if (!place) {
-        return { error: `Lugar "${rawText}" no encontrado (usa el nombre exacto o ID del lugar)` };
+    if (explicitId !== null) {
+        const byId = catalogs.placesById.get(explicitId);
+        if (!byId) {
+            return { error: `Lugar con ID "${rawText}" no encontrado` };
+        }
+        return { id: byId.placeId };
     }
 
-    return { id: place.placeId };
+    const byName = catalogs.placesByName.get(normalizeLookupKey(rawText));
+    if (byName) {
+        return { id: byName.placeId };
+    }
+
+    if (isPositiveIntegerText(rawText)) {
+        const byId = catalogs.placesById.get(Number(rawText));
+        if (byId) {
+            return { id: byId.placeId };
+        }
+    }
+
+    return { error: `Lugar "${rawText}" no encontrado (usa el nombre exacto o ID del lugar)` };
 };
 
 export const mapCsvRowToItemInput = (row: Record<string, unknown>) => {

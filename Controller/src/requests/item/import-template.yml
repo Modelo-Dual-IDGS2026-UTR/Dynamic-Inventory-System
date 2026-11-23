@@ -6,12 +6,8 @@ info:
 http:
   method: GET
   url: http://localhost:3000/api/item/import-template
-  headers:
-    - name: Cookie
-      value: jwtToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUsInJvbGUiOjEsImlhdCI6MTc5NDU5MzExOCwiZXhwIjoxNzk0NTk0MDE4fQ.aw9NxiltbeLqJDLMmR9rGvXl0hpmjejRbyffIeOn3Ro
   body:
-    type: json
-    data: ""
+    type: none
   auth: inherit
 
 settings:

@@ -19,6 +19,7 @@ import {
     parseItemStatus,
     validateAndPrepareItemRows,
 } from '../helpers/itemCsvHelper.js';
+import { validateAndPrepareEmployeeRows } from '../helpers/employeeCsvHelper.js';
 
 describe('csvHelper', () => {
     it('normalizes headers ignoring accents, spaces, and BOM', () => {
@@ -218,6 +219,171 @@ describe('itemCsvHelper', () => {
         expect(errors[0]?.detalle).toContain('inactivo');
         expect(errors[0]?.detalle).toContain('Lugar Inventado');
         expect(errors[1]?.detalle).toContain('repetido');
+    });
+
+    it('prioritizes exact numeric place/category names over IDs, supports #ID prefix, and rounds decimal currency costs', () => {
+        const numericCatalogs = buildItemLookupCatalogs(
+            [
+                { categoryId: 1, categoryName: 'Cómputo', folioNumber: 'CAT-01', categoryStatus: true },
+                { categoryId: 202, categoryName: 'Laboratorio', folioNumber: 'CAT-202', categoryStatus: true },
+                { categoryId: 5, categoryName: '202', folioNumber: 'CAT-05', categoryStatus: true },
+            ],
+            [
+                { employeeId: 75511, email: 'emmanuel.macias@utr.edu.mx', status: true },
+            ],
+            [
+                { placeId: 5, placeName: '101' },
+                { placeId: 101, placeName: 'Auditorio Principal' },
+            ]
+        );
+
+        const { validItems, errors } = validateAndPrepareItemRows(
+            [
+                {
+                    Nombre: 'Proyector',
+                    Descripcion: 'Proyector aula 101',
+                    Estado: 'Disponible',
+                    Costo: '$18,500.00',
+                    Fabricante: 'Epson',
+                    'Codigo de Barras': 'CB-NUM-01',
+                    Categoria: '202',
+                    Responsable: '75511',
+                    Lugar: '101',
+                },
+                {
+                    Nombre: 'Bocina',
+                    Descripcion: 'Audio auditorio',
+                    Estado: 'En Uso',
+                    Costo: '150.60',
+                    Fabricante: 'JBL',
+                    'Codigo de Barras': 'CB-NUM-02',
+                    Categoria: '#202',
+                    Responsable: 'emmanuel.macias@utr.edu.mx',
+                    Lugar: '#101',
+                },
+            ],
+            numericCatalogs
+        );
+
+        expect(errors).toEqual([]);
+        expect(validItems).toEqual([
+            {
+                itemName: 'Proyector',
+                itemDescription: 'Proyector aula 101',
+                itemStatus: 'In Stock',
+                cost: 18500,
+                manufacter: 'Epson',
+                codeBar: 'CB-NUM-01',
+                fk_category: 5,
+                fk_user_responsible: 75511,
+                fk_place: 5,
+            },
+            {
+                itemName: 'Bocina',
+                itemDescription: 'Audio auditorio',
+                itemStatus: 'In Use',
+                cost: 151,
+                manufacter: 'JBL',
+                codeBar: 'CB-NUM-02',
+                fk_category: 202,
+                fk_user_responsible: 75511,
+                fk_place: 101,
+            },
+        ]);
+    });
+
+    it('rejects non-positive decimal costs like 0.00', () => {
+        const { validItems, errors } = validateAndPrepareItemRows(
+            [
+                {
+                    Nombre: 'Cable HDMI',
+                    Descripcion: 'Cable 2m',
+                    Estado: 'In Stock',
+                    Costo: '$0.00',
+                    Fabricante: 'Steren',
+                    'Codigo de Barras': 'CB-ZERO',
+                    Categoria: 'Computo',
+                    Responsable: '75511',
+                    Lugar: 'Almacen Central',
+                },
+            ],
+            catalogs
+        );
+
+        expect(validItems).toEqual([]);
+        expect(errors).toHaveLength(1);
+        expect(errors[0]?.detalle).toContain('Costo debe ser un número entero mayor a 0');
+    });
+});
+
+describe('employeeCsvHelper', () => {
+    it('normalizes empty optional fields to null and lowercases emails', () => {
+        const { validRows, errors } = validateAndPrepareEmployeeRows([
+            {
+                IDEmpleado: '1001',
+                'Nombre/s': 'Carlos',
+                Apellidos: 'Mendoza',
+                'Tipo de Empleado': '   ',
+                Email: 'Carlos.Mendoza@UTR.EDU.MX',
+                Area: '',
+                Estado: 'ACTIVO',
+            },
+        ]);
+
+        expect(errors).toEqual([]);
+        expect(validRows).toEqual([
+            {
+                fila: 2,
+                data: {
+                    employeeId: 1001,
+                    firstName: 'Carlos',
+                    lastName: 'Mendoza',
+                    employeeType: null,
+                    email: 'carlos.mendoza@utr.edu.mx',
+                    area: null,
+                    status: true,
+                },
+            },
+        ]);
+    });
+
+    it('detects duplicate employeeId and duplicate email within the same file', () => {
+        const { validRows, errors } = validateAndPrepareEmployeeRows([
+            {
+                IDEmpleado: '1001',
+                'Nombre/s': 'Carlos',
+                Apellidos: 'Mendoza',
+                'Tipo de Empleado': 'PTC',
+                Email: 'carlos@utr.edu.mx',
+                Area: 'TI',
+                Estado: 'ACTIVO',
+            },
+            {
+                IDEmpleado: '1001',
+                'Nombre/s': 'Ana',
+                Apellidos: 'Lopez',
+                'Tipo de Empleado': 'PTC',
+                Email: 'ana@utr.edu.mx',
+                Area: 'TI',
+                Estado: 'ACTIVO',
+            },
+            {
+                IDEmpleado: '1002',
+                'Nombre/s': 'Luis',
+                Apellidos: 'Perez',
+                'Tipo de Empleado': 'PTC',
+                Email: 'CARLOS@utr.edu.mx',
+                Area: 'TI',
+                Estado: 'ACTIVO',
+            },
+        ]);
+
+        expect(validRows).toHaveLength(1);
+        expect(errors).toHaveLength(2);
+        expect(errors[0]?.fila).toBe(3);
+        expect(errors[0]?.detalle).toContain('ID de empleado "1001" está repetido');
+        expect(errors[1]?.fila).toBe(4);
+        expect(errors[1]?.detalle).toContain('correo "carlos@utr.edu.mx" está repetido');
     });
 });
 

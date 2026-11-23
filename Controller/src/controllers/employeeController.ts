@@ -1,79 +1,32 @@
 import { Employee } from "@dis/model";
 import type { Request, Response } from "express";
-import { z } from "zod";
+import { Op } from "sequelize";
 import { FilterOptions } from "../helpers/filterOptions.js";
 import { mySequelize } from '@dis/db/dbConection.js';
 import {
     buildCsvContent,
-    buildNormalizedRow,
-    findMissingFields,
-    isBlankCsvRow,
     parseCsvBuffer,
     validateCsvHeaders,
     type CsvRowError,
 } from "../helpers/csvHelper.js";
+import {
+    EMPLOYEE_CSV_HEADERS,
+    validateAndPrepareEmployeeRows,
+} from "../helpers/employeeCsvHelper.js";
 import {
     buildEmployeeTemplateWorkbookBuffer,
     parseXlsxBuffer,
 } from "../helpers/excelHelper.js";
 import { isXlsxFile } from "../middleware/csvUpload.js";
 
-const EmployeeValidation = z.object({
-        employeeId: z.coerce.number().int().positive(),
-        firstName: z.string().min(1),
-        lastName: z.string().min(1),
-        employeeType: z.string().optional(),
-        email: z.email(),
-        area: z.string().optional(),
-        status: z.preprocess(
-            (value) => {
-                if (typeof value === 'string') {
-                    const normalized = value.trim().toUpperCase();
+class EmployeeImportConflictError extends Error {
+    readonly errors: CsvRowError[];
 
-                    if (normalized === 'ACTIVO' || normalized === '1' || normalized === 'TRUE') return true;
-                    if (normalized === 'INACTIVO' || normalized === '0' || normalized === 'FALSE') return false;
-                }
-
-                if (value === true || value === 1) return true;
-                if (value === false || value === 0) return false;
-
-                return value;
-            },
-            z.boolean()
-        ),
-})
-
-const expectedCsvHeaders = [
-    'IDEmpleado',
-    'Nombre/s',
-    'Apellidos',
-    'Tipo de Empleado',
-    'Email',
-    'Area',
-    'Estado'
-] as const;
-
-const EMPLOYEE_REQUIRED_FIELD_LABELS: Record<string, string> = {
-    employeeId: 'IDEmpleado',
-    firstName: 'Nombre/s',
-    lastName: 'Apellidos',
-    email: 'Email',
-    status: 'Estado',
-};
-
-const mapExcelRowToEmployee = (row: Record<string, unknown>) => {
-    const normalizedRow = buildNormalizedRow(row);
-
-    return {
-        employeeId: normalizedRow.idempleado,
-        firstName: normalizedRow.nombres,
-        lastName: normalizedRow.apellidos,
-        employeeType: normalizedRow.tipodeempleado,
-        email: normalizedRow.email,
-        area: normalizedRow.area,
-        status: normalizedRow.estado,
-    };
-};
+    constructor(errors: CsvRowError[]) {
+        super('Se encontraron conflictos de correo electrónico con empleados existentes');
+        this.errors = errors;
+    }
+}
 
 const downloadEmployeeImportTemplate = async (req: Request, res: Response) => {
     try {
@@ -90,14 +43,14 @@ const downloadEmployeeImportTemplate = async (req: Request, res: Response) => {
         ];
 
         if (requestedFormat === 'csv') {
-            const csvContent = buildCsvContent(expectedCsvHeaders, [exampleRow]);
+            const csvContent = buildCsvContent(EMPLOYEE_CSV_HEADERS, [exampleRow]);
             res.setHeader('Content-Type', 'text/csv; charset=utf-8');
             res.setHeader('Content-Disposition', 'attachment; filename="plantilla_empleados.csv"');
             return res.status(200).send(csvContent);
         }
 
         const workbookBuffer = await buildEmployeeTemplateWorkbookBuffer({
-            headers: expectedCsvHeaders,
+            headers: EMPLOYEE_CSV_HEADERS,
             statuses: ['ACTIVO', 'INACTIVO'],
             exampleRow,
         });
@@ -123,12 +76,12 @@ const importEmployees = async (req: Request, res: Response) => {
         const { headers: fileHeaders, rows: parsedRows } = isXlsxFile(req.file)
             ? await parseXlsxBuffer(req.file.buffer, 'Empleados')
             : await parseCsvBuffer(req.file.buffer);
-        const headerValidation = validateCsvHeaders(fileHeaders, expectedCsvHeaders);
+        const headerValidation = validateCsvHeaders(fileHeaders, EMPLOYEE_CSV_HEADERS);
 
         if (!headerValidation.valid) {
             return res.status(400).json({
                 message: 'Los encabezados del archivo no son válidos',
-                expectedHeaders: [...expectedCsvHeaders],
+                expectedHeaders: [...EMPLOYEE_CSV_HEADERS],
                 receivedHeaders: fileHeaders,
                 missingHeaders: headerValidation.missingHeaders,
                 extraHeaders: headerValidation.extraHeaders,
@@ -136,82 +89,82 @@ const importEmployees = async (req: Request, res: Response) => {
             });
         }
 
-        const validRows: z.infer<typeof EmployeeValidation>[] = [];
-        const errors: CsvRowError[] = [];
-
-        parsedRows.forEach((row, index) => {
-            if (isBlankCsvRow(row)) {
-                return;
-            }
-
-            const fila = index + 2;
-            const mappedRow = mapExcelRowToEmployee(row);
-            const missingFields = findMissingFields(mappedRow, EMPLOYEE_REQUIRED_FIELD_LABELS);
-
-            if (missingFields.length > 0) {
-                errors.push({
-                    fila,
-                    camposFaltantes: missingFields,
-                    detalle: `Faltan campos obligatorios: ${missingFields.join(', ')}`,
-                });
-                return;
-            }
-
-            const result = EmployeeValidation.safeParse(mappedRow);
-
-            if (!result.success) {
-                errors.push({
-                    fila,
-                    detalle: result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
-                });
-                return;
-            }
-
-            validRows.push(result.data)
-        });
+        const { validRows, errors } = validateAndPrepareEmployeeRows(parsedRows);
 
         if (errors.length > 0) {
             return res.status(400).json({
                 message: 'Se encontraron errores de validación en el archivo CSV',
-                errors
+                errors,
             });
         }
 
         if (validRows.length === 0) {
             return res.status(400).json({
-                message: 'El archivo CSV no contiene filas válidas para importar'
+                message: 'El archivo CSV no contiene filas válidas para importar',
             });
         }
 
-        const t = await mySequelize.transaction();
-
-        try {
-            // `bulkCreate` realiza la inserción masiva en una sola consulta SQL
-            await Employee.bulkCreate(validRows, {
+        await mySequelize.transaction(async (t) => {
+            const existingByEmail = await Employee.findAll({
+                where: {
+                    email: {
+                        [Op.in]: validRows.map((row) => row.data.email),
+                    },
+                },
+                attributes: ['employeeId', 'email'],
                 transaction: t,
-                validate: true,
-                updateOnDuplicate: [
-                    'firstName',
-                    'lastName',
-                    'employeeType',
-                    'email',
-                    'area',
-                    'status'
-                ]
             });
 
-            // Si todo salió bien, guardamos los cambios de forma definitiva
-            await t.commit();
+            const emailOwnerMap = new Map<string, number>();
+            for (const existing of existingByEmail) {
+                const emailKey = String(existing.getDataValue('email') ?? '').trim().toLowerCase();
+                if (emailKey) {
+                    emailOwnerMap.set(emailKey, Number(existing.getDataValue('employeeId')));
+                }
+            }
 
-            return res.status(200).json({
-                message: 'Importación y actualización completada con éxito'
-            });
-        } catch (error) {
-            await t.rollback();
-            console.error('Error en la transacción:', error);
-            return res.status(500).json({ error: 'Error al escribir en la base de datos' });
-        }
+            const emailConflicts: CsvRowError[] = [];
+            for (const { fila, data } of validRows) {
+                const existingOwnerId = emailOwnerMap.get(data.email);
+                if (existingOwnerId !== undefined && existingOwnerId !== data.employeeId) {
+                    emailConflicts.push({
+                        fila,
+                        detalle: `El correo "${data.email}" ya pertenece a otro empleado registrado (ID ${existingOwnerId})`,
+                    });
+                }
+            }
+
+            if (emailConflicts.length > 0) {
+                throw new EmployeeImportConflictError(emailConflicts);
+            }
+
+            await Employee.bulkCreate(
+                validRows.map((row) => ({ ...row.data })),
+                {
+                    transaction: t,
+                    validate: true,
+                    updateOnDuplicate: [
+                        'firstName',
+                        'lastName',
+                        'employeeType',
+                        'email',
+                        'area',
+                        'status',
+                    ],
+                }
+            );
+        });
+
+        return res.status(200).json({
+            message: 'Importación y actualización completada con éxito',
+        });
     } catch (error) {
+        if (error instanceof EmployeeImportConflictError) {
+            return res.status(400).json({
+                message: 'Se encontraron conflictos con empleados existentes en la base de datos',
+                errors: error.errors,
+            });
+        }
         console.error('Error al importar empleados:', error);
         return res.status(500).json({ error: 'Error al procesar la importación' });
     }

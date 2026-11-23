@@ -6,7 +6,8 @@
     "dev": "tsx watch /app/Controller/src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "cd .. && node --experimental-vm-modules node_modules/jest/bin/jest.js --config Controller/jest.config.js"
   },
   "dependencies": {
     "@dis/model": "*",

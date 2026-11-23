@@ -22,7 +22,7 @@ itemRouter.post('/new-item', VerifyJWT(2), CreateItem);
 //Download template
 itemRouter.get('/import-template', VerifyJWT(2), downloadItemImportTemplate);
 
-//Import items
+//Import items (bulk upsert keyed by required `codeBar`, unlike single-item CreateItem where `codeBar` is optional)
 itemRouter.post('/import-items', VerifyJWT(2), uploadSpreadsheetSingle('file'), importItems);
 
 // Public inventory catalog

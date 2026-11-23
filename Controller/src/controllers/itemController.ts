@@ -3,7 +3,7 @@ import { NotificationType } from '@dis/model/userNotificationModel.js';
 import type { Response, Request } from 'express'
 import { Op, type WhereOptions } from 'sequelize';
 import { FilterOptions } from "../helpers/filterOptions.js";
-import { createHistoryLog } from '../helpers/historyHelper.js';
+import { createBulkHistoryLogs, createHistoryLog } from '../helpers/historyHelper.js';
 import { createUserNotification } from '../helpers/notificationHelper.js';
 import { mySequelize } from '@dis/db/dbConection.js';
 import {
@@ -725,6 +725,22 @@ const downloadItemImportTemplate = async (req: Request, res: Response) => {
     }
 };
 
+class ItemImportConflictError extends Error {
+    readonly duplicatedCodeBars: string[];
+
+    constructor(duplicatedCodeBars: string[]) {
+        super('Existen múltiples items en la base de datos con el mismo código de barras');
+        this.duplicatedCodeBars = duplicatedCodeBars;
+    }
+}
+
+const IMPORT_BATCH_SIZE = 25;
+
+/**
+ * Importa y actualiza artículos de inventario de forma masiva desde `.csv` o `.xlsx`.
+ * Nota de contrato: aunque `codeBar` es opcional en el modelo y en `CreateItem`, en la
+ * importación masiva es obligatorio porque funciona como clave de upsert.
+ */
 const importItems = async (req: Request, res: Response) => {
     try {
         if (!req.file) {
@@ -781,9 +797,21 @@ const importItems = async (req: Request, res: Response) => {
             });
         }
 
-        const t = await mySequelize.transaction();
+        const currentUserId =
+            typeof res.locals.jwtPayloadContent?.userId === 'number'
+                ? res.locals.jwtPayloadContent.userId
+                : null;
 
-        try {
+        const notificationTargets: Array<{
+            employeeId: number;
+            itemId: number;
+            itemName: string;
+            isNew: boolean;
+        }> = [];
+        let createdCount = 0;
+        let updatedCount = 0;
+
+        await mySequelize.transaction(async (t) => {
             const existingItems = await Item.findAll({
                 where: {
                     codeBar: {
@@ -810,6 +838,7 @@ const importItems = async (req: Request, res: Response) => {
             const itemsToUpdate: Array<{
                 instance: InstanceType<typeof Item>;
                 payload: ValidatedItemPayload;
+                previousResponsibleId: number | null;
             }> = [];
 
             for (const itemPayload of validItems) {
@@ -823,49 +852,173 @@ const importItems = async (req: Request, res: Response) => {
 
                 const existingMatch = matches[0];
                 if (existingMatch) {
-                    itemsToUpdate.push({ instance: existingMatch, payload: itemPayload });
+                    const prevResp = existingMatch.getDataValue('fk_user_responsible');
+                    itemsToUpdate.push({
+                        instance: existingMatch,
+                        payload: itemPayload,
+                        previousResponsibleId: prevResp !== null && prevResp !== undefined ? Number(prevResp) : null,
+                    });
                 } else {
                     itemsToCreate.push(itemPayload);
                 }
             }
 
             if (ambiguousCodeBars.length > 0) {
-                await t.rollback();
-                return res.status(409).json({
-                    message:
-                        'Existen múltiples items en la base de datos con el mismo código de barras; no se puede determinar cuál actualizar',
-                    duplicatedCodeBars: ambiguousCodeBars,
-                });
+                throw new ItemImportConflictError(ambiguousCodeBars);
             }
 
+            const historyEntries: Parameters<typeof createBulkHistoryLogs>[0][number][] = [];
+
             if (itemsToCreate.length > 0) {
-                await Item.bulkCreate(
+                const createdInstances = await Item.bulkCreate(
                     itemsToCreate.map((item) => ({ ...item })),
                     {
                         transaction: t,
                         validate: true,
                     }
                 );
+
+                const missingIdLookup = createdInstances.some((inst) => !inst.getDataValue('itemId'))
+                    ? await Item.findAll({
+                        where: {
+                            codeBar: {
+                                [Op.in]: itemsToCreate.map((item) => item.codeBar),
+                            },
+                        },
+                        attributes: ['itemId', 'codeBar'],
+                        transaction: t,
+                    })
+                    : [];
+
+                const createdIdByCodeBar = new Map<string, number>();
+                for (const inst of missingIdLookup) {
+                    const cb = String(inst.getDataValue('codeBar') ?? '').trim().toLowerCase();
+                    const id = Number(inst.getDataValue('itemId'));
+                    if (cb && Number.isInteger(id) && id > 0) {
+                        createdIdByCodeBar.set(cb, id);
+                    }
+                }
+
+                createdInstances.forEach((createdInstance, index) => {
+                    const payload = itemsToCreate[index];
+                    if (!payload) return;
+
+                    const rawId = Number(createdInstance.getDataValue('itemId'));
+                    const itemId =
+                        Number.isInteger(rawId) && rawId > 0
+                            ? rawId
+                            : (createdIdByCodeBar.get(payload.codeBar.trim().toLowerCase()) ?? null);
+
+                    historyEntries.push({
+                        historyDescription: `Se importó el item "${payload.itemName}" con código de barras: ${payload.codeBar}.`.slice(0, 255),
+                        actionType: 'CREATE',
+                        userId: currentUserId,
+                        itemId,
+                        placeId: payload.fk_place,
+                    });
+
+                    if (itemId !== null) {
+                        notificationTargets.push({
+                            employeeId: payload.fk_user_responsible,
+                            itemId,
+                            itemName: payload.itemName,
+                            isNew: true,
+                        });
+                    }
+                });
             }
 
-            for (const { instance, payload } of itemsToUpdate) {
-                await instance.update({ ...payload }, { transaction: t });
+            for (let i = 0; i < itemsToUpdate.length; i += IMPORT_BATCH_SIZE) {
+                const batch = itemsToUpdate.slice(i, i + IMPORT_BATCH_SIZE);
+                await Promise.all(
+                    batch.map(({ instance, payload }) => instance.update({ ...payload }, { transaction: t }))
+                );
             }
 
-            await t.commit();
+            for (const { instance, payload, previousResponsibleId } of itemsToUpdate) {
+                const itemId = Number(instance.getDataValue('itemId'));
+                const validItemId = Number.isInteger(itemId) && itemId > 0 ? itemId : null;
 
-            return res.status(200).json({
-                message: 'Importación y actualización de items completada con éxito',
-                totalProcesados: validItems.length,
-                creados: itemsToCreate.length,
-                actualizados: itemsToUpdate.length,
+                historyEntries.push({
+                    historyDescription: `Se actualizó por importación el item "${payload.itemName}"${validItemId ? ` (#${validItemId})` : ''} con código de barras: ${payload.codeBar}.`.slice(0, 255),
+                    actionType: 'UPDATE',
+                    userId: currentUserId,
+                    itemId: validItemId,
+                    placeId: payload.fk_place,
+                });
+
+                if (validItemId !== null && previousResponsibleId !== payload.fk_user_responsible) {
+                    notificationTargets.push({
+                        employeeId: payload.fk_user_responsible,
+                        itemId: validItemId,
+                        itemName: payload.itemName,
+                        isNew: false,
+                    });
+                }
+            }
+
+            await createBulkHistoryLogs(historyEntries, t);
+
+            createdCount = itemsToCreate.length;
+            updatedCount = itemsToUpdate.length;
+        });
+
+        if (notificationTargets.length > 0) {
+            const uniqueEmployeeIds = Array.from(new Set(notificationTargets.map((target) => target.employeeId)));
+            const responsibleUsers = await User.findAll({
+                where: {
+                    employeeId: {
+                        [Op.in]: uniqueEmployeeIds,
+                    },
+                },
+                attributes: ['userId', 'employeeId'],
             });
-        } catch (error) {
-            await t.rollback();
-            console.error('Error en la transacción de importación de items:', error);
-            return res.status(500).json({ message: 'Error al escribir los items en la base de datos' });
+
+            const userIdByEmployeeId = new Map<number, number>();
+            for (const user of responsibleUsers) {
+                const empId = Number(user.getDataValue('employeeId'));
+                const usrId = Number(user.getDataValue('userId'));
+                if (Number.isInteger(empId) && Number.isInteger(usrId)) {
+                    userIdByEmployeeId.set(empId, usrId);
+                }
+            }
+
+            const notificationsToSend = notificationTargets.flatMap((target) => {
+                const targetUserId = userIdByEmployeeId.get(target.employeeId);
+                if (!targetUserId || (currentUserId !== null && targetUserId === currentUserId)) {
+                    return [];
+                }
+                return [{
+                    notificationType: NotificationType.ITEM,
+                    requestDescription: target.isNew
+                        ? `Se te ha asignado la responsabilidad del nuevo item "${target.itemName}".`
+                        : `Se te ha asignado la responsabilidad del item "${target.itemName}".`,
+                    fk_trigger: target.itemId,
+                    fk_user_trigger: currentUserId,
+                    fk_notified: targetUserId,
+                }];
+            });
+
+            for (let i = 0; i < notificationsToSend.length; i += IMPORT_BATCH_SIZE) {
+                const batch = notificationsToSend.slice(i, i + IMPORT_BATCH_SIZE);
+                await Promise.all(batch.map((notification) => createUserNotification(notification)));
+            }
         }
+
+        return res.status(200).json({
+            message: 'Importación y actualización de items completada con éxito',
+            totalProcesados: validItems.length,
+            creados: createdCount,
+            actualizados: updatedCount,
+        });
     } catch (error) {
+        if (error instanceof ItemImportConflictError) {
+            return res.status(409).json({
+                message:
+                    'Existen múltiples items en la base de datos con el mismo código de barras; no se puede determinar cuál actualizar',
+                duplicatedCodeBars: error.duplicatedCodeBars,
+            });
+        }
         console.error('Error al importar items:', error);
         return res.status(500).json({ message: 'Error al procesar la importación de items' });
     }
