@@ -15,12 +15,15 @@ import { getAllUsers, type UserAccount } from '../../services/UserServices';
 import { useAuth } from '../../utils/auth';
 import { ReportForm } from '../../components/reports/ReportForm';
 
+type FabAction = 'edit' | 'delete' | 'add';
+
 export const Inventory: React.FC = () => {
   const {
     viewType,
     searchQuery,
     categoryFilter,
     placeFilter,
+    ownItemsOnly,
     setCategoryOptions,
     setPlaceOptions,
   } = useView();
@@ -47,6 +50,10 @@ export const Inventory: React.FC = () => {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isChangingStatusInline, setIsChangingStatusInline] = useState(false);
   const [isFabExpanded, setIsFabExpanded] = useState(false);
+  const [fabBaseAction, setFabBaseAction] = useState<FabAction>('edit');
+  const [isFabClosing, setIsFabClosing] = useState(false);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [selectedItemIdsForDeletion, setSelectedItemIdsForDeletion] = useState<number[]>([]);
   const [editFormData, setEditFormData] = useState({
     itemName: '',
     itemDescription: '',
@@ -109,7 +116,14 @@ export const Inventory: React.FC = () => {
     const itemCategory = typeof item.category === 'string' ? item.category : item.category?.name;
     const matchesCategory = !categoryFilter || itemCategory === categoryFilter;
     const matchesPlace = !placeFilter || item.fk_place?.placeName === placeFilter;
-    return matchesSearch && matchesCategory && matchesPlace;
+    const responsibleId = item.fk_user_responsible?.employeeId ?? item.fk_user_responsible?.id;
+    const currentUserId = currentUser?.employeeId ?? currentUser?.userId;
+    const matchesOwnItems = !ownItemsOnly || (
+      currentUserId !== undefined
+      && responsibleId !== undefined
+      && responsibleId === currentUserId
+    );
+    return matchesSearch && matchesCategory && matchesPlace && matchesOwnItems;
   });
 
   useEffect(() => {
@@ -257,19 +271,100 @@ export const Inventory: React.FC = () => {
     }
   };
 
-  const handleDeleteItem = async () => {
-    if (!selectedItem) return;
-    const confirmDelete = window.confirm(`¿Estás seguro de que deseas dar de baja y eliminar el activo "${selectedItem.itemName}" (#${selectedItem.itemId})? Esta acción no se puede deshacer.`);
-    if (!confirmDelete) return;
+  const resetFab = () => {
+    setFabBaseAction('edit');
+    setIsFabExpanded(false);
+    setIsFabClosing(false);
+    setIsDeleteMode(false);
+    setSelectedItemIdsForDeletion([]);
+  };
+
+  const handleToggleSelectItemForDeletion = (itemId: number) => {
+    setSelectedItemIdsForDeletion((prev) =>
+      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
+    );
+  };
+
+  const isAllSelectedForDeletion = filteredItems.length > 0
+    && filteredItems.every((item) => selectedItemIdsForDeletion.includes(item.itemId));
+
+  const handleSelectAllForDeletion = () => {
+    if (isAllSelectedForDeletion) {
+      setSelectedItemIdsForDeletion([]);
+    } else {
+      setSelectedItemIdsForDeletion(filteredItems.map((item) => item.itemId));
+    }
+  };
+
+  const handleDeleteSelectedItems = async () => {
+    if (selectedItemIdsForDeletion.length === 0) return;
+
+    const count = selectedItemIdsForDeletion.length;
+    const confirmDelete = window.confirm(
+      count === 1
+        ? '¿Estás seguro de que deseas dar de baja y eliminar el activo seleccionado? Esta acción no se puede deshacer.'
+        : `¿Estás seguro de que deseas dar de baja y eliminar los ${count} activos seleccionados? Esta acción no se puede deshacer.`
+    );
+    if (!confirmDelete) {
+      return;
+    }
 
     setIsDeletingItem(true);
     setAdminActionMessage('');
     setAdminActionError('');
     try {
-      await deleteItem(selectedItem.itemId);
-      setItems((prev) => prev.filter((item) => item.itemId !== selectedItem.itemId));
-      setSelectedItem(null);
+      const deletePromises = selectedItemIdsForDeletion.map((id) => deleteItem(id));
+      const settled = await Promise.allSettled(deletePromises);
+      const successfulIds = selectedItemIdsForDeletion.filter(
+        (_, idx) => settled[idx].status === 'fulfilled'
+      );
+      const failedCount = settled.length - successfulIds.length;
+
+      setItems((prev) => prev.filter((currentItem) => !successfulIds.includes(currentItem.itemId)));
+      if (selectedItem && successfulIds.includes(selectedItem.itemId)) {
+        setSelectedItem(null);
+      }
+      setSelectedItemIdsForDeletion([]);
+      setIsDeleteMode(false);
+      setFabBaseAction('edit');
+
+      if (failedCount === 0) {
+        setAdminActionMessage(
+          count === 1
+            ? 'Activo eliminado con éxito.'
+            : `${count} activos eliminados con éxito.`
+        );
+      } else {
+        setAdminActionError(
+          `Se eliminaron ${successfulIds.length} activo(s), pero falló la eliminación de ${failedCount} activo(s).`
+        );
+      }
+    } catch (err) {
+      setAdminActionError(err instanceof Error ? err.message : 'Error al eliminar los activos seleccionados');
+    } finally {
+      setIsDeletingItem(false);
+    }
+  };
+
+  const handleDeleteSingleItem = async (itemToDelete: Item) => {
+    const confirmDelete = window.confirm(
+      `¿Estás seguro de que deseas dar de baja y eliminar el activo "${itemToDelete.itemName}" (#${itemToDelete.itemId})? Esta acción no se puede deshacer.`
+    );
+    if (!confirmDelete) {
+      return;
+    }
+
+    setIsDeletingItem(true);
+    setAdminActionMessage('');
+    setAdminActionError('');
+    try {
+      await deleteItem(itemToDelete.itemId);
+      setItems((prev) => prev.filter((currentItem) => currentItem.itemId !== itemToDelete.itemId));
+      if (selectedItem?.itemId === itemToDelete.itemId) {
+        setSelectedItem(null);
+      }
       setIsFabExpanded(false);
+      setAdminActionMessage(`Activo "${itemToDelete.itemName}" (#${itemToDelete.itemId}) eliminado con éxito.`);
     } catch (err) {
       setAdminActionError(err instanceof Error ? err.message : 'Error al eliminar el activo');
     } finally {
@@ -297,6 +392,7 @@ export const Inventory: React.FC = () => {
 
   const closeItemModal = () => {
     if (isSubmittingItem) return;
+    resetFab();
     setIsItemModalOpen(false);
     setItemMessage('');
     setNewItem({
@@ -345,6 +441,7 @@ export const Inventory: React.FC = () => {
       });
       setItems(await getItems());
       setIsItemModalOpen(false);
+      resetFab();
       setNewItem({
         itemName: '',
         itemDescription: '',
@@ -372,67 +469,114 @@ export const Inventory: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.statsGrid}>
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconRed}`}>🪑</div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Total de Mobiliario</span>
-            <span className={styles.statValue}>{totalItems}</span>
-            <span className={styles.statSubtext}>Todos los ítems registrados</span>
+      {isAdminOrSuper && (
+        <div className={styles.statsGrid}>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.iconRed}`}>🪑</div>
+            <div className={styles.statInfo}>
+              <span className={styles.statLabel}>Total de Mobiliario</span>
+              <span className={styles.statValue}>{totalItems}</span>
+              <span className={styles.statSubtext}>Todos los ítems registrados</span>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.iconGreen}`}>✓</div>
+            <div className={styles.statInfo}>
+              <span className={styles.statLabel}>En Uso</span>
+              <span className={styles.statValue}>{inUseCount}</span>
+              <span className={styles.statSubtext}>{inUsePercent}% del total</span>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.iconYellow}`}>▣</div>
+            <div className={styles.statInfo}>
+              <span className={styles.statLabel}>En Bodega</span>
+              <span className={styles.statValue}>{inStockCount}</span>
+              <span className={styles.statSubtext}>{inStockPercent}% del total</span>
+            </div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.iconWarning}`}>!</div>
+            <div className={styles.statInfo}>
+              <span className={styles.statLabel}>Dañado</span>
+              <span className={styles.statValue}>{damagedCount}</span>
+              <span className={styles.statSubtext}>{damagedPercent}% del total</span>
+            </div>
           </div>
         </div>
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconGreen}`}>✓</div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>En Uso</span>
-            <span className={styles.statValue}>{inUseCount}</span>
-            <span className={styles.statSubtext}>{inUsePercent}% del total</span>
+      )}
+
+      {adminActionMessage && (
+        <div className={styles.alertSuccess}>{adminActionMessage}</div>
+      )}
+      {adminActionError && (
+        <div className={styles.alertError}>{adminActionError}</div>
+      )}
+
+      {isDeleteMode && (
+        <div className={styles.deleteModeBanner}>
+          <div className={styles.deleteModeInfo}>
+            <span className={styles.deleteModeIcon}>🗑️</span>
+            <span className={styles.deleteModeTitle}>Modo Borrar Activos</span>
+            <span className={styles.deleteModeCounter}>
+              {selectedItemIdsForDeletion.length} de {filteredItems.length} seleccionado(s)
+            </span>
+          </div>
+          <div className={styles.deleteModeActions}>
+            <button
+              type="button"
+              className={styles.deleteConfirmBtn}
+              disabled={selectedItemIdsForDeletion.length === 0 || isDeletingItem}
+              onClick={handleDeleteSelectedItems}
+            >
+              {isDeletingItem
+                ? 'Eliminando...'
+                : `Eliminar seleccionados (${selectedItemIdsForDeletion.length})`}
+            </button>
+            <button
+              type="button"
+              className={styles.deleteCancelBtn}
+              disabled={isDeletingItem}
+              onClick={resetFab}
+            >
+              Cancelar
+            </button>
           </div>
         </div>
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconYellow}`}>▣</div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>En Bodega</span>
-            <span className={styles.statValue}>{inStockCount}</span>
-            <span className={styles.statSubtext}>{inStockPercent}% del total</span>
-          </div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconWarning}`}>!</div>
-          <div className={styles.statInfo}>
-            <span className={styles.statLabel}>Dañado</span>
-            <span className={styles.statValue}>{damagedCount}</span>
-            <span className={styles.statSubtext}>{damagedPercent}% del total</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       <div className={styles.dataContainer}>
         {viewType === 'tabla' ? (
           <div className={styles.tableSection}>
             <div className={styles.tableToolbar}>
               <span>Inventario</span>
-              <button
-                className={styles.addItemBtn}
-                type="button"
-                onClick={() => {
-                  setItemMessage('');
-                  setIsItemModalOpen(true);
-                }}
-                aria-label="Agregar artículo de prueba"
-                title="Agregar artículo de prueba"
-              >
-                +
-              </button>
             </div>
-            <ItemTable items={filteredItems} onSelectItem={setSelectedItem} />
+            <ItemTable
+              items={filteredItems}
+              onSelectItem={setSelectedItem}
+              canViewCost={isAdminOrSuper}
+              canViewCodeBar={isAdminOrSuper}
+              isDeleteMode={isDeleteMode}
+              selectedItemIds={selectedItemIdsForDeletion}
+              onToggleSelectItem={handleToggleSelectItemForDeletion}
+              onSelectAllItems={handleSelectAllForDeletion}
+              isAllSelected={isAllSelectedForDeletion}
+            />
           </div>
         ) : (
-          <CardGrid items={filteredItems} onSelectItem={setSelectedItem} />
+          <CardGrid
+            items={filteredItems}
+            onSelectItem={setSelectedItem}
+            canViewCost={isAdminOrSuper}
+            canViewCodeBar={isAdminOrSuper}
+            isDeleteMode={isDeleteMode}
+            selectedItemIds={selectedItemIdsForDeletion}
+            onToggleSelectItem={handleToggleSelectItemForDeletion}
+          />
         )}
       </div>
 
-      {/* Botones Flotantes (Figma Admin Actions Expandible: Base Lápiz) */}
+      {/* Botones Flotantes (Figma Admin Actions Expandible: Base Despliegue Neutro) */}
       {isAdminOrSuper && (
         <div className={styles.fabContainer}>
           {/* Si está abierto el modal de agregar, el FAB se convierte en el botón verde de crear sin sub-botones */}
@@ -453,8 +597,8 @@ export const Inventory: React.FC = () => {
             </button>
           ) : (
             <>
-              {/* Sub-botones desplegados hacia arriba al presionar el Lápiz */}
-              <div className={`${styles.fabItemsWrapper} ${isFabExpanded ? styles.fabItemsWrapperOpen : ''}`}>
+              {/* Sub-botones desplegados hacia arriba al presionar el botón base */}
+              <div className={`${styles.fabItemsWrapper} ${isFabExpanded ? styles.fabItemsWrapperOpen : ''} ${isFabClosing ? styles.fabItemsWrapperClosing : ''}`}>
                   {/* 3.- Botón Verde: Agregar Activo */}
                   <button
                     className={`${styles.fabBtn} ${styles.fabAdd}`}
@@ -462,9 +606,14 @@ export const Inventory: React.FC = () => {
                     title="Agregar nuevo activo"
                     aria-label="Agregar activo"
                     onClick={() => {
-                      setItemMessage('');
-                      setIsItemModalOpen(true);
-                      setIsFabExpanded(false);
+                      setIsFabClosing(true);
+                      window.setTimeout(() => {
+                        setFabBaseAction('add');
+                        setIsFabExpanded(false);
+                        setIsFabClosing(false);
+                        setItemMessage('');
+                        setIsItemModalOpen(true);
+                      }, 300);
                     }}
                   >
                     <svg viewBox="0 0 24 24" className={styles.fabIcon}>
@@ -472,54 +621,84 @@ export const Inventory: React.FC = () => {
                     </svg>
                   </button>
 
-                  {/* 2.- Botón Rojo: Borrar Activo (Superadmin) */}
-                  {isSuperAdmin && (
+                  {/* 2.- Botón Rojo: Borrar Activo / Modo Borrar */}
+                  {isAdminOrSuper && (
                     <button
                       className={`${styles.fabBtn} ${styles.fabDelete}`}
                       type="button"
-                      title={selectedItem ? `Borrar "${selectedItem.itemName}"` : 'Abre o selecciona un activo para borrar'}
-                      aria-label="Borrar activo"
-                      disabled={!selectedItem || isDeletingItem}
+                      title={
+                        selectedItem
+                          ? `Eliminar activo "${selectedItem.itemName}"`
+                          : isDeleteMode
+                            ? 'Modo borrar activo'
+                            : 'Activar modo borrar'
+                      }
+                      aria-label={selectedItem ? 'Eliminar activo' : 'Modo borrar'}
+                      disabled={isDeletingItem}
                       onClick={() => {
-                        handleDeleteItem();
-                        setIsFabExpanded(false);
+                        if (selectedItem) {
+                          handleDeleteSingleItem(selectedItem);
+                        } else {
+                          setIsFabClosing(true);
+                          window.setTimeout(() => {
+                            setFabBaseAction('delete');
+                            setIsFabExpanded(false);
+                            setIsFabClosing(false);
+                            setIsDeleteMode(true);
+                            setSelectedItemIdsForDeletion([]);
+                          }, 300);
+                        }
                       }}
                     >
                       <svg viewBox="0 0 24 24" className={styles.fabIcon}>
-                        <path d="M19 13H5v-2h14v2z" />
+                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
                       </svg>
                     </button>
                   )}
                 </div>
 
-              {/* 1.- Botón Inicial Base: Lápiz (Editar / Expandir) */}
+              {/* 1.- Botón Inicial Base: Flecha neutra de despliegue / Acción activa */}
               <button
-                className={`${styles.fabBtn} ${styles.fabEdit} ${isFabExpanded ? styles.fabEditActive : ''}`}
+                className={`${styles.fabBtn} ${fabBaseAction === 'add' ? styles.fabAdd : fabBaseAction === 'delete' ? styles.fabDelete : styles.fabEdit} ${isFabExpanded ? styles.fabEditActive : ''}`}
                 type="button"
                 title={
-                  isFabExpanded
-                    ? selectedItem
-                      ? 'Editar activo seleccionado'
-                      : 'Cerrar opciones'
-                    : 'Opciones de gestión / Editar activo'
+                  fabBaseAction === 'delete'
+                    ? selectedItemIdsForDeletion.length > 0
+                      ? `Eliminar ${selectedItemIdsForDeletion.length} activo(s) seleccionado(s)`
+                      : 'Salir del modo borrar'
+                    : isFabExpanded
+                      ? 'Cerrar opciones de gestión'
+                      : 'Opciones de gestión'
                 }
-                aria-label="Editar o gestionar"
+                aria-label="Opciones de gestión"
                 onClick={() => {
-                  if (!isFabExpanded) {
-                    setIsFabExpanded(true);
-                  } else {
-                    if (selectedItem) {
-                      startEditing();
-                    }
-                    setIsFabExpanded(false);
+                  if (fabBaseAction === 'add') {
+                    setItemMessage('');
+                    setIsItemModalOpen(true);
+                    return;
                   }
+                  if (fabBaseAction === 'delete') {
+                    if (selectedItemIdsForDeletion.length > 0) {
+                      handleDeleteSelectedItems();
+                    } else {
+                      resetFab();
+                    }
+                    return;
+                  }
+                  setIsFabExpanded((prev) => !prev);
                 }}
               >
                 <svg
                   viewBox="0 0 24 24"
                   className={`${styles.fabIcon} ${isFabExpanded ? styles.fabIconRotate : ''}`}
                 >
-                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                  {fabBaseAction === 'add' && <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />}
+                  {fabBaseAction === 'delete' && (
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                  )}
+                  {fabBaseAction === 'edit' && (
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                  )}
                 </svg>
               </button>
             </>
@@ -754,19 +933,21 @@ export const Inventory: React.FC = () => {
                     </div>
 
                     {/* Sección 3: Valor */}
-                    <div className={styles.detailSection}>
-                      <div className={styles.sectionHeader}>
-                        <span>Valor</span>
+                    {isAdminOrSuper && (
+                      <div className={styles.detailSection}>
+                        <div className={styles.sectionHeader}>
+                          <span>Valor</span>
+                        </div>
+                        <div className={styles.keyValueGrid}>
+                          <span className={styles.keyLabel}>Costo:</span>
+                          <span className={styles.costHighlight}>
+                            {typeof selectedItem.cost === 'number'
+                              ? `$${selectedItem.cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : 'No disponible'}
+                          </span>
+                        </div>
                       </div>
-                      <div className={styles.keyValueGrid}>
-                        <span className={styles.keyLabel}>Costo:</span>
-                        <span className={styles.costHighlight}>
-                          {typeof selectedItem.cost === 'number'
-                            ? `$${selectedItem.cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                            : 'No disponible'}
-                        </span>
-                      </div>
-                    </div>
+                    )}
                   </>
                 )}
               </div>
@@ -775,6 +956,25 @@ export const Inventory: React.FC = () => {
               <div className={styles.modalRightColumn}>
                 {/* Bloque de Acciones Superior */}
                 <div className={styles.actionsBlock}>
+                  {isAdminOrSuper && (
+                    <button
+                      className={styles.editPrimaryBtn}
+                      type="button"
+                      onClick={startEditing}
+                    >
+                      <span>✏️ Editar Activo</span>
+                    </button>
+                  )}
+                  {isAdminOrSuper && (
+                    <button
+                      className={styles.deleteModalBtn}
+                      type="button"
+                      disabled={isDeletingItem}
+                      onClick={() => handleDeleteSingleItem(selectedItem)}
+                    >
+                      <span>🗑️ Eliminar Activo</span>
+                    </button>
+                  )}
                   <button
                     className={styles.requestPrimaryBtn}
                     type="button"

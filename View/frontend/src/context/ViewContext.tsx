@@ -9,6 +9,8 @@ interface ViewContextType {
   setCategoryFilter: (category: string) => void;
   placeFilter: string;
   setPlaceFilter: (place: string) => void;
+  ownItemsOnly: boolean;
+  setOwnItemsOnly: (ownItemsOnly: boolean) => void;
   categoryOptions: string[];
   setCategoryOptions: (categories: string[]) => void;
   placeOptions: string[];
@@ -24,6 +26,8 @@ const ViewContext = createContext<ViewContextType>({
   setCategoryFilter: () => {},
   placeFilter: '',
   setPlaceFilter: () => {},
+  ownItemsOnly: false,
+  setOwnItemsOnly: () => {},
   categoryOptions: [],
   setCategoryOptions: () => {},
   placeOptions: [],
@@ -35,6 +39,7 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [placeFilter, setPlaceFilter] = useState('');
+  const [ownItemsOnly, setOwnItemsOnly] = useState(false);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [placeOptions, setPlaceOptions] = useState<string[]>([]);
 
@@ -48,6 +53,8 @@ export const ViewProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCategoryFilter,
       placeFilter,
       setPlaceFilter,
+      ownItemsOnly,
+      setOwnItemsOnly,
       categoryOptions,
       setCategoryOptions,
       placeOptions,
