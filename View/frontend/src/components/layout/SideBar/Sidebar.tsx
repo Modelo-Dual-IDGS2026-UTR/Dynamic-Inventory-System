@@ -25,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
     { name: 'Usuarios', path: '/Dashboard/usuarios', icon: '👥', role: 1 },
   ];
   const visibleMenuItems = menuItems.filter((item) => !('role' in item) || item.role === currentUser?.fk_role);
+  const normalizedPathname = `/${location.pathname.toLowerCase().replace(/^\/+|\/+$/g, '')}`;
 
   return (
     <>
@@ -54,12 +55,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
         <nav className={styles.navMenu}>
           <ul className={styles.menuList}>
             {visibleMenuItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const normalizedItemPath = `/${item.path.toLowerCase().replace(/^\/+|\/+$/g, '')}`;
+              const isActive = normalizedPathname === normalizedItemPath;
               return (
                 <li key={item.name}>
                   <button
                     className={`${styles.menuBtn} ${isActive ? styles.active : ''}`}
                     onClick={() => navigate(item.path)}
+                    aria-current={isActive ? 'page' : undefined}
                   >
                     <span className={styles.menuIcon}>{item.icon}</span>
                     <span className={styles.menuText}>{item.name}</span>
