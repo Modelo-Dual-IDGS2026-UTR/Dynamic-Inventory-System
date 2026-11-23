@@ -578,6 +578,212 @@ tbody tr:focus-visible {
   transition: all 0.15s ease;
 }
 
+.editPrimaryBtn {
+  background-color: #0284c7;
+  color: #ffffff;
+  border: none;
+  padding: 11px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.editPrimaryBtn:hover {
+  background-color: #0369a1;
+  box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2);
+}
+
+.deleteModalBtn {
+  background-color: #ef4444;
+  color: #ffffff;
+  border: none;
+  padding: 11px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.deleteModalBtn:hover:not(:disabled) {
+  background-color: #dc2626;
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+}
+
+.deleteModalBtn:disabled {
+  background-color: #fca5a5;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.deleteModeBanner {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.deleteModeInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.deleteModeIcon {
+  font-size: 1.25rem;
+}
+
+.deleteModeTitle {
+  font-weight: 700;
+  color: #991b1b;
+  font-size: 0.95rem;
+}
+
+.deleteModeCounter {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid #fca5a5;
+}
+
+.deleteModeActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.deleteConfirmBtn {
+  background-color: #dc2626;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.deleteConfirmBtn:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.deleteConfirmBtn:disabled {
+  background-color: #fca5a5;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.deleteCancelBtn {
+  background-color: #ffffff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.deleteCancelBtn:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.rowSelectedForDelete {
+  background-color: #fef2f2 !important;
+}
+
+.rowSelectedForDelete:hover {
+  background-color: #fee2e2 !important;
+}
+
+.deleteColHeader {
+  width: 140px;
+  text-align: left;
+}
+
+.checkboxWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkboxWrapper input,
+.deleteColCell input,
+.cardCheckboxWrapper input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #dc2626;
+  margin: 0;
+}
+
+.deleteColLabel {
+  font-size: 0.85rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.deleteColCell {
+  text-align: center;
+  width: 48px;
+}
+
+.cardSelectedForDelete {
+  border-color: #f87171 !important;
+  background-color: #fffafb !important;
+  box-shadow: 0 0 0 1.5px #ef4444 !important;
+}
+
+.cardCheckboxWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+
+.alertSuccess {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.alertError {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 .editOutlineBtn {
   display: none;
 }
@@ -625,14 +831,14 @@ tbody tr:focus-visible {
 }
 
 .fabItemsWrapperOpen {
-  max-height: 130px;
+  max-height: 200px;
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0) scale(1);
 }
 
 .fabItemsWrapperClosing {
-  max-height: 130px;
+  max-height: 200px;
   opacity: 1;
   pointer-events: none;
   transform: translateY(0) scale(1);

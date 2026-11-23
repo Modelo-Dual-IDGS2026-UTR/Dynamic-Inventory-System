@@ -8,7 +8,10 @@ interface ItemTableProps {
     canViewCost: boolean;
     canViewCodeBar: boolean;
     isDeleteMode: boolean;
-    onDeleteItem: (item: Item) => void;
+    selectedItemIds: number[];
+    onToggleSelectItem: (itemId: number) => void;
+    onSelectAllItems: () => void;
+    isAllSelected: boolean;
 }
 
 function ItemTable({
@@ -17,7 +20,10 @@ function ItemTable({
     canViewCost,
     canViewCodeBar,
     isDeleteMode,
-    onDeleteItem,
+    selectedItemIds,
+    onToggleSelectItem,
+    onSelectAllItems,
+    isAllSelected,
 }: ItemTableProps): JSX.Element {
     const getStatusClass = (status: string) => {
         switch (status) {
@@ -36,7 +42,20 @@ function ItemTable({
         <table>
             <thead>
                 <tr>
-                    {isDeleteMode && <th aria-label="Seleccionar para borrar" />}
+                    {isDeleteMode && (
+                        <th className={styles.deleteColHeader}>
+                            <label className={styles.checkboxWrapper}>
+                                <input
+                                    type="checkbox"
+                                    aria-label="Seleccionar todos para borrar"
+                                    title="Seleccionar todos para borrar"
+                                    checked={isAllSelected}
+                                    onChange={onSelectAllItems}
+                                />
+                                <span className={styles.deleteColLabel}>Seleccionar</span>
+                            </label>
+                        </th>
+                    )}
                     <th>ID</th>
                     <th>Name</th>
                     <th>Description</th>
@@ -56,30 +75,42 @@ function ItemTable({
                         ? `${item.fk_user_responsible.employeeId ?? item.fk_user_responsible.id ?? ''} - ${item.fk_user_responsible.firstName} ${item.fk_user_responsible.lastName}`
                         : 'N/A';
                     const formattedCost = typeof item.cost === 'number' ? `$${item.cost.toFixed(2)}` : 'N/A';
+                    const isSelected = selectedItemIds.includes(item.itemId);
 
                     return (
                         <tr
                             key={item.itemId}
+                            className={isSelected ? styles.rowSelectedForDelete : undefined}
                             onClick={() => {
-                                if (!isDeleteMode) onSelectItem(item);
+                                if (isDeleteMode) {
+                                    onToggleSelectItem(item.itemId);
+                                } else {
+                                    onSelectItem(item);
+                                }
                             }}
                             onKeyDown={(event) => {
                                 if (event.key === 'Enter' || event.key === ' ') {
                                     event.preventDefault();
-                                    if (!isDeleteMode) onSelectItem(item);
+                                    if (isDeleteMode) {
+                                        onToggleSelectItem(item.itemId);
+                                    } else {
+                                        onSelectItem(item);
+                                    }
                                 }
                             }}
                             tabIndex={0}
                             role="button"
                         >
                             {isDeleteMode && (
-                                <td>
+                                <td
+                                    className={styles.deleteColCell}
+                                    onClick={(event) => event.stopPropagation()}
+                                >
                                     <input
                                         type="checkbox"
-                                        aria-label={`Borrar ${item.itemName}`}
-                                        checked={false}
-                                        onClick={(event) => event.stopPropagation()}
-                                        onChange={() => onDeleteItem(item)}
+                                        aria-label={`Seleccionar ${item.itemName} para borrar`}
+                                        checked={isSelected}
+                                        onChange={() => onToggleSelectItem(item.itemId)}
                                     />
                                 </td>
                             )}
